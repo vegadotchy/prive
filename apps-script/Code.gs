@@ -63,7 +63,7 @@ const CONFIG = {
   },
 
   // Envoyer un email même quand AUCUN doublon n'est trouvé (confirme que ça tourne).
-  ALWAYS_NOTIFY: false,
+  ALWAYS_NOTIFY: true,
 
   TIMEZONE: 'Europe/Brussels'
 };
