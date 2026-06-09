@@ -87,3 +87,11 @@ nouvelle copie **« IATECHFUTUR - Style Amazon v2 »** (`OnlineStoreTheme/197805
   (`#main-collection-filters`, `.facets*`) ; grille produits en pleine largeur.
 - Appliqué sur **« IATECHFUTUR - Style Amazon v3 »** (`OnlineStoreTheme/197807440212`).
   ⚠️ À tester en **Aperçu** avant de publier (publier verrouille l'édition via l'API).
+
+## v4 — Espace connexion / inscription (façon Amazon)
+Ajout d'un bloc compte dans la barre de rayons (à droite) :
+- Déconnecté : « Bonjour · Identifiez-vous » (→ login) + bouton « S'inscrire » (→ register)
+- Connecté : « Bonjour, {prénom} · Mon compte » (→ compte)
+Et l'en-tête « Bonjour… » du menu latéral devient cliquable (login/compte) +
+lien « Nouveau client ? Inscrivez-vous » pour le mobile.
+Appliqué sur **« IATECHFUTUR - Style Amazon v4 »** (`OnlineStoreTheme/197808161108`).

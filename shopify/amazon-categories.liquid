@@ -17,7 +17,7 @@
   .facets-vertical .product-grid-container,.collection .product-grid-container,.facets-vertical>.product-grid-container,#ProductGridContainer{width:100% !important;max-width:100% !important;flex:1 1 100% !important;margin:0 !important;}
   .facets-vertical{display:block !important;}
   .az-deptbar{background:#232f3e;width:100%;}
-  .az-deptbar__inner{display:flex;align-items:center;gap:2px;max-width:1500px;margin:0 auto;padding:0 1.5rem;overflow-x:auto;scrollbar-width:none;white-space:nowrap;}
+  .az-deptbar__inner{display:flex;align-items:center;gap:6px;max-width:1500px;margin:0 auto;padding:0 1.5rem;overflow:visible;white-space:nowrap;}
   .az-deptbar__inner::-webkit-scrollbar{display:none;}
   .az-allcat{display:inline-flex;align-items:center;gap:8px;background:transparent;color:#fff;border:1px solid transparent;border-radius:3px;font-size:14px;font-weight:700;padding:8px 10px;cursor:pointer;white-space:nowrap;flex:0 0 auto;}
   .az-allcat:hover{border-color:#fff;}
@@ -27,13 +27,24 @@
   .az-allcat__bars::after{top:5px;}
   .az-dept{color:#fff;font-size:14px;padding:8px 9px;text-decoration:none;border:1px solid transparent;border-radius:3px;white-space:nowrap;flex:0 0 auto;}
   .az-dept:hover{border-color:#fff;}
+  .az-deptbar__scroll{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:2px;overflow-x:auto;scrollbar-width:none;white-space:nowrap;}
+  .az-deptbar__scroll::-webkit-scrollbar{display:none;}
+  .az-account{flex:0 0 auto;display:flex;align-items:center;gap:8px;margin-left:auto;}
+  .az-account__link{display:flex;flex-direction:column;line-height:1.1;color:#fff;text-decoration:none;border:1px solid transparent;border-radius:3px;padding:4px 8px;}
+  .az-account__link:hover{border-color:#fff;}
+  .az-account__hi{font-size:11px;color:#dcdcdc;}
+  .az-account__main{font-size:13px;font-weight:700;color:#fff;}
+  .az-account__reg{color:#fff;font-size:13px;text-decoration:none;border:1px solid #5a6675;border-radius:3px;padding:6px 10px;white-space:nowrap;}
+  .az-account__reg:hover{border-color:#fff;}
   .az-side{position:fixed;inset:0;z-index:1000;visibility:hidden;}
   html.az-side-open .az-side{visibility:visible;}
   .az-side__overlay{position:absolute;inset:0;background:rgba(0,0,0,.6);opacity:0;transition:opacity .2s;}
   html.az-side-open .az-side__overlay{opacity:1;}
   .az-side__panel{position:absolute;top:0;left:0;height:100%;width:365px;max-width:88vw;background:#fff;transform:translateX(-100%);transition:transform .22s ease;display:flex;flex-direction:column;box-shadow:0 0 22px rgba(0,0,0,.45);}
   html.az-side-open .az-side__panel{transform:translateX(0);}
-  .az-side__greet{display:flex;align-items:center;gap:10px;background:#232f3e;color:#fff;font-size:18px;font-weight:700;padding:14px 18px;}
+  .az-side__greet{display:flex;align-items:center;gap:10px;background:#232f3e;color:#fff;font-size:18px;font-weight:700;padding:14px 18px;text-decoration:none;}
+  .az-side__reg{display:block;padding:13px 18px;color:#007185;font-size:14px;font-weight:700;border-bottom:1px solid #ECECEC;text-decoration:none;}
+  .az-side__reg:hover{background:#f3f3f3;}
   .az-side__greet svg{width:26px;height:26px;fill:#fff;}
   .az-side__close{position:absolute;top:12px;right:-46px;width:38px;height:38px;background:transparent;border:none;color:#fff;font-size:32px;line-height:1;cursor:pointer;}
   .az-side__scroll{overflow-y:auto;flex:1;}
@@ -56,19 +67,30 @@
     <button type="button" class="az-allcat" aria-label="Tous les rayons" onclick="document.documentElement.classList.add('az-side-open')">
       <span class="az-allcat__bars"></span> Tous les rayons
     </button>
-    {%- for link in az_menu.links -%}
-      <a class="az-dept" href="{{ link.url }}">{{ link.title }}</a>
-    {%- endfor -%}
+    <div class="az-deptbar__scroll">
+      {%- for link in az_menu.links -%}
+        <a class="az-dept" href="{{ link.url }}">{{ link.title }}</a>
+      {%- endfor -%}
+    </div>
+    <div class="az-account">
+      {%- if customer -%}
+        <a class="az-account__link" href="{{ routes.account_url }}"><span class="az-account__hi">Bonjour, {{ customer.first_name | default: customer.name }}</span><span class="az-account__main">Mon compte</span></a>
+      {%- else -%}
+        <a class="az-account__link" href="{{ routes.account_login_url }}"><span class="az-account__hi">Bonjour</span><span class="az-account__main">Identifiez-vous</span></a>
+        <a class="az-account__reg" href="{{ routes.account_register_url }}">S'inscrire</a>
+      {%- endif -%}
+    </div>
   </div>
 </div>
 
 <div class="az-side">
   <div class="az-side__overlay" onclick="document.documentElement.classList.remove('az-side-open')"></div>
   <aside class="az-side__panel" role="dialog" aria-label="Choisir une catégorie">
-    <div class="az-side__greet">
+    <a class="az-side__greet" href="{% if customer %}{{ routes.account_url }}{% else %}{{ routes.account_login_url }}{% endif %}">
       <span class="az-side__avatar">{{ 'icon-account.svg' | inline_asset_content }}</span>
-      Bonjour, {% if customer %}{{ customer.first_name | default: customer.name }}{% else %}Identifiez-vous{% endif %}
-    </div>
+      Bonjour, {% if customer %}{{ customer.first_name | default: customer.name }}{% else %}identifiez-vous{% endif %}
+    </a>
+    {%- unless customer -%}<a class="az-side__reg" href="{{ routes.account_register_url }}">Nouveau client ? Inscrivez-vous</a>{%- endunless -%}
     <button type="button" class="az-side__close" aria-label="Fermer" onclick="document.documentElement.classList.remove('az-side-open')">&times;</button>
     <div class="az-side__scroll">
       <h2 class="az-side__title">Choisir une catégorie</h2>
