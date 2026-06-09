@@ -1,0 +1,90 @@
+{%- comment -%} Barre de rayons (1 ligne) + menu latéral "Choisir une catégorie" — style Amazon, marque IATECHFUTUR {%- endcomment -%}
+{%- assign az_menu = linklists['main-menu'] -%}
+<style>
+  .header__inline-menu{display:none !important;}
+  .az-deptbar{background:#232f3e;width:100%;}
+  .az-deptbar__inner{display:flex;align-items:center;gap:2px;max-width:1500px;margin:0 auto;padding:0 1.5rem;overflow-x:auto;scrollbar-width:none;white-space:nowrap;}
+  .az-deptbar__inner::-webkit-scrollbar{display:none;}
+  .az-allcat{display:inline-flex;align-items:center;gap:8px;background:transparent;color:#fff;border:1px solid transparent;border-radius:3px;font-size:14px;font-weight:700;padding:8px 10px;cursor:pointer;white-space:nowrap;flex:0 0 auto;}
+  .az-allcat:hover{border-color:#fff;}
+  .az-allcat__bars{display:inline-block;width:18px;height:2px;background:#fff;position:relative;}
+  .az-allcat__bars::before,.az-allcat__bars::after{content:"";position:absolute;left:0;width:18px;height:2px;background:#fff;}
+  .az-allcat__bars::before{top:-5px;}
+  .az-allcat__bars::after{top:5px;}
+  .az-dept{color:#fff;font-size:14px;padding:8px 9px;text-decoration:none;border:1px solid transparent;border-radius:3px;white-space:nowrap;flex:0 0 auto;}
+  .az-dept:hover{border-color:#fff;}
+  .az-side{position:fixed;inset:0;z-index:1000;visibility:hidden;}
+  html.az-side-open .az-side{visibility:visible;}
+  .az-side__overlay{position:absolute;inset:0;background:rgba(0,0,0,.6);opacity:0;transition:opacity .2s;}
+  html.az-side-open .az-side__overlay{opacity:1;}
+  .az-side__panel{position:absolute;top:0;left:0;height:100%;width:365px;max-width:88vw;background:#fff;transform:translateX(-100%);transition:transform .22s ease;display:flex;flex-direction:column;box-shadow:0 0 22px rgba(0,0,0,.45);}
+  html.az-side-open .az-side__panel{transform:translateX(0);}
+  .az-side__greet{display:flex;align-items:center;gap:10px;background:#232f3e;color:#fff;font-size:18px;font-weight:700;padding:14px 18px;}
+  .az-side__greet svg{width:26px;height:26px;fill:#fff;}
+  .az-side__close{position:absolute;top:12px;right:-46px;width:38px;height:38px;background:transparent;border:none;color:#fff;font-size:32px;line-height:1;cursor:pointer;}
+  .az-side__scroll{overflow-y:auto;flex:1;}
+  .az-side__title{font-size:18px;font-weight:700;color:#0F1111;padding:14px 18px 6px;margin:0;}
+  .az-side__list{list-style:none;margin:0;padding:0;}
+  .az-side__list>li{border-bottom:1px solid #ECECEC;}
+  .az-side__list a,.az-side__cat>summary{display:flex;align-items:center;justify-content:space-between;padding:13px 18px;color:#0F1111;font-size:15px;text-decoration:none;cursor:pointer;list-style:none;}
+  .az-side__cat>summary::-webkit-details-marker{display:none;}
+  .az-side__list a:hover,.az-side__cat>summary:hover{background:#f3f3f3;}
+  .az-side__chev{flex:0 0 auto;width:8px;height:8px;border-right:2px solid #888;border-bottom:2px solid #888;transform:rotate(-45deg);}
+  .az-side__cat[open]>summary .az-side__chev{transform:rotate(45deg);}
+  .az-side__sub{list-style:none;margin:0;padding:0;background:#f7f7f7;}
+  .az-side__sub a{padding-left:34px;font-size:14px;color:#0F1111;}
+  @media(max-width:989px){.az-deptbar{display:none;}}
+</style>
+
+{%- if az_menu != blank -%}
+<div class="az-deptbar">
+  <div class="az-deptbar__inner">
+    <button type="button" class="az-allcat" aria-label="Tous les rayons" onclick="document.documentElement.classList.add('az-side-open')">
+      <span class="az-allcat__bars"></span> Tous les rayons
+    </button>
+    {%- for link in az_menu.links -%}
+      <a class="az-dept" href="{{ link.url }}">{{ link.title }}</a>
+    {%- endfor -%}
+  </div>
+</div>
+
+<div class="az-side">
+  <div class="az-side__overlay" onclick="document.documentElement.classList.remove('az-side-open')"></div>
+  <aside class="az-side__panel" role="dialog" aria-label="Choisir une catégorie">
+    <div class="az-side__greet">
+      <span class="az-side__avatar">{{ 'icon-account.svg' | inline_asset_content }}</span>
+      Bonjour, {% if customer %}{{ customer.first_name | default: customer.name }}{% else %}Identifiez-vous{% endif %}
+    </div>
+    <button type="button" class="az-side__close" aria-label="Fermer" onclick="document.documentElement.classList.remove('az-side-open')">&times;</button>
+    <div class="az-side__scroll">
+      <h2 class="az-side__title">Choisir une catégorie</h2>
+      <ul class="az-side__list">
+        {%- for link in az_menu.links -%}
+          {%- if link.links != blank -%}
+            <li>
+              <details class="az-side__cat">
+                <summary>{{ link.title }}<span class="az-side__chev"></span></summary>
+                <ul class="az-side__sub">
+                  <li><a href="{{ link.url }}">Tout voir : {{ link.title }}</a></li>
+                  {%- for child in link.links -%}
+                    <li><a href="{{ child.url }}">{{ child.title }}</a></li>
+                  {%- endfor -%}
+                </ul>
+              </details>
+            </li>
+          {%- else -%}
+            <li><a class="az-side__link" href="{{ link.url }}">{{ link.title }}</a></li>
+          {%- endif -%}
+        {%- endfor -%}
+      </ul>
+    </div>
+  </aside>
+</div>
+{%- endif -%}
+
+{% schema %}
+{
+  "name": "Rayons Amazon",
+  "settings": []
+}
+{% endschema %}

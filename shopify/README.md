@@ -54,3 +54,13 @@ La navigation en rayons, elle, est déjà active sur le thème en ligne actuel.
 - Thème live : « Copie de Refresh » (`OnlineStoreTheme/191595675988`)
 - Thème refonte : « IATECHFUTUR - Style Amazon » (`OnlineStoreTheme/197803114836`)
 - Menu : `Menu/260179296596` (`main-menu`)
+
+## Mise à jour — Barre de rayons 1 ligne + menu latéral
+Ajout d'une section `sections/amazon-categories.liquid` (enregistrée dans
+`header-group.json`) qui remplace le menu déroulant qui passait à la ligne par :
+- une **barre de rayons sur une seule ligne** (#232f3e), défilement horizontal discret ;
+- un bouton **« ☰ Tous les rayons »** qui ouvre un **menu latéral coulissant**
+  (« Bonjour, … » + « Choisir une catégorie » + liste verticale des départements
+  avec chevrons et sous-rayons dépliables), façon panneau Amazon.
+
+Fichier sauvegardé : `shopify/amazon-categories.liquid`.
