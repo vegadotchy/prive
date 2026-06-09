@@ -25,7 +25,7 @@ doublons apparaissent, donc c'est là qu'on les détecte.
    - **`report`** (par défaut) : se contente de **lister les doublons par email**, ne modifie rien ;
    - `move` : déplace le doublon vers le prochain créneau libre ;
    - `delete` : supprime le doublon (garde le plus ancien).
-5. Il vous **envoie un email** récapitulatif à `ghani.bouali@outlook.com`.
+5. Il vous **envoie un email** récapitulatif à `eurocare.agendas@gmail.com`.
 
 > 🔒 **Sécurité** : le script démarre en mode **SIMULATION** (`DRY_RUN = true`).
 > Il vous envoie les déplacements *proposés* **sans rien modifier**. Vérifiez
@@ -36,7 +36,7 @@ doublons apparaissent, donc c'est là qu'on les détecte.
 ## Installation (5 minutes, sans serveur, gratuit)
 
 1. Allez sur **https://script.google.com** (connecté avec le compte qui possède
-   l'agenda, ici `ghani.bouali@outlook.com`).
+   l'agenda, ici `eurocare.agendas@gmail.com`).
 2. Cliquez **Nouveau projet**.
 3. Supprimez le contenu de `Code.gs` et **collez** le contenu de
    [`Code.gs`](./Code.gs) de ce dossier.
@@ -59,7 +59,7 @@ immédiatement un email de test avec les doublons éventuels.
 
 | Réglage | Rôle | Défaut |
 |---|---|---|
-| `EMAIL` | Destinataire du rapport | `ghani.bouali@outlook.com` |
+| `EMAIL` | Destinataire du rapport | `eurocare.agendas@gmail.com` |
 | `RESOLUTION_MODE` | `report` / `move` / `delete` | `report` |
 | `DRY_RUN` | `true` = simulation (ne modifie rien) | `true` |
 | `DUP_WINDOW_HOURS` | Écart max pour considérer 2 RDV comme doublons | `72` |

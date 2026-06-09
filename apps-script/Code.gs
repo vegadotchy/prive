@@ -21,7 +21,7 @@ const CONFIG = {
   CALENDAR_ID: '',
 
   // Adresse qui reçoit le rapport quotidien.
-  EMAIL: 'ghani.bouali@outlook.com',
+  EMAIL: 'eurocare.agendas@gmail.com',
 
   // Fenêtre d'analyse : du passé proche jusqu'à X jours dans le futur.
   LOOKBACK_DAYS: 1,     // on regarde aussi hier (sécurité)
