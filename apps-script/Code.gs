@@ -37,7 +37,7 @@ const CONFIG = {
   //   'report' : seulement lister dans l'email (ne touche à rien)
   //   'move'   : déplacer le doublon vers le prochain créneau libre
   //   'delete' : supprimer le doublon (garde le RDV le plus ancien)
-  RESOLUTION_MODE: 'move',
+  RESOLUTION_MODE: 'report',
 
   // SIMULATION : true = n'effectue AUCUNE modification, envoie seulement
   // les actions PROPOSÉES par email. Passez à false quand vous avez confiance.

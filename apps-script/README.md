@@ -22,9 +22,9 @@ doublons apparaissent, donc c'est là qu'on les détecte.
    « Doctena », « RDV », etc.).
 3. Si un **même patient** a 2 RDV à moins de **72h** d'écart → c'est un doublon.
 4. Selon le mode choisi, il :
-   - **`move`** (par défaut) : déplace le doublon vers le prochain créneau libre ;
-   - `delete` : supprime le doublon (garde le plus ancien) ;
-   - `report` : ne fait que lister.
+   - **`report`** (par défaut) : se contente de **lister les doublons par email**, ne modifie rien ;
+   - `move` : déplace le doublon vers le prochain créneau libre ;
+   - `delete` : supprime le doublon (garde le plus ancien).
 5. Il vous **envoie un email** récapitulatif à `ghani.bouali@outlook.com`.
 
 > 🔒 **Sécurité** : le script démarre en mode **SIMULATION** (`DRY_RUN = true`).
@@ -60,7 +60,7 @@ immédiatement un email de test avec les doublons éventuels.
 | Réglage | Rôle | Défaut |
 |---|---|---|
 | `EMAIL` | Destinataire du rapport | `ghani.bouali@outlook.com` |
-| `RESOLUTION_MODE` | `move` / `delete` / `report` | `move` |
+| `RESOLUTION_MODE` | `report` / `move` / `delete` | `report` |
 | `DRY_RUN` | `true` = simulation (ne modifie rien) | `true` |
 | `DUP_WINDOW_HOURS` | Écart max pour considérer 2 RDV comme doublons | `72` |
 | `LOOKAHEAD_DAYS` | Nombre de jours analysés vers le futur | `60` |
