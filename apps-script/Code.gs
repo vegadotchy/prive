@@ -25,7 +25,7 @@ const CONFIG = {
 
   // Fenêtre d'analyse : du passé proche jusqu'à X jours dans le futur.
   LOOKBACK_DAYS: 1,     // on regarde aussi hier (sécurité)
-  LOOKAHEAD_DAYS: 60,   // et 60 jours à venir
+  LOOKAHEAD_DAYS: 31,   // et 1 mois à venir
 
   // Deux RDV du MÊME patient sont considérés comme doublons s'ils tombent
   // à moins de DUP_WINDOW_HOURS l'un de l'autre. Évite de signaler des
