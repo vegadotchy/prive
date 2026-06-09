@@ -2,10 +2,20 @@
 {%- assign az_menu = linklists['main-menu'] -%}
 <style>
   .header__inline-menu{display:none !important;}
-  /* FIX: réafficher les images produits (annule mix-blend/opacité) */
-  .card__media img,.media img,.card-wrapper img,.card__inner img,.grid__item img{object-fit:contain !important;opacity:1 !important;visibility:visible !important;mix-blend-mode:normal !important;display:block !important;}
-  .card .media,.card__media,.card__inner .card__media{background:#fff !important;}
-  .grid__item .media,.card-wrapper .media{min-height:180px;}
+  /* ===== FICHES PRODUITS : boite image a hauteur fixe + visible, facon Amazon ===== */
+  .card__inner.ratio::before,.card.ratio::before{display:none !important;content:none !important;}
+  .card__inner{display:block !important;}
+  .card-wrapper,.product-card-wrapper{height:auto !important;}
+  .card__media,.card__inner .card__media{position:relative !important;display:block !important;height:200px !important;width:100% !important;background:#fff !important;border-radius:6px 6px 0 0 !important;overflow:hidden !important;}
+  .card__media .media,.card .media{position:absolute !important;inset:0 !important;top:0 !important;left:0 !important;width:100% !important;height:100% !important;padding:0 !important;margin:0 !important;background:#fff !important;display:block !important;}
+  .card__media .media img,.card .media img,.card-wrapper img{position:absolute !important;inset:0 !important;top:0 !important;left:0 !important;width:100% !important;height:100% !important;object-fit:contain !important;padding:10px !important;opacity:1 !important;visibility:visible !important;display:block !important;mix-blend-mode:normal !important;}
+  .card__content{padding:8px 12px 14px !important;}
+  .card__heading a{display:-webkit-box !important;-webkit-line-clamp:2 !important;-webkit-box-orient:vertical !important;overflow:hidden !important;}
+  /* ===== Masquer le panneau de filtres lateral (pages collection) ===== */
+  #main-collection-filters,.facets,.facets-wrapper,.facets-vertical .facets-wrapper,.mobile-facets,.mobile-facets__wrapper,facet-filters-form,.collection-filters,.facets__form{display:none !important;}
+  .facets-container{display:block !important;}
+  .facets-vertical .product-grid-container,.collection .product-grid-container,.facets-vertical>.product-grid-container,#ProductGridContainer{width:100% !important;max-width:100% !important;flex:1 1 100% !important;margin:0 !important;}
+  .facets-vertical{display:block !important;}
   .az-deptbar{background:#232f3e;width:100%;}
   .az-deptbar__inner{display:flex;align-items:center;gap:2px;max-width:1500px;margin:0 auto;padding:0 1.5rem;overflow-x:auto;scrollbar-width:none;white-space:nowrap;}
   .az-deptbar__inner::-webkit-scrollbar{display:none;}

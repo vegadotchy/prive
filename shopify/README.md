@@ -76,3 +76,14 @@ l'API bloque toute écriture dessus. Le correctif a donc été appliqué sur une
 nouvelle copie **« IATECHFUTUR - Style Amazon v2 »** (`OnlineStoreTheme/197805572436`),
 à publier en 1 clic. Toute modif visuelle ultérieure suit le même cycle
 (copie → édition → publication manuelle).
+
+## v3 — Images à taille fixe (200px) + suppression des filtres
+- Cause réelle des images invisibles : les overrides cassaient le système de
+  **ratio** de Dawn → la boîte image se retrouvait sans hauteur. Correctif :
+  `.card__media` forcé en `position:relative;height:200px;overflow:hidden`,
+  image en `position:absolute;inset:0;object-fit:contain` → image entière,
+  taille fixe, façon Amazon (descriptif/titre dessous, 2 lignes max).
+- Suppression du **panneau de filtres latéral** des pages collection
+  (`#main-collection-filters`, `.facets*`) ; grille produits en pleine largeur.
+- Appliqué sur **« IATECHFUTUR - Style Amazon v3 »** (`OnlineStoreTheme/197807440212`).
+  ⚠️ À tester en **Aperçu** avant de publier (publier verrouille l'édition via l'API).
