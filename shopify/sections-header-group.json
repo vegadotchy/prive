@@ -1,0 +1,20 @@
+{
+  "_note": "Réglages d'en-tête du thème refonte. menu_type_desktop=dropdown pour afficher la barre de rayons. custom_css ci-dessous corrige la couleur du texte de la barre de recherche Amazon (sinon forcée en blanc sur fond blanc).",
+  "sections": {
+    "header": {
+      "type": "header",
+      "custom_css": [
+        "input.amazon-search-input,input.amazon-search-input[type=\"search\"]{color:#0F1111 !important;}",
+        "input.amazon-search-input::placeholder,input.amazon-search-input[type=\"search\"]::placeholder{color:#565959 !important;opacity:1 !important;}"
+      ],
+      "settings": {
+        "logo_position": "top-left",
+        "menu": "main-menu",
+        "menu_type_desktop": "dropdown",
+        "sticky_header_type": "always",
+        "color_scheme": "scheme-2",
+        "menu_color_scheme": "scheme-3"
+      }
+    }
+  }
+}
