@@ -2,6 +2,10 @@
 {%- assign az_menu = linklists['main-menu'] -%}
 <style>
   .header__inline-menu{display:none !important;}
+  /* FIX: réafficher les images produits (annule mix-blend/opacité) */
+  .card__media img,.media img,.card-wrapper img,.card__inner img,.grid__item img{object-fit:contain !important;opacity:1 !important;visibility:visible !important;mix-blend-mode:normal !important;display:block !important;}
+  .card .media,.card__media,.card__inner .card__media{background:#fff !important;}
+  .grid__item .media,.card-wrapper .media{min-height:180px;}
   .az-deptbar{background:#232f3e;width:100%;}
   .az-deptbar__inner{display:flex;align-items:center;gap:2px;max-width:1500px;margin:0 auto;padding:0 1.5rem;overflow-x:auto;scrollbar-width:none;white-space:nowrap;}
   .az-deptbar__inner::-webkit-scrollbar{display:none;}

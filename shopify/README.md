@@ -64,3 +64,15 @@ Ajout d'une section `sections/amazon-categories.liquid` (enregistrée dans
   avec chevrons et sous-rayons dépliables), façon panneau Amazon.
 
 Fichier sauvegardé : `shopify/amazon-categories.liquid`.
+
+## Correctif images produits (thème v2)
+La règle `mix-blend-mode:multiply` (+ overrides) sur les images de fiches
+produits les rendait invisibles. Correctif ajouté dans le `<style>` de
+`amazon-categories.liquid` : `object-fit:contain`, `opacity/visibility` forcés,
+`mix-blend-mode:normal`, fond blanc — l'image produit s'affiche en entier façon Amazon.
+
+Comme le thème « IATECHFUTUR - Style Amazon » a été publié (devenu LIVE),
+l'API bloque toute écriture dessus. Le correctif a donc été appliqué sur une
+nouvelle copie **« IATECHFUTUR - Style Amazon v2 »** (`OnlineStoreTheme/197805572436`),
+à publier en 1 clic. Toute modif visuelle ultérieure suit le même cycle
+(copie → édition → publication manuelle).
