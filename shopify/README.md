@@ -109,3 +109,14 @@ Bloc « 📍 Votre adresse de livraison : {pays} » injecté dans l'en-tête à 
 du logo IATECHFUTUR (pays issu de `localization.country` → Belgique par défaut),
 cliquable pour ouvrir le panneau latéral. Toujours sur le thème v5
 (`OnlineStoreTheme/197856592212`).
+
+## v5 (suite) — Modes de paiement (panier), recherche compacte, refactor CSS
+- **Modes de paiement acceptés** : bloc affiché sur la page panier (sous « Procéder
+  au paiement ») avec les **logos officiels Shopify** des moyens activés
+  (`shop.enabled_payment_types`). ⚠️ Le vrai choix du paiement reste sur la page
+  de paiement sécurisée Shopify (non modifiable par le thème).
+- **Barre de recherche** : rendue compacte (flex 1 1 200px, max 560px) et garantie
+  visible (jamais masquée).
+- **Refactor** : tout le CSS de la section déplacé dans `assets/amazon-cats.css`
+  (chargé via `stylesheet_tag`) → fichiers plus petits, éditions plus fiables.
+Fichiers : `shopify/amazon-categories.liquid`, `shopify/amazon-cats.css`.
