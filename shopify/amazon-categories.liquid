@@ -2,6 +2,9 @@
 {%- assign az_menu = linklists['main-menu'] -%}
 <style>
   .header__inline-menu{display:none !important;}
+  /* Recherche : texte tape bien visible (noir), corrige le forcage en blanc */
+  .amazon-search-input,input.amazon-search-input,.amazon-search-bar input{color:#0F1111 !important;-webkit-text-fill-color:#0F1111 !important;opacity:1 !important;background:#fff !important;caret-color:#0F1111 !important;}
+  .amazon-search-input::placeholder,.amazon-search-bar input::placeholder{color:#565959 !important;-webkit-text-fill-color:#565959 !important;opacity:1 !important;}
   /* ===== FICHES PRODUITS : boite image a hauteur fixe + visible, facon Amazon ===== */
   .card__inner.ratio::before,.card.ratio::before{display:none !important;content:none !important;}
   .card__inner{display:block !important;}
@@ -58,7 +61,33 @@
   .az-side__cat[open]>summary .az-side__chev{transform:rotate(45deg);}
   .az-side__sub{list-style:none;margin:0;padding:0;background:#f7f7f7;}
   .az-side__sub a{padding-left:34px;font-size:14px;color:#0F1111;}
+  .az-side__link{display:flex;align-items:center;padding:13px 18px;color:#0F1111;font-size:15px;}
   @media(max-width:989px){.az-deptbar{display:none;}}
+  /* ===== Bandeau cookies / confidentialite (s'affiche a l'ouverture) ===== */
+  .az-cookie{position:fixed;left:0;right:0;bottom:0;z-index:1100;background:#fff;border-top:3px solid #232f3e;box-shadow:0 -2px 14px rgba(0,0,0,.22);}
+  .az-cookie__box{max-width:1200px;margin:0 auto;padding:16px 20px;}
+  .az-cookie__title{font-size:16px;font-weight:700;color:#0F1111;margin:0 0 6px;}
+  .az-cookie__text{font-size:13px;line-height:1.5;color:#333;margin:0 0 12px;}
+  .az-cookie__text a{color:#007185;text-decoration:none;}
+  .az-cookie__text a:hover{text-decoration:underline;}
+  .az-cookie__btns{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .az-cookie__accept{background:#FFD814;border:1px solid #FCD200;border-radius:100px;padding:9px 30px;font-size:14px;font-weight:600;color:#0F1111;cursor:pointer;}
+  .az-cookie__accept:hover{background:#F7CA00;}
+  .az-cookie__refuse{background:#fff;border:1px solid #8d8d8d;border-radius:100px;padding:9px 30px;font-size:14px;color:#0F1111;cursor:pointer;}
+  .az-cookie__refuse:hover{background:#f3f3f3;}
+  .az-cookie__more{color:#007185;font-size:13px;text-decoration:none;cursor:pointer;background:none;border:none;padding:0;}
+  .az-cookie__more:hover{color:#C7511F;text-decoration:underline;}
+  /* ===== Selecteur de langue (drapeau) + Aide et parametres ===== */
+  .az-lang{position:relative;flex:0 0 auto;}
+  .az-lang__btn,.az-lang__static{display:inline-flex;align-items:center;gap:5px;color:#fff;font-size:13px;font-weight:700;padding:6px 8px;border:1px solid transparent;border-radius:3px;cursor:pointer;list-style:none;white-space:nowrap;}
+  .az-lang__btn::-webkit-details-marker{display:none;}
+  .az-lang__btn:hover{border-color:#fff;}
+  .az-lang__car{width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid #fff;}
+  .az-lang__menu{position:absolute;top:100%;right:0;background:#fff;border:1px solid #D5D9D9;border-radius:6px;box-shadow:0 6px 14px rgba(0,0,0,.18);padding:6px 0;min-width:190px;z-index:1200;}
+  .az-lang__opt{display:flex;align-items:center;gap:8px;width:100%;background:none;border:none;text-align:left;padding:8px 14px;font-size:14px;color:#0F1111;cursor:pointer;}
+  .az-lang__opt:hover{background:#f3f3f3;}
+  .az-help__btn{display:block;width:100%;text-align:left;background:none;border:none;padding:10px 18px 10px 34px;font-size:14px;color:#0F1111;cursor:pointer;}
+  .az-help__btn:hover{background:#f3f3f3;}
 </style>
 
 {%- if az_menu != blank -%}
@@ -73,6 +102,24 @@
       {%- endfor -%}
     </div>
     <div class="az-account">
+      {%- assign cur_lang = request.locale.iso_code -%}
+      {%- capture cur_flag -%}{%- case cur_lang -%}{%- when 'fr' -%}🇫🇷{%- when 'en' -%}🇬🇧{%- when 'nl' -%}🇳🇱{%- when 'de' -%}🇩🇪{%- when 'es' -%}🇪🇸{%- when 'it' -%}🇮🇹{%- when 'pt' -%}🇵🇹{%- when 'ar' -%}🇲🇦{%- else -%}🌐{%- endcase -%}{%- endcapture -%}
+      {%- if localization.available_languages.size > 1 -%}
+      <details class="az-lang">
+        <summary class="az-lang__btn">{{ cur_flag }} {{ cur_lang | upcase }} <i class="az-lang__car"></i></summary>
+        <div class="az-lang__menu">
+          {%- form 'localization' -%}
+            <input type="hidden" name="return_to" value="{{ request.path }}">
+            {%- for lang in localization.available_languages -%}
+              {%- capture lf -%}{%- case lang.iso_code -%}{%- when 'fr' -%}🇫🇷{%- when 'en' -%}🇬🇧{%- when 'nl' -%}🇳🇱{%- when 'de' -%}🇩🇪{%- when 'es' -%}🇪🇸{%- when 'it' -%}🇮🇹{%- when 'pt' -%}🇵🇹{%- when 'ar' -%}🇲🇦{%- else -%}🌐{%- endcase -%}{%- endcapture -%}
+              <button type="submit" name="locale_code" value="{{ lang.iso_code }}" class="az-lang__opt">{{ lf }} {{ lang.endonym_name }}</button>
+            {%- endfor -%}
+          {%- endform -%}
+        </div>
+      </details>
+      {%- else -%}
+      <span class="az-lang__static">{{ cur_flag }} {{ cur_lang | upcase }}</span>
+      {%- endif -%}
       {%- if customer -%}
         <a class="az-account__link" href="{{ routes.account_url }}"><span class="az-account__hi">Bonjour, {{ customer.first_name | default: customer.name }}</span><span class="az-account__main">Mon compte</span></a>
       {%- else -%}
@@ -113,10 +160,72 @@
           {%- endif -%}
         {%- endfor -%}
       </ul>
+      <h2 class="az-side__title">Aide et paramètres</h2>
+      <ul class="az-side__list">
+        <li><a href="{% if customer %}{{ routes.account_url }}{% else %}{{ routes.account_login_url }}{% endif %}">Votre compte</a></li>
+        <li>
+          {%- assign cc = localization.country.iso_code -%}
+          {%- capture cflag -%}{%- case cc -%}{%- when 'FR' -%}🇫🇷{%- when 'BE' -%}🇧🇪{%- when 'US' -%}🇺🇸{%- when 'GB' -%}🇬🇧{%- when 'DE' -%}🇩🇪{%- when 'NL' -%}🇳🇱{%- when 'ES' -%}🇪🇸{%- when 'IT' -%}🇮🇹{%- when 'CH' -%}🇨🇭{%- when 'CA' -%}🇨🇦{%- when 'LU' -%}🇱🇺{%- when 'MA' -%}🇲🇦{%- else -%}🌍{%- endcase -%}{%- endcapture -%}
+          {%- if localization.available_languages.size > 1 -%}
+          <details class="az-side__cat"><summary><span>🌐 {{ request.locale.endonym_name | default: 'Français' }}</span><span class="az-side__chev"></span></summary>
+            <ul class="az-side__sub">{%- form 'localization' -%}<input type="hidden" name="return_to" value="{{ request.path }}">{%- for lang in localization.available_languages -%}<li><button type="submit" name="locale_code" value="{{ lang.iso_code }}" class="az-help__btn">{{ lang.endonym_name }}</button></li>{%- endfor -%}{%- endform -%}</ul>
+          </details>
+          {%- else -%}<span class="az-side__link">🌐 {{ request.locale.endonym_name | default: 'Français' }}</span>{%- endif -%}
+        </li>
+        <li>
+          {%- if localization.available_countries.size > 1 -%}
+          <details class="az-side__cat"><summary><span>{{ cflag }} {{ localization.country.name | default: 'France' }}</span><span class="az-side__chev"></span></summary>
+            <ul class="az-side__sub">{%- form 'localization' -%}<input type="hidden" name="return_to" value="{{ request.path }}">{%- for c in localization.available_countries -%}<li><button type="submit" name="country_code" value="{{ c.iso_code }}" class="az-help__btn">{{ c.name }} ({{ c.currency.iso_code }})</button></li>{%- endfor -%}{%- endform -%}</ul>
+          </details>
+          {%- else -%}<span class="az-side__link">{{ cflag }} {{ localization.country.name | default: 'France' }}</span>{%- endif -%}
+        </li>
+        <li><span class="az-side__link">💶 Paramètres de devise : {{ cart.currency.iso_code | default: shop.currency }}</span></li>
+        <li><a href="/pages/contact">Service client</a></li>
+        <li><a href="{% if customer %}{{ routes.account_url }}{% else %}{{ routes.account_login_url }}{% endif %}">{% if customer %}Mon compte{% else %}Se connecter{% endif %}</a></li>
+      </ul>
     </div>
   </aside>
 </div>
 {%- endif -%}
+
+<div class="az-cookie" id="azCookie" style="display:none" role="dialog" aria-label="Cookies et confidentialite">
+  <div class="az-cookie__box">
+    <h2 class="az-cookie__title">Cookies &amp; confidentialite</h2>
+    <p class="az-cookie__text">Chez <strong>IATECHFUTUR</strong>, nous utilisons des cookies et technologies similaires pour faire fonctionner la boutique, garder votre panier en memoire, mesurer l'audience et ameliorer votre experience d'achat. Avec votre accord, nous les utilisons aussi pour personnaliser le contenu et nos offres. Vous pouvez accepter, refuser, ou regler vos preferences a tout moment. Pour en savoir plus, consultez notre <a href="{{ shop.privacy_policy.url | default: '/policies/privacy-policy' }}">politique de confidentialite</a>.</p>
+    <div class="az-cookie__btns">
+      <button type="button" class="az-cookie__accept" onclick="azCookie('accept')">Accepter</button>
+      <button type="button" class="az-cookie__refuse" onclick="azCookie('refuse')">Refuser</button>
+      <a class="az-cookie__more" href="{{ shop.privacy_policy.url | default: '/policies/privacy-policy' }}">Personnaliser / En savoir plus</a>
+    </div>
+  </div>
+</div>
+<script>
+  (function(){
+    function hide(){var el=document.getElementById('azCookie'); if(el) el.style.display='none';}
+    function show(){var el=document.getElementById('azCookie'); if(el) el.style.display='block';}
+    window.azCookie=function(choice){
+      var granted = choice==='accept';
+      try{ if(window.Shopify && Shopify.customerPrivacy && Shopify.customerPrivacy.setTrackingConsent){ Shopify.customerPrivacy.setTrackingConsent(granted, function(){}); } }catch(e){}
+      try{ localStorage.setItem('iatf_cookie', choice); }catch(e){}
+      hide();
+    };
+    try{ if(!localStorage.getItem('iatf_cookie')) show(); }catch(e){ show(); }
+  })();
+  (function(){
+    // Clic sur le CTA d'une fiche produit -> page produit (affiche toutes les options/variantes, meme s'il n'y en a qu'une)
+    document.addEventListener('click', function(e){
+      if(!e.target || !e.target.closest) return;
+      var b = e.target.closest('.quick-add__submit, .quick-add button, .card-wrapper modal-opener button, .card modal-opener button');
+      if(!b) return;
+      var card = b.closest('.card-wrapper, .grid__item, .card');
+      if(!card) return;
+      var link = card.querySelector('a[href*="/products/"]');
+      if(!link) return;
+      e.preventDefault(); e.stopPropagation();
+      window.location.href = link.getAttribute('href');
+    }, true);
+  })();
+</script>
 
 {% schema %}
 {

@@ -95,3 +95,11 @@ Ajout d'un bloc compte dans la barre de rayons (à droite) :
 Et l'en-tête « Bonjour… » du menu latéral devient cliquable (login/compte) +
 lien « Nouveau client ? Inscrivez-vous » pour le mobile.
 Appliqué sur **« IATECHFUTUR - Style Amazon v4 »** (`OnlineStoreTheme/197808161108`).
+
+## v5 — Recherche visible, cookies, langue+drapeau, Aide & paramètres, options produit
+Tout regroupé sur **« IATECHFUTUR - Style Amazon v5 »** (`OnlineStoreTheme/197856592212`) :
+- **Recherche** : texte tapé forcé en noir lisible (`-webkit-text-fill-color`), corrige le texte invisible.
+- **Bandeau cookies** IATECHFUTUR à l'ouverture (Accepter / Refuser / Personnaliser), mémorisé via localStorage + Shopify customerPrivacy. Texte original (pas celui d'Amazon).
+- **Sélecteur de langue avec drapeau** (🇫🇷 FR ▾) à droite de la barre de rayons ; liste les langues actives avec leur drapeau (form localization).
+- **Bloc « Aide et paramètres »** en bas du menu latéral : Votre compte, 🌐 langue, 🏳️ pays (drapeau), devise, Service client, Se connecter.
+- **Fiches produits** : clic sur le bouton (« Choisir des options » / « Ajouter au panier ») → ouvre la **page produit** où **toutes les options/variantes** s'affichent, même s'il n'y en a qu'une.
