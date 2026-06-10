@@ -103,3 +103,9 @@ Tout regroupé sur **« IATECHFUTUR - Style Amazon v5 »** (`OnlineStoreTheme/19
 - **Sélecteur de langue avec drapeau** (🇫🇷 FR ▾) à droite de la barre de rayons ; liste les langues actives avec leur drapeau (form localization).
 - **Bloc « Aide et paramètres »** en bas du menu latéral : Votre compte, 🌐 langue, 🏳️ pays (drapeau), devise, Service client, Se connecter.
 - **Fiches produits** : clic sur le bouton (« Choisir des options » / « Ajouter au panier ») → ouvre la **page produit** où **toutes les options/variantes** s'affichent, même s'il n'y en a qu'une.
+
+## v5 (suite) — Adresse de livraison à côté du logo
+Bloc « 📍 Votre adresse de livraison : {pays} » injecté dans l'en-tête à côté
+du logo IATECHFUTUR (pays issu de `localization.country` → Belgique par défaut),
+cliquable pour ouvrir le panneau latéral. Toujours sur le thème v5
+(`OnlineStoreTheme/197856592212`).

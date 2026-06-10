@@ -88,9 +88,21 @@
   .az-lang__opt:hover{background:#f3f3f3;}
   .az-help__btn{display:block;width:100%;text-align:left;background:none;border:none;padding:10px 18px 10px 34px;font-size:14px;color:#0F1111;cursor:pointer;}
   .az-help__btn:hover{background:#f3f3f3;}
+  /* ===== Adresse de livraison (a cote du logo, facon Amazon) ===== */
+  .az-deliver{order:1;display:none;align-items:center;gap:6px;color:#fff;padding:3px 8px;border:1px solid transparent;border-radius:3px;cursor:pointer;white-space:nowrap;background:transparent;text-decoration:none;}
+  .az-deliver:hover{border-color:#fff;}
+  .az-deliver__pin{font-size:18px;line-height:1;}
+  .az-deliver__txt{display:flex;flex-direction:column;line-height:1.1;text-align:left;}
+  .az-deliver__l1{font-size:11px;color:#ccc;}
+  .az-deliver__l2{font-size:13px;font-weight:700;color:#fff;}
+  @media(max-width:749px){.az-deliver{display:none !important;}}
 </style>
 
 {%- if az_menu != blank -%}
+<a class="az-deliver" id="azDeliver" href="#" onclick="document.documentElement.classList.add('az-side-open');return false;" aria-label="Adresse de livraison">
+  <span class="az-deliver__pin">📍</span>
+  <span class="az-deliver__txt"><span class="az-deliver__l1">Votre adresse de livraison</span><span class="az-deliver__l2">{{ localization.country.name | default: shop.address.country | default: 'Belgique' }}</span></span>
+</a>
 <div class="az-deptbar">
   <div class="az-deptbar__inner">
     <button type="button" class="az-allcat" aria-label="Tous les rayons" onclick="document.documentElement.classList.add('az-side-open')">
@@ -224,6 +236,16 @@
       e.preventDefault(); e.stopPropagation();
       window.location.href = link.getAttribute('href');
     }, true);
+  })();
+  (function(){
+    function place(){
+      var d=document.getElementById('azDeliver');
+      var header=document.querySelector('.header');
+      if(!d||!header) return;
+      if(d.parentNode!==header){ header.appendChild(d); }
+      d.style.display='flex';
+    }
+    if(document.readyState!=='loading'){ place(); } else { document.addEventListener('DOMContentLoaded', place); }
   })();
 </script>
 
