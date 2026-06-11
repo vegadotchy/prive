@@ -130,3 +130,39 @@ contracte (`flex:1 1 auto; min-width:0`) et bouton garanti visible (`flex:0 0 42
 ## v7 — Barre de recherche 240px
 Largeur réduite à 240px (max 240) sur **« IATECHFUTUR - Style Amazon v7 »**
 (`OnlineStoreTheme/197894504788`). À publier (la précédente, v6, avait été publiée).
+
+## v7 (complet) — Recherche 180px, chat, paiement cliquable, livraison express
+Sur le thème v7 (`OnlineStoreTheme/197894504788`) :
+- **Barre de recherche** ramenée à **180px** (max 180, min 110), input qui se
+  contracte, bouton toujours visible.
+- **Bot de chat** : widget en bas à droite qui s'ouvre **juste après le choix
+  cookies**, message « Hi {prénom si connecté}, how can I help you today? ».
+- **Modes de paiement (panier)** : badges des moyens activés, **cliquables →
+  page de paiement** (`/checkout`).
+- **Livraison rapide (Express) +6,99 €** : **option case à cocher dans le panier**
+  (produit/variant `56079543599444`) que le client ajoute s'il le souhaite,
+  façon Amazon — ce n'est PAS un tarif d'expédition imposé.
+
+## Cohérence boutique (réglages Shopify, hors thème)
+Corrections appliquées via l'API Admin pour régler les incohérences signalées :
+- **Devise USD / livraison « United States » supprimées** : les marchés
+  *Global Market*, *International* et *AR-Zone* ont été passés en **brouillon
+  (DRAFT)**. Seul le marché **Belgique (EUR)** reste actif → tout le monde voit
+  l'EUR et la livraison Belgique/Europe. Réversible dans Réglages → Marchés.
+- **Codes promo -5%** créés : `NEWSLETTER5` (inscription newsletter) et
+  `BIENVENUE5` (création de compte), -5% tous produits, tous clients.
+- **Titres produits** : réécriture en **titres français courts et naturels**
+  (catalogue de 646 produits, beaucoup importés en EN/PT avec titres trop longs).
+  Traitement par lots via `productUpdate`.
+- **Langues** : choix du propriétaire de **garder les 6 langues** publiées.
+  ⚠️ Tant que le contenu n'est pas traduit, les versions /en, /es… affichent du
+  texte FR. Pour une vraie traduction : app gratuite **Translate & Adapt**.
+
+### Étape propriétaire (1 clic) — emails automatiques
+Les emails automatiques ne se règlent pas dans le thème mais dans l'admin :
+- **Abandon de panier** : Réglages → Notifications → Paniers abandonnés (activer).
+- **Remerciement après achat** : notification « Confirmation de commande » (active
+  par défaut) — personnaliser le texte.
+- **Visite sans achat / abandon de navigation** & **-5% newsletter/compte** :
+  Marketing → Automatisations → modèles Shopify Email (relier les codes
+  `NEWSLETTER5` / `BIENVENUE5`).
