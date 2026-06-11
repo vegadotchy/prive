@@ -107,8 +107,8 @@
 
 <div id="azPayWrap" style="display:none">
   <div class="az-pay">
-    <span class="az-pay__label">Modes de paiement acceptes</span>
-    <div class="az-pay__icons">{%- for type in shop.enabled_payment_types -%}{{ type | payment_type_svg_tag: class: 'az-pay__icon' }}{%- endfor -%}</div>
+    <span class="az-pay__label">Modes de paiement — cliquez pour passer au paiement</span>
+    <div class="az-pay__icons" role="button" tabindex="0" onclick="window.location.href='/checkout'">{%- for type in shop.enabled_payment_types -%}{{ type | payment_type_svg_tag: class: 'az-pay__icon' }}{%- endfor -%}</div>
   </div>
 </div>
 <div class="az-cookie" id="azCookie" style="display:none" role="dialog" aria-label="Cookies et confidentialite">
@@ -122,6 +122,24 @@
     </div>
   </div>
 </div>
+<div class="az-chat" id="azChat">
+  <button class="az-chat__bubble" id="azChatBubble" onclick="azChatToggle()" aria-label="Ouvrir le chat">💬</button>
+  <div class="az-chat__panel" id="azChatPanel" role="dialog" aria-label="Assistance">
+    <div class="az-chat__head">Assistance IATECHFUTUR <button type="button" class="az-chat__x" onclick="azChatToggle()" aria-label="Fermer">&times;</button></div>
+    <div class="az-chat__body" id="azChatBody">
+      <div class="az-chat__msg az-chat__msg--bot">Hi{% if customer %} {{ customer.first_name | default: customer.name }}{% endif %}, how can I help you today?</div>
+    </div>
+    <div class="az-chat__quick">
+      <a href="{% if customer %}{{ routes.account_url }}{% else %}{{ routes.account_login_url }}{% endif %}">Mes commandes</a>
+      <a href="/pages/contact">Nous contacter</a>
+      <a href="/collections/promotions">Promotions</a>
+    </div>
+    <form class="az-chat__form" onsubmit="return azChatSend(event)">
+      <input id="azChatInput" type="text" placeholder="Écrivez votre message…" autocomplete="off">
+      <button type="submit">Envoyer</button>
+    </form>
+  </div>
+</div>
 <script>
   (function(){
     function hide(){var el=document.getElementById('azCookie'); if(el) el.style.display='none';}
@@ -131,6 +149,7 @@
       try{ if(window.Shopify && Shopify.customerPrivacy && Shopify.customerPrivacy.setTrackingConsent){ Shopify.customerPrivacy.setTrackingConsent(granted, function(){}); } }catch(e){}
       try{ localStorage.setItem('iatf_cookie', choice); }catch(e){}
       hide();
+      try{ if(window.azChatOpen) azChatOpen(); }catch(e){}
     };
     try{ if(!localStorage.getItem('iatf_cookie')) show(); }catch(e){ show(); }
   })();
@@ -167,6 +186,41 @@
       if(node.parentNode!==ctas.parentNode){ ctas.parentNode.insertBefore(node, ctas.nextSibling); }
     }
     if(document.readyState!=='loading'){ place(); } else { document.addEventListener('DOMContentLoaded', place); }
+  })();
+  function azChatToggle(){ document.documentElement.classList.toggle('az-chat-open'); }
+  function azChatOpen(){ document.documentElement.classList.add('az-chat-open'); }
+  window.azChatToggle=azChatToggle; window.azChatOpen=azChatOpen;
+  function azChatSend(e){
+    e.preventDefault();
+    var inp=document.getElementById('azChatInput'); var body=document.getElementById('azChatBody');
+    if(!inp||!body) return false;
+    var v=(inp.value||'').trim(); if(!v) return false;
+    var u=document.createElement('div'); u.className='az-chat__msg az-chat__msg--user'; u.textContent=v; body.appendChild(u);
+    inp.value='';
+    var b=document.createElement('div'); b.className='az-chat__msg az-chat__msg--bot';
+    b.innerHTML='Merci ! Notre \u00e9quipe vous r\u00e9pond vite. \u00c9crivez-nous \u00e0 <a href="mailto:iatechfutur@mail.com?subject=Question%20boutique&body='+encodeURIComponent(v)+'">iatechfutur@mail.com</a> ou via la <a href="/pages/contact">page Contact</a>.';
+    body.appendChild(b); body.scrollTop=body.scrollHeight;
+    return false;
+  }
+  window.azChatSend=azChatSend;
+  (function(){
+    var EXP_ID=56079543599444;
+    function init(){
+      var ctas=document.querySelector('.cart__ctas'); if(!ctas||!ctas.parentNode) return;
+      if(document.getElementById('azExpress')) return;
+      var box=document.createElement('label'); box.id='azExpress';
+      box.style.cssText='display:flex;align-items:center;gap:10px;margin:12px 0;padding:11px 13px;border:1px solid #D5D9D9;border-radius:8px;font-size:14px;cursor:pointer;background:#fff;';
+      box.innerHTML='<input type="checkbox" style="width:18px;height:18px;flex:0 0 auto;"> <span>\u26A1 Livraison rapide (express) \u2014 <strong>+6,99 \u20AC</strong></span>';
+      ctas.parentNode.insertBefore(box, ctas);
+      var cb=box.querySelector('input');
+      fetch('/cart.js').then(function(r){return r.json();}).then(function(c){ cb.checked=(c.items||[]).some(function(i){return String(i.variant_id)===String(EXP_ID);}); }).catch(function(){});
+      cb.addEventListener('change', function(){
+        cb.disabled=true;
+        if(cb.checked){ fetch('/cart/add.js',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items:[{id:EXP_ID,quantity:1}]})}).then(function(){location.reload();}).catch(function(){location.reload();}); }
+        else { fetch('/cart/change.js',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:String(EXP_ID),quantity:0})}).then(function(){location.reload();}).catch(function(){location.reload();}); }
+      });
+    }
+    if(document.readyState!=='loading'){ init(); } else { document.addEventListener('DOMContentLoaded', init); }
   })();
 </script>
 

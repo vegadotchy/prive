@@ -99,9 +99,27 @@
   .az-pay__icons{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
   .az-pay__icon,.az-pay__icons svg{width:46px;height:30px;border:1px solid #e7e7e7;border-radius:4px;background:#fff;}
   /* ===== Barre de recherche : toujours visible, compacte ===== */
-  .amazon-search-bar{display:block !important;order:2 !important;flex:0 1 240px !important;width:240px !important;min-width:120px !important;max-width:240px !important;margin:0 10px !important;}
+  .amazon-search-bar{display:block !important;order:2 !important;flex:0 1 180px !important;width:180px !important;min-width:110px !important;max-width:180px !important;margin:0 10px !important;}
   .amazon-search-form{display:flex !important;height:36px !important;border-radius:6px !important;overflow:hidden !important;width:100% !important;}
   .amazon-search-input{flex:1 1 auto !important;min-width:0 !important;font-size:14px !important;}
   .amazon-search-btn{flex:0 0 42px !important;width:42px !important;}
   .header__search,.header__icon--search,[data-modal-open="search"]{display:none !important;}
   @media(max-width:989px){.amazon-search-bar{order:3 !important;flex:1 1 100% !important;width:100% !important;min-width:100% !important;max-width:100% !important;margin:6px 0 0 0 !important;}}
+
+  /* ===== Chat assistance ===== */
+  .az-pay__icons[role="button"]{cursor:pointer;}
+  .az-chat{position:fixed;right:18px;bottom:18px;z-index:1300;}
+  .az-chat__bubble{width:56px;height:56px;border-radius:50%;background:#FFD814;border:1px solid #FCD200;font-size:26px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.3);}
+  .az-chat__panel{position:absolute;right:0;bottom:70px;width:320px;max-width:86vw;background:#fff;border:1px solid #D5D9D9;border-radius:12px;box-shadow:0 8px 26px rgba(0,0,0,.28);display:none;overflow:hidden;}
+  html.az-chat-open .az-chat__panel{display:block;}
+  .az-chat__head{background:#232f3e;color:#fff;font-weight:700;font-size:15px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;}
+  .az-chat__x{background:none;border:none;color:#fff;font-size:22px;cursor:pointer;line-height:1;}
+  .az-chat__body{padding:14px;max-height:300px;overflow-y:auto;background:#f7f7f7;}
+  .az-chat__msg{padding:9px 12px;border-radius:12px;margin-bottom:8px;font-size:14px;max-width:85%;}
+  .az-chat__msg--bot{background:#fff;border:1px solid #e7e7e7;color:#0F1111;}
+  .az-chat__msg--user{background:#FFD814;color:#0F1111;margin-left:auto;}
+  .az-chat__quick{display:flex;gap:8px;padding:8px 14px;flex-wrap:wrap;}
+  .az-chat__quick a{font-size:12px;color:#007185;text-decoration:none;border:1px solid #D5D9D9;border-radius:100px;padding:5px 10px;}
+  .az-chat__form{display:flex;border-top:1px solid #eee;}
+  .az-chat__form input{flex:1;border:none;padding:10px 12px;font-size:14px;outline:none;}
+  .az-chat__form button{background:#232f3e;color:#fff;border:none;padding:0 14px;cursor:pointer;font-size:13px;}
