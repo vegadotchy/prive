@@ -145,10 +145,13 @@ Sur le thème v7 (`OnlineStoreTheme/197894504788`) :
 
 ## Cohérence boutique (réglages Shopify, hors thème)
 Corrections appliquées via l'API Admin pour régler les incohérences signalées :
-- **Devise USD / livraison « United States » supprimées** : les marchés
-  *Global Market*, *International* et *AR-Zone* ont été passés en **brouillon
-  (DRAFT)**. Seul le marché **Belgique (EUR)** reste actif → tout le monde voit
-  l'EUR et la livraison Belgique/Europe. Réversible dans Réglages → Marchés.
+- **Devise USD / livraison « United States » supprimées** : choix retenu
+  **Belgique + Europe en EUR**. Le marché **Belgique** (principal, EUR) reste
+  actif ; le marché **International** a été reconfiguré en **EUR uniquement
+  (local currencies désactivées)** et **restreint à 16 pays européens** (US,
+  UAE, Canada, Australie, Japon, etc. retirés). Les marchés *Global Market* et
+  *AR-Zone* sont passés en **brouillon**. Plus aucune devise USD ni livraison
+  « United States ». Réversible dans Réglages → Marchés.
 - **Codes promo -5%** créés : `NEWSLETTER5` (inscription newsletter) et
   `BIENVENUE5` (création de compte), -5% tous produits, tous clients.
 - **Titres produits** : réécriture en **titres français courts et naturels**
