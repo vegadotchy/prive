@@ -120,3 +120,9 @@ cliquable pour ouvrir le panneau latéral. Toujours sur le thème v5
 - **Refactor** : tout le CSS de la section déplacé dans `assets/amazon-cats.css`
   (chargé via `stylesheet_tag`) → fichiers plus petits, éditions plus fiables.
 Fichiers : `shopify/amazon-categories.liquid`, `shopify/amazon-cats.css`.
+
+## v6 — Barre de recherche compacte
+Barre de recherche réduite (largeur fixe ~320 px, max 320 px) avec input qui se
+contracte (`flex:1 1 auto; min-width:0`) et bouton garanti visible (`flex:0 0 42px`)
+→ plus de bouton coupé ni de barre trop large. Appliqué sur
+**« IATECHFUTUR - Style Amazon v6 »** (`OnlineStoreTheme/197893456212`).
