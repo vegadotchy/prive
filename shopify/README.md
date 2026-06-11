@@ -121,8 +121,12 @@ cliquable pour ouvrir le panneau latéral. Toujours sur le thème v5
   (chargé via `stylesheet_tag`) → fichiers plus petits, éditions plus fiables.
 Fichiers : `shopify/amazon-categories.liquid`, `shopify/amazon-cats.css`.
 
-## v6 — Barre de recherche compacte
+## v6/v7 — Barre de recherche encore plus petite (240px)
 Barre de recherche réduite (largeur fixe ~320 px, max 320 px) avec input qui se
 contracte (`flex:1 1 auto; min-width:0`) et bouton garanti visible (`flex:0 0 42px`)
 → plus de bouton coupé ni de barre trop large. Appliqué sur
 **« IATECHFUTUR - Style Amazon v6 »** (`OnlineStoreTheme/197893456212`).
+
+## v7 — Barre de recherche 240px
+Largeur réduite à 240px (max 240) sur **« IATECHFUTUR - Style Amazon v7 »**
+(`OnlineStoreTheme/197894504788`). À publier (la précédente, v6, avait été publiée).
