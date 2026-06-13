@@ -154,15 +154,15 @@
     }, true);
   })();
   (function(){
-    // Adresse de livraison placee dans la barre foncee, juste apres « Tous les rayons » (toujours visible)
+    // Adresse de livraison placee dans l'en-tete, juste a cote du logo (toujours visible)
     function place(){
       var d=document.getElementById('azDeliver');
-      var bar=document.querySelector('.az-deptbar__inner');
-      if(!d||!bar) return;
-      var btn=bar.querySelector('.az-allcat');
-      if(btn){ if(btn.nextElementSibling!==d){ bar.insertBefore(d, btn.nextElementSibling); } }
-      else if(d.parentNode!==bar){ bar.insertBefore(d, bar.firstChild); }
-      d.style.display='flex';
+      var header=document.querySelector('.header');
+      if(!d||!header) return;
+      var logo=header.querySelector('.header__heading');
+      if(logo){ if(logo.nextElementSibling!==d){ header.insertBefore(d, logo.nextElementSibling); } }
+      else if(d.parentNode!==header){ header.insertBefore(d, header.firstChild); }
+      d.style.order='2'; d.style.display='flex';
     }
     if(document.readyState!=='loading'){ place(); } else { document.addEventListener('DOMContentLoaded', place); }
     window.addEventListener('load', place);
