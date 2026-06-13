@@ -21,10 +21,21 @@ body.gradient,body{background:var(--az-bg)!important;background-image:none!impor
 /* HEADER barre principale */
 .section-header,.shopify-section-group-header-group{background:var(--az-dark)!important;background-image:none!important;margin-bottom:0!important;box-shadow:none!important;}
 .header-wrapper{background:var(--az-dark)!important;border-bottom:none!important;color:#fff!important;}
-.header{background:var(--az-dark)!important;display:flex!important;flex-wrap:wrap!important;align-items:center!important;gap:10px!important;padding:6px 1.5rem!important;max-width:1500px!important;}
-.header__heading,.header__heading-link{order:1!important;margin:0!important;padding:4px 6px!important;border:1px solid transparent!important;border-radius:3px!important;}
+.header{background:var(--az-dark)!important;display:flex!important;flex-wrap:wrap!important;align-items:center!important;gap:10px!important;padding:6px 1.5rem 8px!important;max-width:1500px!important;position:relative!important;}
+.header__heading,.header__heading-link{margin:0!important;padding:4px 6px!important;border:1px solid transparent!important;border-radius:3px!important;}
 .header__heading-link:hover{border-color:#fff!important;}
 span.h2{color:#fff!important;}
+
+/* MARQUE : logo (coin haut-gauche) + adresse de livraison empilee juste dessous */
+.az-brand{order:1!important;display:flex!important;flex-direction:column!important;align-items:flex-start!important;gap:2px!important;}
+.az-brand .header__heading,.az-brand .header__heading-link{order:0!important;margin:0!important;}
+.az-brand .az-deliver{order:1!important;display:flex!important;margin:0!important;padding:2px 6px!important;}
+
+/* HAUT-DROITE : langue + connexion/inscription + panier regroupes au coin droit */
+.az-topright{order:3!important;margin-left:auto!important;display:flex!important;align-items:center!important;gap:8px!important;}
+.az-topright .az-account{margin-left:0!important;}
+.az-topright .header__icons{order:0!important;margin:0!important;}
+.header__icon--account{display:none!important;} /* evite le doublon avec « Identifiez-vous » */
 
 /* RECHERCHE (markup .amazon-search-bar dans header.liquid) */
 .header__search,.header__icon--search,[data-modal-open="search"]{display:none!important;}
@@ -43,7 +54,7 @@ span.h2{color:#fff!important;}
 .cart-count-bubble{background:var(--az-orange)!important;color:var(--az-text)!important;font-weight:700!important;border-radius:50%!important;}
 
 /* BARRE DES RAYONS (2e ligne pleine largeur) */
-nav.header__inline-menu,.header__inline-menu{order:10!important;flex:0 0 100%!important;width:100vw!important;position:relative!important;left:50%!important;margin-left:-50vw!important;margin-top:6px!important;margin-bottom:calc(-6px - 1.5rem)!important;background:var(--az-dark2)!important;padding:6px max(1.5rem,calc(50vw - 750px + 1.5rem))!important;display:flex!important;flex-wrap:wrap!important;align-items:center!important;overflow:visible!important;}
+nav.header__inline-menu,.header__inline-menu{order:10!important;flex:0 0 100%!important;width:100vw!important;position:relative!important;left:50%!important;transform:translateX(-50%)!important;margin:8px 0 0 0!important;background:var(--az-dark2)!important;padding:6px max(1.5rem,calc(50vw - 750px + 1.5rem))!important;display:flex!important;flex-wrap:wrap!important;align-items:center!important;gap:2px 2px!important;overflow:visible!important;}
 .header__inline-menu::before{content:"\2261  Tous les rayons"!important;color:#fff!important;font-weight:700!important;font-size:14px!important;padding:8px 10px!important;white-space:nowrap!important;}
 .header__inline-menu .header__menu-item,.header__inline-menu .list-menu__item{color:#fff!important;font-size:14px!important;padding:8px 9px!important;white-space:nowrap!important;border:1px solid transparent!important;border-radius:3px!important;}
 .header__inline-menu a.header__menu-item:hover,.header__inline-menu summary:hover{border-color:#fff!important;}

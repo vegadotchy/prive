@@ -154,18 +154,31 @@
     }, true);
   })();
   (function(){
-    // Adresse de livraison placee dans l'en-tete, juste a cote du logo (toujours visible)
-    function place(){
-      var d=document.getElementById('azDeliver');
+    // Reorganise l'en-tete facon Amazon :
+    //  - a gauche : logo (coin haut-gauche) + adresse de livraison juste en dessous
+    //  - a droite : langue + connexion/inscription + panier regroupes
+    function layout(){
       var header=document.querySelector('.header');
-      if(!d||!header) return;
+      if(!header) return;
       var logo=header.querySelector('.header__heading');
-      if(logo){ if(logo.nextElementSibling!==d){ header.insertBefore(d, logo.nextElementSibling); } }
-      else if(d.parentNode!==header){ header.insertBefore(d, header.firstChild); }
-      d.style.order='2'; d.style.display='flex';
+      var d=document.getElementById('azDeliver');
+      var acc=document.querySelector('.az-account');
+      var icons=document.querySelector('.header__icons');
+      // Bloc marque a gauche (logo + adresse empilee)
+      if(logo){
+        var brand=document.getElementById('azBrand');
+        if(!brand){ brand=document.createElement('div'); brand.id='azBrand'; brand.className='az-brand'; logo.parentNode.insertBefore(brand, logo); }
+        if(logo.parentNode!==brand){ brand.appendChild(logo); }
+        if(d){ if(d.parentNode!==brand){ brand.appendChild(d); } d.style.display='flex'; }
+      }
+      // Bloc haut-droite (langue + connexion/inscription + panier)
+      var tr=document.getElementById('azTopRight');
+      if(!tr){ tr=document.createElement('div'); tr.id='azTopRight'; tr.className='az-topright'; header.appendChild(tr); }
+      if(acc && acc.parentNode!==tr){ tr.appendChild(acc); }
+      if(icons && icons.parentNode!==tr){ tr.appendChild(icons); }
     }
-    if(document.readyState!=='loading'){ place(); } else { document.addEventListener('DOMContentLoaded', place); }
-    window.addEventListener('load', place);
+    if(document.readyState!=='loading'){ layout(); } else { document.addEventListener('DOMContentLoaded', layout); }
+    window.addEventListener('load', layout);
   })();
   (function(){
     // Place la barre de recherche EN HAUT, au-dessus du logo (avant l'en-tete)
