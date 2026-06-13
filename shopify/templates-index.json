@@ -101,7 +101,7 @@
           "settings": {
             "image": "shopify://shop_images/support-rapide.png",
             "title": "📞 <strong>Support rapide</strong>",
-            "text": "<p>Une question ? Notre équipe est disponible 7j/7 pour vous accompagner</p>",
+            "text": "<p>Une question ? Notre équipe est disponible 5/7 pour vous accompagner</p>",
             "link_label": "",
             "link": ""
           }
@@ -197,7 +197,7 @@
         "text_CAKhpm": {
           "type": "text",
           "settings": {
-            "text": "<p>🔒 Paiement 100% sécurisé par SSL<br/>🇧🇪 Entreprise certifiée Belgique - TVA BE<br/>💳 Toutes les cartes bancaires acceptées (Visa, Mastercard, Bancontact)<br/>📞 Support client en français 24/7<br/>⭐ Noté  4.8/5 par nos clients<br/>🏆 Partenaire officiel des grandes marques</p>"
+            "text": "<p>🔒 Paiement 100% sécurisé par SSL<br/>🇧🇪 Entreprise certifiée Belgique - TVA BE<br/>💳 Toutes les cartes bancaires acceptées (Visa, Mastercard, Bancontact)<br/>📞 Support client en français du lundi au vendredi de 09h00 à 17h00<br/>⭐ Noté  4.8/5 par nos clients<br/>🏆 Partenaire officiel des grandes marques</p>"
           }
         }
       },

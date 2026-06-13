@@ -17,7 +17,7 @@
   .facets-vertical .product-grid-container,.collection .product-grid-container,.facets-vertical>.product-grid-container,#ProductGridContainer{width:100% !important;max-width:100% !important;flex:1 1 100% !important;margin:0 !important;}
   .facets-vertical{display:block !important;}
   .az-deptbar{background:#232f3e;width:100%;}
-  .az-deptbar__inner{display:flex;align-items:center;gap:6px;max-width:1500px;margin:0 auto;padding:0 1.5rem;overflow:visible;white-space:nowrap;}
+  .az-deptbar__inner{display:flex;flex-wrap:wrap;align-items:center;gap:6px 4px;max-width:1500px;margin:0 auto;padding:6px 1.5rem;overflow:visible;white-space:normal;}
   .az-deptbar__inner::-webkit-scrollbar{display:none;}
   .az-allcat{display:inline-flex;align-items:center;gap:8px;background:transparent;color:#fff;border:1px solid transparent;border-radius:3px;font-size:14px;font-weight:700;padding:8px 10px;cursor:pointer;white-space:nowrap;flex:0 0 auto;}
   .az-allcat:hover{border-color:#fff;}
@@ -125,14 +125,19 @@
   .az-chat__form button{background:#232f3e;color:#fff;border:none;padding:0 14px;cursor:pointer;font-size:13px;}
 
   /* ===== Barre de rayons raccourcie : liens en ligne masques (toutes les categories via le bouton « Tous les rayons ») ===== */
-  .az-deptbar__scroll{display:none !important;}
+  /* Afficher TOUS les rayons, sur plusieurs lignes si besoin (rien de coupe) */
+  .az-deptbar__scroll{display:flex !important;flex-wrap:wrap !important;align-items:center;gap:2px 4px;overflow:visible !important;white-space:normal !important;flex:1 1 100% !important;}
+  /* Logo cale au coin haut-gauche */
+  .header__heading{justify-self:start !important;margin:0 !important;}
+  .header__heading-link{margin-left:0 !important;padding-left:0 !important;}
   /* ===== Video d'accueil reduite a 50% et centree (desktop) ===== */
   @media screen and (min-width:750px){
     .video-section__media{display:block !important;max-width:50% !important;margin-left:auto !important;margin-right:auto !important;}
   }
 
   /* ===== Section retractation (accueil) : titre, texte et bouton reduits ~50% ===== */
-  #shopify-section-retraction_iatf .rich-text__heading{font-size:1.3rem !important;line-height:1.25 !important;}
+  #shopify-section-retraction_iatf .rich-text__heading{font-size:1rem !important;line-height:1.25 !important;}
+  #shopify-section-retraction_iatf{padding-top:6px !important;padding-bottom:6px !important;}
   #shopify-section-retraction_iatf .rich-text__text{font-size:12px !important;}
   #shopify-section-retraction_iatf .rich-text__text p{font-size:12px !important;}
   #shopify-section-retraction_iatf .button{font-size:12px !important;min-height:auto !important;padding:6px 14px !important;}
