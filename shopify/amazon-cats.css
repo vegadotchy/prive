@@ -86,7 +86,7 @@
   .az-help__btn{display:block;width:100%;text-align:left;background:none;border:none;padding:10px 18px 10px 34px;font-size:14px;color:#0F1111;cursor:pointer;}
   .az-help__btn:hover{background:#f3f3f3;}
   /* ===== Adresse de livraison (a cote du logo, facon Amazon) ===== */
-  .az-deliver{order:1;display:none;align-items:center;gap:6px;color:#fff;padding:3px 8px;border:1px solid transparent;border-radius:3px;cursor:pointer;white-space:nowrap;background:transparent;text-decoration:none;}
+  .az-deliver{order:0;display:none;align-items:center;gap:6px;color:#fff;padding:3px 8px;margin-left:8px;border:1px solid transparent;border-radius:3px;cursor:pointer;white-space:nowrap;background:transparent;text-decoration:none;flex:0 0 auto;}
   .az-deliver:hover{border-color:#fff;}
   .az-deliver__pin{font-size:18px;line-height:1;}
   .az-deliver__txt{display:flex;flex-direction:column;line-height:1.1;text-align:left;}
@@ -98,8 +98,8 @@
   .az-pay__label{display:block;font-size:13px;font-weight:700;color:#0F1111;margin-bottom:8px;}
   .az-pay__icons{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
   .az-pay__icon,.az-pay__icons svg{width:46px;height:30px;border:1px solid #e7e7e7;border-radius:4px;background:#fff;}
-  /* ===== Barre de recherche : placee en haut a gauche, au-dessus du logo ===== */
-  .amazon-search-bar{display:block !important;width:100% !important;max-width:520px !important;min-width:260px !important;margin:8px 0 10px 16px !important;}
+  /* ===== Barre de recherche : placee en haut, CENTREE au milieu ===== */
+  .amazon-search-bar{display:block !important;width:100% !important;max-width:560px !important;min-width:260px !important;margin:8px auto 10px auto !important;}
   .amazon-search-form{display:flex !important;height:36px !important;border-radius:6px !important;overflow:hidden !important;width:100% !important;}
   .amazon-search-input{flex:1 1 auto !important;min-width:0 !important;font-size:14px !important;}
   .amazon-search-btn{flex:0 0 42px !important;width:42px !important;}
@@ -132,10 +132,10 @@
   }
 
   /* ===== Section retractation (accueil) : titre, texte et bouton reduits ~50% ===== */
-  #shopify-section-retraction_iatf .rich-text__heading{font-size:2rem !important;line-height:1.2 !important;}
-  #shopify-section-retraction_iatf .rich-text__text{font-size:0.95rem !important;}
-  #shopify-section-retraction_iatf .rich-text__text p{font-size:0.95rem !important;}
-  #shopify-section-retraction_iatf .button{font-size:0.85rem !important;min-height:auto !important;padding:0.7rem 1.5rem !important;}
+  #shopify-section-retraction_iatf .rich-text__heading{font-size:1.3rem !important;line-height:1.25 !important;}
+  #shopify-section-retraction_iatf .rich-text__text{font-size:12px !important;}
+  #shopify-section-retraction_iatf .rich-text__text p{font-size:12px !important;}
+  #shopify-section-retraction_iatf .button{font-size:12px !important;min-height:auto !important;padding:6px 14px !important;}
 
   /* ===== Accueil facon Amazon : grille de cartes categories ===== */
   .azh{background:#e3e6e6;padding:14px 0;}
