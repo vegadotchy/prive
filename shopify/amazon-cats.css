@@ -123,3 +123,10 @@
   .az-chat__form{display:flex;border-top:1px solid #eee;}
   .az-chat__form input{flex:1;border:none;padding:10px 12px;font-size:14px;outline:none;}
   .az-chat__form button{background:#232f3e;color:#fff;border:none;padding:0 14px;cursor:pointer;font-size:13px;}
+
+  /* ===== Barre de rayons raccourcie : liens en ligne masques (toutes les categories via le bouton « Tous les rayons ») ===== */
+  .az-deptbar__scroll{display:none !important;}
+  /* ===== Video d'accueil reduite a 50% et centree (desktop) ===== */
+  @media screen and (min-width:750px){
+    .video-section__media{display:block !important;max-width:50% !important;margin-left:auto !important;margin-right:auto !important;}
+  }

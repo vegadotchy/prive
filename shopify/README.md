@@ -169,3 +169,29 @@ Les emails automatiques ne se règlent pas dans le thème mais dans l'admin :
 - **Visite sans achat / abandon de navigation** & **-5% newsletter/compte** :
   Marketing → Automatisations → modèles Shopify Email (relier les codes
   `NEWSLETTER5` / `BIENVENUE5`).
+
+### Itération v8 (brouillon `IATECHFUTUR - Style Amazon v8`, à publier)
+> Les écritures sur le thème **publié** sont bloquées par l'API Shopify. Ces
+> changements ont donc été appliqués à un **duplicata v8 (brouillon)** ; le
+> marchand doit le **publier** (Boutique en ligne → Thèmes → v8 → Publier).
+
+- **Barre de rayons raccourcie** : les liens de rayons en ligne sont masqués
+  (`.az-deptbar__scroll{display:none}` dans `amazon-cats.css`) → il ne reste que
+  le bouton **≡ Tous les rayons** (toutes les catégories via le menu latéral),
+  ce qui **redonne de la place à la barre de recherche**.
+- **Vidéo d'accueil réduite à 50 % et centrée** (desktop) via
+  `.video-section__media{max-width:50%;margin:auto}` (`amazon-cats.css`).
+- **Bandeau « Garanties »** : retrait des lignes « Retours gratuits pendant
+  30 jours » et « Garantie satisfait ou remboursé » (`templates/index.json`).
+- **Droit de rétractation (conforme)** :
+  - Page **`/pages/droit-de-retractation`** (template `page.retraction`,
+    section `retraction-form.liquid`) avec **parcours en 2 clics** (déclarer →
+    confirmer), formulaire de contact (notifie le marchand), message d'**accusé
+    de réception**, et modèle de lettre.
+  - **Bouton accueil** « Se rétracter / Renoncer à ma commande » (section
+    `retraction_iatf` dans `templates/index.json`).
+  - **Lien permanent en pied de page** (menu `footer`) → visible sur toutes les
+    pages pendant tout le délai légal.
+  - ⚠️ L'**accusé de réception automatique par e-mail au client** nécessite une
+    automatisation (Shopify Flow / app d'e-mails) ou une réponse manuelle : le
+    formulaire notifie le marchand, qui confirme. À activer côté admin.
