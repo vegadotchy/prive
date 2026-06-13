@@ -1,0 +1,9 @@
+{
+  "sections": {
+    "main": {
+      "type": "marketplace-fb",
+      "settings": {}
+    }
+  },
+  "order": ["main"]
+}
