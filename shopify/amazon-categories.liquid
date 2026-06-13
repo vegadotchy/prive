@@ -122,24 +122,10 @@
     </div>
   </div>
 </div>
-<div class="az-chat" id="azChat">
-  <button class="az-chat__bubble" id="azChatBubble" onclick="azChatToggle()" aria-label="Ouvrir le chat">💬</button>
-  <div class="az-chat__panel" id="azChatPanel" role="dialog" aria-label="Assistance">
-    <div class="az-chat__head">Assistance IATECHFUTUR <button type="button" class="az-chat__x" onclick="azChatToggle()" aria-label="Fermer">&times;</button></div>
-    <div class="az-chat__body" id="azChatBody">
-      <div class="az-chat__msg az-chat__msg--bot">Hi{% if customer %} {{ customer.first_name | default: customer.name }}{% endif %}, how can I help you today?</div>
-    </div>
-    <div class="az-chat__quick">
-      <a href="{% if customer %}{{ routes.account_url }}{% else %}{{ routes.account_login_url }}{% endif %}">Mes commandes</a>
-      <a href="/pages/contact">Nous contacter</a>
-      <a href="/collections/promotions">Promotions</a>
-    </div>
-    <form class="az-chat__form" onsubmit="return azChatSend(event)">
-      <input id="azChatInput" type="text" placeholder="Écrivez votre message…" autocomplete="off">
-      <button type="submit">Envoyer</button>
-    </form>
-  </div>
-</div>
+{%- comment -%} Chat IA Chatbase (Plan Free) — remplace l'ancien chat personnalisé {%- endcomment -%}
+<script>
+  (function(){if(!window.chatbase||window.chatbase("getState")!=="initialized"){window.chatbase=(...arguments)=>{if(!window.chatbase.q){window.chatbase.q=[]}window.chatbase.q.push(arguments)};window.chatbase=new Proxy(window.chatbase,{get(target,prop){if(prop==="q"){return target.q}return(...args)=>target(prop,...args)}})}const onLoad=function(){const s=document.createElement("script");s.src="https://www.chatbase.co/embed.min.js";s.id="3qTKmiqFrgRNk9yueSoY2";s.domain="www.chatbase.co";document.body.appendChild(s)};if(document.readyState==="complete"){onLoad()}else{window.addEventListener("load",onLoad)}})();
+</script>
 <script>
   (function(){
     function hide(){var el=document.getElementById('azCookie'); if(el) el.style.display='none';}
@@ -176,6 +162,17 @@
       d.style.display='flex';
     }
     if(document.readyState!=='loading'){ place(); } else { document.addEventListener('DOMContentLoaded', place); }
+  })();
+  (function(){
+    // Place la barre de recherche EN HAUT, au-dessus du logo (avant l'en-tete)
+    function place(){
+      var sb=document.querySelector('.amazon-search-bar');
+      var header=document.querySelector('.header');
+      if(!sb||!header||!header.parentNode) return;
+      if(sb.nextElementSibling!==header){ header.parentNode.insertBefore(sb, header); }
+    }
+    if(document.readyState!=='loading'){ place(); } else { document.addEventListener('DOMContentLoaded', place); }
+    window.addEventListener('load', place);
   })();
   (function(){
     function place(){
