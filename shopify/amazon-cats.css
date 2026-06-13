@@ -135,12 +135,14 @@
     .video-section__media{display:block !important;max-width:50% !important;margin-left:auto !important;margin-right:auto !important;}
   }
 
-  /* ===== Section retractation (accueil) : titre, texte et bouton reduits ~50% ===== */
-  #shopify-section-retraction_iatf .rich-text__heading{font-size:1rem !important;line-height:1.25 !important;}
-  #shopify-section-retraction_iatf{padding-top:6px !important;padding-bottom:6px !important;}
-  #shopify-section-retraction_iatf .rich-text__text{font-size:12px !important;}
-  #shopify-section-retraction_iatf .rich-text__text p{font-size:12px !important;}
-  #shopify-section-retraction_iatf .button{font-size:12px !important;min-height:auto !important;padding:6px 14px !important;}
+  /* ===== Section retractation (accueil) : titre, texte et bouton reduits =====
+     NB : dans un template JSON l'id reel est prefixe (template--XXX__retraction_iatf),
+     donc on cible avec [id*="retraction_iatf"] et non #shopify-section-retraction_iatf. */
+  [id*="retraction_iatf"]{padding-top:6px !important;padding-bottom:6px !important;}
+  [id*="retraction_iatf"] .rich-text__heading{font-size:15px !important;line-height:1.2 !important;margin:0 0 4px !important;}
+  [id*="retraction_iatf"] .rich-text__text{font-size:11px !important;line-height:1.35 !important;margin:0 0 6px !important;}
+  [id*="retraction_iatf"] .rich-text__text p{font-size:11px !important;margin:0 !important;}
+  [id*="retraction_iatf"] .button{font-size:11px !important;min-height:auto !important;padding:5px 12px !important;}
 
   /* ===== Accueil facon Amazon : grille de cartes categories ===== */
   .azh{background:#e3e6e6;padding:14px 0;}
