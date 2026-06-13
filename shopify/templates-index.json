@@ -52,7 +52,7 @@
         "buttons_retr": {
           "type": "button",
           "settings": {
-            "button_label": "Se rétracter / Renoncer à ma commande",
+            "button_label": "Se rétracter",
             "button_link": "/pages/droit-de-retractation",
             "button_style_secondary": false
           }

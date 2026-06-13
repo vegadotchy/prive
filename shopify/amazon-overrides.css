@@ -21,7 +21,7 @@ body.gradient,body{background:var(--az-bg)!important;background-image:none!impor
 /* HEADER barre principale */
 .section-header,.shopify-section-group-header-group{background:var(--az-dark)!important;background-image:none!important;margin-bottom:0!important;box-shadow:none!important;}
 .header-wrapper{background:var(--az-dark)!important;border-bottom:none!important;color:#fff!important;}
-.header{background:var(--az-dark)!important;display:flex!important;flex-wrap:wrap!important;align-items:center!important;gap:10px!important;padding:6px 1.5rem 8px!important;max-width:1500px!important;position:relative!important;}
+.header{background:var(--az-dark)!important;display:flex!important;flex-wrap:wrap!important;align-items:center!important;gap:8px!important;padding:4px 1.5rem!important;max-width:1500px!important;position:relative!important;}
 .header__heading,.header__heading-link{margin:0!important;padding:4px 6px!important;border:1px solid transparent!important;border-radius:3px!important;}
 .header__heading-link:hover{border-color:#fff!important;}
 span.h2{color:#fff!important;}
@@ -54,7 +54,7 @@ span.h2{color:#fff!important;}
 .cart-count-bubble{background:var(--az-orange)!important;color:var(--az-text)!important;font-weight:700!important;border-radius:50%!important;}
 
 /* BARRE DES RAYONS (2e ligne pleine largeur) */
-nav.header__inline-menu,.header__inline-menu{order:10!important;flex:0 0 100%!important;width:100vw!important;position:relative!important;left:50%!important;transform:translateX(-50%)!important;margin:8px 0 0 0!important;background:var(--az-dark2)!important;padding:3px max(1rem,calc(50vw - 750px + 1rem))!important;display:flex!important;flex-wrap:nowrap!important;align-items:center!important;gap:6px!important;overflow:visible!important;}
+nav.header__inline-menu,.header__inline-menu{order:10!important;flex:0 0 100%!important;width:100vw!important;position:relative!important;left:50%!important;transform:translateX(-50%)!important;margin:4px 0 0 0!important;background:var(--az-dark2)!important;padding:3px max(1rem,calc(50vw - 750px + 1rem))!important;display:flex!important;flex-wrap:nowrap!important;align-items:center!important;gap:6px!important;overflow:visible!important;}
 .header__inline-menu::before{content:"\2261  Tous les rayons"!important;color:#fff!important;font-weight:700!important;font-size:12px!important;padding:4px 4px!important;white-space:nowrap!important;flex:0 0 auto!important;}
 .header__inline-menu .list-menu--inline,.header__inline-menu>ul{flex:1 1 auto!important;min-width:0!important;display:flex!important;flex-wrap:nowrap!important;justify-content:space-between!important;align-items:center!important;gap:2px!important;overflow-x:auto!important;margin:0!important;padding:0!important;}
 .header__inline-menu .list-menu--inline::-webkit-scrollbar,.header__inline-menu>ul::-webkit-scrollbar{height:0!important;}

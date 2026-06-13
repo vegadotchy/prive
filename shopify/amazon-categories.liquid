@@ -181,12 +181,12 @@
     window.addEventListener('load', layout);
   })();
   (function(){
-    // Place la barre de recherche EN HAUT, au-dessus du logo (avant l'en-tete)
+    // Place la barre de recherche DANS la rangee d'en-tete (au milieu, entre le logo et le compte) — facon Amazon, compact
     function place(){
       var sb=document.querySelector('.amazon-search-bar');
       var header=document.querySelector('.header');
-      if(!sb||!header||!header.parentNode) return;
-      if(sb.nextElementSibling!==header){ header.parentNode.insertBefore(sb, header); }
+      if(!sb||!header) return;
+      if(sb.parentNode!==header){ header.appendChild(sb); }
     }
     if(document.readyState!=='loading'){ place(); } else { document.addEventListener('DOMContentLoaded', place); }
     window.addEventListener('load', place);
