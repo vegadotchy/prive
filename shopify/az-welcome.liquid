@@ -45,6 +45,37 @@
   })();
 </script>
 
+{%- assign navmenu = linklists['main-menu'] -%}
+<script>
+  /* Rendre TOUS les rayons du bandeau cliquables (les parents a sous-menu deviennent des liens vers leur collection ; « Tous les rayons » ouvre le menu lateral) */
+  (function(){
+    var AZNAV = { {%- for link in navmenu.links -%}{{ link.title | json }}: {{ link.url | json }}{%- unless forloop.last -%},{%- endunless -%}{%- endfor -%} };
+    function wire(){
+      var nav = document.querySelector('.header__inline-menu');
+      if(!nav) return;
+      if(!nav.dataset.azNavWired){
+        nav.dataset.azNavWired='1';
+        nav.addEventListener('click', function(e){ if(e.target===nav){ document.documentElement.classList.add('az-side-open'); } });
+      }
+      var items = nav.querySelectorAll('.header__menu-item');
+      for(var i=0;i<items.length;i++){
+        (function(it){
+          if(it.dataset.azWired) return;
+          var label=(it.textContent||'').replace(/\s+/g,' ').trim();
+          var url=AZNAV[label];
+          if(!url) return;
+          it.dataset.azWired='1';
+          if(it.tagName==='A') return;
+          it.style.cursor='pointer';
+          it.addEventListener('click', function(ev){ ev.preventDefault(); ev.stopPropagation(); window.location.href=url; });
+        })(items[i]);
+      }
+    }
+    if(document.readyState!=='loading'){ wire(); } else { document.addEventListener('DOMContentLoaded', wire); }
+    window.addEventListener('load', wire);
+  })();
+</script>
+
 {% schema %}
 {
   "name": "Bienvenue -10%",
