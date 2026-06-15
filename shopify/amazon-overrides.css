@@ -61,6 +61,13 @@ nav.header__inline-menu,.header__inline-menu{order:10!important;flex:0 0 100%!im
 .header__inline-menu .list-menu--inline>li,.header__inline-menu>ul>li{flex:0 0 auto!important;}
 .header__inline-menu .header__menu-item,.header__inline-menu .list-menu__item{color:#fff!important;font-size:12px!important;padding:4px 4px!important;white-space:nowrap!important;border:1px solid transparent!important;border-radius:3px!important;}
 .header__inline-menu a.header__menu-item:hover,.header__inline-menu summary:hover{border-color:#fff!important;}
+/* Rayon actif (page en cours) ou ouvert : titre en orange (sinon invisible sur fond sombre) */
+.header__inline-menu .header__active-menu-item,
+.header__inline-menu .header__menu-item.header__active-menu-item,
+.header__inline-menu .list-menu__item--active,
+.header__inline-menu .header__menu-item[aria-current],
+.header__inline-menu .header__menu-item.az-open,
+.header__inline-menu summary.az-open{color:var(--az-orange)!important;font-weight:700!important;}
 /* Bouton « Marketplace » en orange pour le rendre visible */
 .header__inline-menu a[href*="marketplace" i]{background:var(--az-orange)!important;color:var(--az-text)!important;font-weight:700!important;border-radius:100px!important;padding:4px 10px!important;}
 .header__inline-menu a[href*="marketplace" i]:hover{background:var(--az-orange-h)!important;border-color:transparent!important;}

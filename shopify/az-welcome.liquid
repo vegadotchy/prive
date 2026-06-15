@@ -45,32 +45,70 @@
   })();
 </script>
 
-{%- assign navmenu = linklists['main-menu'] -%}
+{%- comment -%}
+  Bandeau des rayons :
+  - clic sur un departement (avec sous-categories) => affiche un panneau avec ses sous-rayons pour que le client choisisse
+  - les liens simples (sans sous-categorie) naviguent normalement
+  - « Tous les rayons » ouvre le menu lateral
+  - le rayon actif/ouvert est mis en orange (sinon invisible sur le fond sombre)
+{%- endcomment -%}
+<div id="azSub" style="display:none;position:fixed;left:0;right:0;z-index:1500;background:#232f3e;border-top:1px solid #3a4553;box-shadow:0 8px 22px rgba(0,0,0,.32);"></div>
+<style>#azSub a:hover{background:#37475A !important;text-decoration:underline !important;}</style>
 <script>
-  /* Rendre TOUS les rayons du bandeau cliquables (les parents a sous-menu deviennent des liens vers leur collection ; « Tous les rayons » ouvre le menu lateral) */
   (function(){
-    var AZNAV = { {%- for link in navmenu.links -%}{{ link.title | json }}: {{ link.url | json }}{%- unless forloop.last -%},{%- endunless -%}{%- endfor -%} };
-    function wire(){
-      var nav = document.querySelector('.header__inline-menu');
-      if(!nav) return;
-      if(!nav.dataset.azNavWired){
-        nav.dataset.azNavWired='1';
-        nav.addEventListener('click', function(e){ if(e.target===nav){ document.documentElement.classList.add('az-side-open'); } });
+    function nav(){ return document.querySelector('.header__inline-menu'); }
+    function box(){ return document.getElementById('azSub'); }
+    var cur=null;
+    function place(){ var n=nav(); if(!n) return; var r=n.getBoundingClientRect(); box().style.top=r.bottom+'px'; }
+    function hide(){ var b=box(); if(b) b.style.display='none'; if(cur){ cur.classList.remove('az-open'); cur=null; } }
+    function openDept(sum, det){
+      var anchors=det.querySelectorAll('a');
+      if(!anchors.length) return false;
+      var label=(sum.textContent||'').replace(/\s+/g,' ').trim();
+      var h='<div style="max-width:1500px;margin:0 auto;padding:10px max(1rem,calc(50vw - 750px + 1rem));display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;">';
+      h+='<span style="color:#FF9900;font-weight:700;font-size:13px;margin-right:6px;">'+label+'</span>';
+      for(var i=0;i<anchors.length;i++){
+        var a=anchors[i]; var u=a.getAttribute('href')||'#'; var t=(a.textContent||'').replace(/\s+/g,' ').trim();
+        if(!t) continue;
+        h+='<a href="'+u+'" style="color:#fff;font-size:13px;text-decoration:none;white-space:nowrap;padding:4px 8px;border-radius:3px;">'+t+'</a>';
       }
-      var items = nav.querySelectorAll('.header__menu-item');
+      h+='</div>';
+      var b=box(); b.innerHTML=h; place(); b.style.display='block';
+      if(cur&&cur!==sum) cur.classList.remove('az-open');
+      sum.classList.add('az-open'); cur=sum;
+      return true;
+    }
+    function wire(){
+      var n=nav(); if(!n) return;
+      if(!n.dataset.azNavWired){
+        n.dataset.azNavWired='1';
+        n.addEventListener('click', function(e){ if(e.target===n){ document.documentElement.classList.add('az-side-open'); } });
+      }
+      var items=n.querySelectorAll('.header__menu-item');
       for(var i=0;i<items.length;i++){
         (function(it){
           if(it.dataset.azWired) return;
-          var label=(it.textContent||'').replace(/\s+/g,' ').trim();
-          var url=AZNAV[label];
-          if(!url) return;
-          it.dataset.azWired='1';
-          if(it.tagName==='A') return;
-          it.style.cursor='pointer';
-          it.addEventListener('click', function(ev){ ev.preventDefault(); ev.stopPropagation(); window.location.href=url; });
+          var det=it.closest('details');
+          if(!det) return; /* lien simple sans sous-categorie : navigation normale */
+          it.dataset.azWired='1'; it.style.cursor='pointer';
+          it.addEventListener('click', function(ev){
+            ev.preventDefault(); ev.stopPropagation();
+            det.removeAttribute('open'); /* neutralise le menu deroulant natif (souvent rogne) */
+            if(cur===it){ hide(); return; }
+            openDept(it, det);
+          });
         })(items[i]);
       }
     }
+    document.addEventListener('click', function(e){
+      var b=box();
+      if(b && b.style.display==='block'){
+        if(!b.contains(e.target) && !(e.target.closest && e.target.closest('.header__menu-item'))){ hide(); }
+      }
+    });
+    document.addEventListener('keydown', function(e){ if(e.key==='Escape') hide(); });
+    window.addEventListener('resize', function(){ if(box()&&box().style.display==='block') place(); });
+    window.addEventListener('scroll', function(){ if(box()&&box().style.display==='block') place(); }, {passive:true});
     if(document.readyState!=='loading'){ wire(); } else { document.addEventListener('DOMContentLoaded', wire); }
     window.addEventListener('load', wire);
   })();
