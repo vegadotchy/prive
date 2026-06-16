@@ -1,0 +1,5 @@
+# Profil navigateur (contient les cookies de session — NE PAS committer)
+.amazon_profile/
+
+# Factures téléchargées
+factures_*/

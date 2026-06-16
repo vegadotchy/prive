@@ -1,0 +1,38 @@
+{%- comment -%}
+  Accueil facon Amazon : grille de cartes categories.
+  Chaque carte = titre + 4 tuiles (image de collection + libelle + lien) + « Voir plus ».
+  Alimentee automatiquement par les collections de la boutique (handles ci-dessous).
+{%- endcomment -%}
+{%- assign titles = 'High-Tech & Informatique|Maison & Cuisine|Mode & Accessoires|Maison, Jardin & Bricolage|Beauté & Santé|Bébé, Jouets & Jeux|Sport & Loisirs|Promotions & Marques' | split: '|' -%}
+{%- assign mains = 'high-tech|cuisine|vetements-pour-femme|maison|soins-beaute|jeux|accessoires-et-materiel-du-sport|promotions' | split: '|' -%}
+{%- assign tilesets = 'high-tech,informatique-1,multimedia,bureautique;cuisine,chambre-a-coucher,literie-linge-de-maison,salle-de-bain-1;vetements-pour-femme,vetements-pour-homme,chaussures-pour-femme,accessoires-pour-femmes;maison,espace-jardin,reparation-et-bricolage,securite;soins-beaute,sante-bien-etre,equipements-medicaux,lingerie-pour-femme;bebe-puericulture,jeux,recharge-jeux,livres;accessoires-et-materiel-du-sport,football,multimedia,marques;promotions,marques,abonnements,maroquineries' | split: ';' -%}
+<div class="azh">
+  <div class="azh__grid">
+    {%- for t in titles -%}
+      {%- assign idx = forloop.index0 -%}
+      {%- assign main = collections[mains[idx]] -%}
+      {%- assign tiles = tilesets[idx] | split: ',' -%}
+      <div class="azh__card">
+        <h2 class="azh__title">{{ t }}</h2>
+        <div class="azh__tiles">
+          {%- for h in tiles -%}
+            {%- assign c = collections[h] -%}
+            <a class="azh__tile" href="{{ c.url | default: '/collections/all' }}">
+              <span class="azh__img">{%- if c.image -%}{{ c.image | image_url: width: 320 | image_tag: loading: 'lazy', widths: '160, 320', alt: c.title }}{%- elsif c.products.first.featured_image -%}{{ c.products.first.featured_image | image_url: width: 320 | image_tag: loading: 'lazy', alt: c.title }}{%- endif -%}</span>
+              <span class="azh__label">{{ c.title | default: h }}</span>
+            </a>
+          {%- endfor -%}
+        </div>
+        <a class="azh__more" href="{{ main.url | default: '/collections/all' }}">Voir plus</a>
+      </div>
+    {%- endfor -%}
+  </div>
+</div>
+
+{% schema %}
+{
+  "name": "Accueil cartes",
+  "settings": [],
+  "presets": [{ "name": "Accueil cartes" }]
+}
+{% endschema %}

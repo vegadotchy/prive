@@ -1,0 +1,122 @@
+{%- comment -%}
+  Pop-up de bienvenue -10% (code IATF10) + suppression de la musique de fond auto.
+  Rendu sur tout le site via le groupe d'en-tete.
+{%- endcomment -%}
+<div id="azWel" style="display:none;position:fixed;inset:0;z-index:2000;align-items:center;justify-content:center;font-family:Arial,Helvetica,sans-serif;">
+  <div onclick="azWelClose()" style="position:absolute;inset:0;background:rgba(0,0,0,.55);"></div>
+  <div style="position:relative;background:#fff;border-radius:14px;max-width:420px;width:calc(100% - 32px);padding:26px 24px;box-shadow:0 12px 40px rgba(0,0,0,.3);text-align:center;">
+    <button type="button" onclick="azWelClose()" aria-label="Fermer" style="position:absolute;top:8px;right:12px;background:none;border:none;font-size:26px;line-height:1;cursor:pointer;color:#555;">&times;</button>
+    <div style="font-size:34px;">&#127873;</div>
+    <h2 style="font-size:22px;margin:6px 0 4px;color:#0F1111;">-10% de bienvenue</h2>
+    <p style="font-size:14px;color:#444;margin:0 0 16px;">Inscrivez-vous et recevez <strong>-10%</strong> sur votre premi&egrave;re commande.</p>
+    <form id="azWelForm" style="display:flex;flex-direction:column;gap:10px;">
+      <input type="email" id="azWelEmail" required placeholder="Votre adresse e-mail" style="padding:12px;border:1px solid #ccd0d5;border-radius:8px;font-size:15px;">
+      <button type="submit" style="background:#FFD814;border:1px solid #FCD200;border-radius:100px;padding:12px;font-size:15px;font-weight:700;color:#0F1111;cursor:pointer;">Recevoir mon code -10%</button>
+    </form>
+    <div id="azWelDone" style="display:none;">
+      <p style="margin:0 0 6px;color:#0F1111;">Merci ! Voici votre code :</p>
+      <div style="font-size:22px;font-weight:800;letter-spacing:2px;background:#FFF3C4;border:1px dashed #FCD200;border-radius:8px;padding:10px;color:#0F1111;">IATF10</div>
+      <p style="font-size:12px;color:#777;margin:8px 0 12px;">&Agrave; saisir au paiement. Valable sur votre 1re commande.</p>
+      <a href="/collections/all" style="display:inline-block;background:#FFD814;border:1px solid #FCD200;border-radius:100px;padding:11px 22px;font-weight:700;color:#0F1111;text-decoration:none;">Commencer mes achats</a>
+    </div>
+    <p style="font-size:11px;color:#999;margin:14px 0 0;">En vous inscrivant, vous acceptez de recevoir nos offres par e-mail. D&eacute;sinscription &agrave; tout moment.</p>
+  </div>
+</div>
+<script>
+  /* Suppression de la musique de fond automatique */
+  (function(){function k(){var a=document.getElementById('bg-music');if(a){try{a.pause();}catch(e){}a.remove();}}if(document.readyState!=='loading'){k();}else{document.addEventListener('DOMContentLoaded',k);}window.addEventListener('load',k);})();
+  /* Pop-up de bienvenue (une fois par visiteur) */
+  (function(){
+    function show(){var el=document.getElementById('azWel'); if(el){el.style.display='flex';}}
+    window.azWelClose=function(){var el=document.getElementById('azWel'); if(el) el.style.display='none'; try{localStorage.setItem('azwel_seen','1');}catch(e){}};
+    try{ if(localStorage.getItem('azwel_seen')) return; }catch(e){}
+    setTimeout(show, 4000);
+    document.addEventListener('DOMContentLoaded', function(){
+      var f=document.getElementById('azWelForm');
+      if(f){ f.addEventListener('submit', function(e){
+        e.preventDefault();
+        var email=(document.getElementById('azWelEmail')||{}).value||'';
+        try{ fetch('/contact', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:'form_type=customer&utf8=%E2%9C%93&contact[email]='+encodeURIComponent(email)+'&contact[tags]=newsletter,bienvenue'}); }catch(err){}
+        f.style.display='none';
+        var d=document.getElementById('azWelDone'); if(d) d.style.display='block';
+        try{localStorage.setItem('azwel_seen','1');}catch(e){}
+      }); }
+    });
+  })();
+</script>
+
+{%- comment -%}
+  Bandeau des rayons :
+  - clic sur un departement (avec sous-categories) => affiche un panneau avec ses sous-rayons pour que le client choisisse
+  - les liens simples (sans sous-categorie) naviguent normalement
+  - « Tous les rayons » ouvre le menu lateral
+  - le rayon actif/ouvert est mis en orange (sinon invisible sur le fond sombre)
+{%- endcomment -%}
+<div id="azSub" style="display:none;position:fixed;left:0;right:0;z-index:1500;background:#232f3e;border-top:1px solid #3a4553;box-shadow:0 8px 22px rgba(0,0,0,.32);"></div>
+<style>#azSub a:hover{background:#37475A !important;text-decoration:underline !important;}</style>
+<script>
+  (function(){
+    function nav(){ return document.querySelector('.header__inline-menu'); }
+    function box(){ return document.getElementById('azSub'); }
+    var cur=null;
+    function place(){ var n=nav(); if(!n) return; var r=n.getBoundingClientRect(); box().style.top=r.bottom+'px'; }
+    function hide(){ var b=box(); if(b) b.style.display='none'; if(cur){ cur.classList.remove('az-open'); cur=null; } }
+    function openDept(sum, det){
+      var anchors=det.querySelectorAll('a');
+      if(!anchors.length) return false;
+      var label=(sum.textContent||'').replace(/\s+/g,' ').trim();
+      var h='<div style="max-width:1500px;margin:0 auto;padding:10px max(1rem,calc(50vw - 750px + 1rem));display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;">';
+      h+='<span style="color:#FF9900;font-weight:700;font-size:13px;margin-right:6px;">'+label+'</span>';
+      for(var i=0;i<anchors.length;i++){
+        var a=anchors[i]; var u=a.getAttribute('href')||'#'; var t=(a.textContent||'').replace(/\s+/g,' ').trim();
+        if(!t) continue;
+        h+='<a href="'+u+'" style="color:#fff;font-size:13px;text-decoration:none;white-space:nowrap;padding:4px 8px;border-radius:3px;">'+t+'</a>';
+      }
+      h+='</div>';
+      var b=box(); b.innerHTML=h; place(); b.style.display='block';
+      if(cur&&cur!==sum) cur.classList.remove('az-open');
+      sum.classList.add('az-open'); cur=sum;
+      return true;
+    }
+    function wire(){
+      var n=nav(); if(!n) return;
+      if(!n.dataset.azNavWired){
+        n.dataset.azNavWired='1';
+        n.addEventListener('click', function(e){ if(e.target===n){ document.documentElement.classList.add('az-side-open'); } });
+      }
+      var items=n.querySelectorAll('.header__menu-item');
+      for(var i=0;i<items.length;i++){
+        (function(it){
+          if(it.dataset.azWired) return;
+          var det=it.closest('details');
+          if(!det) return; /* lien simple sans sous-categorie : navigation normale */
+          it.dataset.azWired='1'; it.style.cursor='pointer';
+          it.addEventListener('click', function(ev){
+            ev.preventDefault(); ev.stopPropagation();
+            det.removeAttribute('open'); /* neutralise le menu deroulant natif (souvent rogne) */
+            if(cur===it){ hide(); return; }
+            openDept(it, det);
+          });
+        })(items[i]);
+      }
+    }
+    document.addEventListener('click', function(e){
+      var b=box();
+      if(b && b.style.display==='block'){
+        if(!b.contains(e.target) && !(e.target.closest && e.target.closest('.header__menu-item'))){ hide(); }
+      }
+    });
+    document.addEventListener('keydown', function(e){ if(e.key==='Escape') hide(); });
+    window.addEventListener('resize', function(){ if(box()&&box().style.display==='block') place(); });
+    window.addEventListener('scroll', function(){ if(box()&&box().style.display==='block') place(); }, {passive:true});
+    if(document.readyState!=='loading'){ wire(); } else { document.addEventListener('DOMContentLoaded', wire); }
+    window.addEventListener('load', wire);
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Bienvenue -10%",
+  "settings": []
+}
+{% endschema %}

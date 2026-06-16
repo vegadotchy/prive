@@ -1,0 +1,231 @@
+/*
+ * ------------------------------------------------------------
+ * IMPORTANT: The contents of this file are auto-generated.
+ *
+ * This file may be updated by the Shopify admin theme editor
+ * or related systems. Please exercise caution as any changes
+ * made to this file may be overwritten.
+ * ------------------------------------------------------------
+ */
+{
+  "sections": {
+    "rich_text_dp7hFV": {
+      "type": "rich-text",
+      "blocks": {
+        "heading_chMEqP": {
+          "type": "heading",
+          "settings": {
+            "heading": "Votre Destination Shopping de Confiance",
+            "heading_size": "h1"
+          }
+        }
+      },
+      "block_order": [
+        "heading_chMEqP"
+      ],
+      "name": "t:sections.rich-text.presets.name",
+      "settings": {
+        "desktop_content_position": "center",
+        "content_alignment": "center",
+        "color_scheme": "",
+        "full_width": true,
+        "padding_top": 0,
+        "padding_bottom": 0
+      }
+    },
+    "retraction_iatf": {
+      "type": "rich-text",
+      "blocks": {
+        "heading_retr": {
+          "type": "heading",
+          "settings": {
+            "heading": "Annuler un achat — Droit de rétractation (14 jours)",
+            "heading_size": "h1"
+          }
+        },
+        "text_retr": {
+          "type": "text",
+          "settings": {
+            "text": "<p>Vous avez changé d'avis ? Vous disposez de <strong>14 jours</strong> pour vous rétracter et être remboursé, <strong>sans justification</strong>. La demande se fait en deux étapes (déclaration puis confirmation) et un accusé de réception vous est envoyé par e-mail.</p>"
+          }
+        },
+        "buttons_retr": {
+          "type": "button",
+          "settings": {
+            "button_label": "Se rétracter",
+            "button_link": "/pages/droit-de-retractation",
+            "button_style_secondary": false
+          }
+        }
+      },
+      "block_order": [
+        "heading_retr",
+        "text_retr",
+        "buttons_retr"
+      ],
+      "name": "t:sections.rich-text.presets.name",
+      "settings": {
+        "desktop_content_position": "center",
+        "content_alignment": "center",
+        "color_scheme": "",
+        "full_width": true,
+        "padding_top": 28,
+        "padding_bottom": 28
+      }
+    },
+    "multicolumn_8q4PzX": {
+      "type": "multicolumn",
+      "blocks": {
+        "column_pMERtp": {
+          "type": "column",
+          "settings": {
+            "image": "shopify://shop_images/paiement-flexible-klarna.png",
+            "title": "<strong>✨ Paiement flexible</strong>",
+            "text": "<p><br/>Avec Klarna, achetez maintenant et payez dans 30 jours.<br/>Le plaisir d’acheter maintenant, la liberté de payer après 🙌<br/></p>",
+            "link_label": "",
+            "link": ""
+          }
+        },
+        "column_aDFUbR": {
+          "type": "column",
+          "settings": {
+            "image": "shopify://shop_images/paiement-s-curis.png",
+            "title": "<strong>🔒 Paiement Sécurisé</strong>",
+            "text": "<p>Transactions 100% sécurisées avec cryptage SSL. Tous les moyens de paiement acceptés</p>",
+            "link_label": "",
+            "link": ""
+          }
+        },
+        "column_ApKndE": {
+          "type": "column",
+          "settings": {
+            "image": "shopify://shop_images/support-rapide.png",
+            "title": "📞 <strong>Support rapide</strong>",
+            "text": "<p>Une question ? Notre équipe est disponible 5/7 pour vous accompagner</p>",
+            "link_label": "",
+            "link": ""
+          }
+        }
+      },
+      "block_order": [
+        "column_pMERtp",
+        "column_aDFUbR",
+        "column_ApKndE"
+      ],
+      "name": "t:sections.multicolumn.presets.name",
+      "settings": {
+        "title": "",
+        "heading_size": "h2",
+        "image_width": "half",
+        "image_ratio": "circle",
+        "columns_desktop": 3,
+        "column_alignment": "center",
+        "background_style": "none",
+        "button_label": "",
+        "button_link": "",
+        "color_scheme": "",
+        "columns_mobile": "2",
+        "swipe_on_mobile": true,
+        "padding_top": 0,
+        "padding_bottom": 0
+      }
+    },
+    "multicolumn_eFH64j": {
+      "type": "multicolumn",
+      "blocks": {
+        "column_hQL6Kn": {
+          "type": "column",
+          "settings": {
+            "title": "💻 High-Tech",
+            "text": "<p>Ord ordinateurs, téléphones, tablettes et accessoires high-tech de qualité</p>",
+            "link_label": "",
+            "link": ""
+          }
+        },
+        "column_ABVHYM": {
+          "type": "column",
+          "settings": {
+            "title": "🏠 Maison",
+            "text": "<p>Décoration, mobilier et accessoires pour votre maison et salon</p>",
+            "link_label": "",
+            "link": ""
+          }
+        },
+        "column_DDCPGf": {
+          "type": "column",
+          "settings": {
+            "title": "📅 Promotions",
+            "text": "<p>Découvrez nos meilleures offres avec réductions jusqu'à -70% - Stock limité !</p>",
+            "link_label": "",
+            "link": ""
+          }
+        }
+      },
+      "block_order": [
+        "column_hQL6Kn",
+        "column_ABVHYM",
+        "column_DDCPGf"
+      ],
+      "name": "t:sections.multicolumn.presets.name",
+      "settings": {
+        "title": "🛍️ Nos Catégories Principales",
+        "heading_size": "h1",
+        "image_width": "full",
+        "image_ratio": "adapt",
+        "columns_desktop": 3,
+        "column_alignment": "left",
+        "background_style": "primary",
+        "button_label": "Notre collections",
+        "button_link": "shopify://collections",
+        "color_scheme": "",
+        "columns_mobile": "1",
+        "swipe_on_mobile": false,
+        "padding_top": 36,
+        "padding_bottom": 36
+      }
+    },
+    "rich_text_4H96LN": {
+      "type": "rich-text",
+      "blocks": {
+        "heading_GAN8eF": {
+          "type": "heading",
+          "settings": {
+            "heading": "🛡️ Nos Garanties & Certifications",
+            "heading_size": "h1"
+          }
+        },
+        "text_CAKhpm": {
+          "type": "text",
+          "settings": {
+            "text": "<p>🔒 Paiement 100% sécurisé par SSL<br/>🇧🇪 Entreprise certifiée Belgique - TVA BE<br/>💳 Toutes les cartes bancaires acceptées (Visa, Mastercard, Bancontact)<br/>📞 Support client en français du lundi au vendredi de 09h00 à 17h00<br/>⭐ Noté  4.8/5 par nos clients<br/>🏆 Partenaire officiel des grandes marques</p>"
+          }
+        }
+      },
+      "block_order": [
+        "heading_GAN8eF",
+        "text_CAKhpm"
+      ],
+      "name": "t:sections.rich-text.presets.name",
+      "settings": {
+        "desktop_content_position": "center",
+        "content_alignment": "center",
+        "color_scheme": "",
+        "full_width": true,
+        "padding_top": 40,
+        "padding_bottom": 52
+      }
+    },
+    "az_home_cards": {
+      "type": "az-home-cards",
+      "settings": {}
+    }
+  },
+  "order": [
+    "rich_text_dp7hFV",
+    "az_home_cards",
+    "retraction_iatf",
+    "multicolumn_8q4PzX",
+    "multicolumn_eFH64j",
+    "rich_text_4H96LN"
+  ]
+}

@@ -1,0 +1,246 @@
+{%- comment -%} Barre de rayons (1 ligne) + menu latéral "Choisir une catégorie" — style Amazon, marque IATECHFUTUR {%- endcomment -%}
+{%- assign az_menu = linklists['main-menu'] -%}
+{{ 'amazon-cats.css' | asset_url | stylesheet_tag }}
+
+
+{%- if az_menu != blank -%}
+<a class="az-deliver" id="azDeliver" href="#" onclick="document.documentElement.classList.add('az-side-open');return false;" aria-label="Adresse de livraison">
+  <span class="az-deliver__pin">📍</span>
+  <span class="az-deliver__txt"><span class="az-deliver__l1">Votre adresse de livraison</span><span class="az-deliver__l2">{{ localization.country.name | default: shop.address.country | default: 'Belgique' }}</span></span>
+</a>
+<div class="az-deptbar">
+  <div class="az-deptbar__inner">
+    <button type="button" class="az-allcat" aria-label="Tous les rayons" onclick="document.documentElement.classList.add('az-side-open')">
+      <span class="az-allcat__bars"></span> Tous les rayons
+    </button>
+    <div class="az-deptbar__scroll">
+      {%- for link in az_menu.links -%}
+        <a class="az-dept" href="{{ link.url }}">{{ link.title }}</a>
+      {%- endfor -%}
+    </div>
+    <div class="az-account">
+      {%- assign cur_lang = request.locale.iso_code -%}
+      {%- capture cur_flag -%}{%- case cur_lang -%}{%- when 'fr' -%}🇫🇷{%- when 'en' -%}🇬🇧{%- when 'nl' -%}🇳🇱{%- when 'de' -%}🇩🇪{%- when 'es' -%}🇪🇸{%- when 'it' -%}🇮🇹{%- when 'pt' -%}🇵🇹{%- when 'ar' -%}🇲🇦{%- else -%}🌐{%- endcase -%}{%- endcapture -%}
+      {%- if localization.available_languages.size > 1 -%}
+      <details class="az-lang">
+        <summary class="az-lang__btn">{{ cur_flag }} {{ cur_lang | upcase }} <i class="az-lang__car"></i></summary>
+        <div class="az-lang__menu">
+          {%- form 'localization' -%}
+            <input type="hidden" name="return_to" value="{{ request.path }}">
+            {%- for lang in localization.available_languages -%}
+              {%- capture lf -%}{%- case lang.iso_code -%}{%- when 'fr' -%}🇫🇷{%- when 'en' -%}🇬🇧{%- when 'nl' -%}🇳🇱{%- when 'de' -%}🇩🇪{%- when 'es' -%}🇪🇸{%- when 'it' -%}🇮🇹{%- when 'pt' -%}🇵🇹{%- when 'ar' -%}🇲🇦{%- else -%}🌐{%- endcase -%}{%- endcapture -%}
+              <button type="submit" name="locale_code" value="{{ lang.iso_code }}" class="az-lang__opt">{{ lf }} {{ lang.endonym_name }}</button>
+            {%- endfor -%}
+          {%- endform -%}
+        </div>
+      </details>
+      {%- else -%}
+      <span class="az-lang__static">{{ cur_flag }} {{ cur_lang | upcase }}</span>
+      {%- endif -%}
+      {%- if customer -%}
+        <a class="az-account__link" href="{{ routes.account_url }}"><span class="az-account__hi">Bonjour, {{ customer.first_name | default: customer.name }}</span><span class="az-account__main">Mon compte</span></a>
+      {%- else -%}
+        <a class="az-account__link" href="{{ routes.account_login_url }}"><span class="az-account__hi">Bonjour</span><span class="az-account__main">Identifiez-vous</span></a>
+        <a class="az-account__reg" href="{{ routes.account_register_url }}">S'inscrire</a>
+      {%- endif -%}
+    </div>
+  </div>
+</div>
+
+<div class="az-side">
+  <div class="az-side__overlay" onclick="document.documentElement.classList.remove('az-side-open')"></div>
+  <aside class="az-side__panel" role="dialog" aria-label="Choisir une catégorie">
+    <a class="az-side__greet" href="{% if customer %}{{ routes.account_url }}{% else %}{{ routes.account_login_url }}{% endif %}">
+      <span class="az-side__avatar">{{ 'icon-account.svg' | inline_asset_content }}</span>
+      Bonjour, {% if customer %}{{ customer.first_name | default: customer.name }}{% else %}identifiez-vous{% endif %}
+    </a>
+    {%- unless customer -%}<a class="az-side__reg" href="{{ routes.account_register_url }}">Nouveau client ? Inscrivez-vous</a>{%- endunless -%}
+    <button type="button" class="az-side__close" aria-label="Fermer" onclick="document.documentElement.classList.remove('az-side-open')">&times;</button>
+    <div class="az-side__scroll">
+      <h2 class="az-side__title">Choisir une catégorie</h2>
+      <ul class="az-side__list">
+        {%- for link in az_menu.links -%}
+          {%- if link.links != blank -%}
+            <li>
+              <details class="az-side__cat">
+                <summary>{{ link.title }}<span class="az-side__chev"></span></summary>
+                <ul class="az-side__sub">
+                  <li><a href="{{ link.url }}">Tout voir : {{ link.title }}</a></li>
+                  {%- for child in link.links -%}
+                    <li><a href="{{ child.url }}">{{ child.title }}</a></li>
+                  {%- endfor -%}
+                </ul>
+              </details>
+            </li>
+          {%- else -%}
+            <li><a class="az-side__link" href="{{ link.url }}">{{ link.title }}</a></li>
+          {%- endif -%}
+        {%- endfor -%}
+      </ul>
+      <h2 class="az-side__title">Aide et paramètres</h2>
+      <ul class="az-side__list">
+        <li><a href="{% if customer %}{{ routes.account_url }}{% else %}{{ routes.account_login_url }}{% endif %}">Votre compte</a></li>
+        <li>
+          {%- assign cc = localization.country.iso_code -%}
+          {%- capture cflag -%}{%- case cc -%}{%- when 'FR' -%}🇫🇷{%- when 'BE' -%}🇧🇪{%- when 'US' -%}🇺🇸{%- when 'GB' -%}🇬🇧{%- when 'DE' -%}🇩🇪{%- when 'NL' -%}🇳🇱{%- when 'ES' -%}🇪🇸{%- when 'IT' -%}🇮🇹{%- when 'CH' -%}🇨🇭{%- when 'CA' -%}🇨🇦{%- when 'LU' -%}🇱🇺{%- when 'MA' -%}🇲🇦{%- else -%}🌍{%- endcase -%}{%- endcapture -%}
+          {%- if localization.available_languages.size > 1 -%}
+          <details class="az-side__cat"><summary><span>🌐 {{ request.locale.endonym_name | default: 'Français' }}</span><span class="az-side__chev"></span></summary>
+            <ul class="az-side__sub">{%- form 'localization' -%}<input type="hidden" name="return_to" value="{{ request.path }}">{%- for lang in localization.available_languages -%}<li><button type="submit" name="locale_code" value="{{ lang.iso_code }}" class="az-help__btn">{{ lang.endonym_name }}</button></li>{%- endfor -%}{%- endform -%}</ul>
+          </details>
+          {%- else -%}<span class="az-side__link">🌐 {{ request.locale.endonym_name | default: 'Français' }}</span>{%- endif -%}
+        </li>
+        <li>
+          {%- if localization.available_countries.size > 1 -%}
+          <details class="az-side__cat"><summary><span>{{ cflag }} {{ localization.country.name | default: 'France' }}</span><span class="az-side__chev"></span></summary>
+            <ul class="az-side__sub">{%- form 'localization' -%}<input type="hidden" name="return_to" value="{{ request.path }}">{%- for c in localization.available_countries -%}<li><button type="submit" name="country_code" value="{{ c.iso_code }}" class="az-help__btn">{{ c.name }} ({{ c.currency.iso_code }})</button></li>{%- endfor -%}{%- endform -%}</ul>
+          </details>
+          {%- else -%}<span class="az-side__link">{{ cflag }} {{ localization.country.name | default: 'France' }}</span>{%- endif -%}
+        </li>
+        <li><span class="az-side__link">💶 Paramètres de devise : {{ cart.currency.iso_code | default: shop.currency }}</span></li>
+        <li><a href="/pages/contact">Service client</a></li>
+        <li><a href="{% if customer %}{{ routes.account_url }}{% else %}{{ routes.account_login_url }}{% endif %}">{% if customer %}Mon compte{% else %}Se connecter{% endif %}</a></li>
+      </ul>
+    </div>
+  </aside>
+</div>
+{%- endif -%}
+
+<div id="azPayWrap" style="display:none">
+  <div class="az-pay">
+    <span class="az-pay__label">Modes de paiement — cliquez pour passer au paiement</span>
+    <div class="az-pay__icons" role="button" tabindex="0" onclick="window.location.href='/checkout'">{%- for type in shop.enabled_payment_types -%}{{ type | payment_type_svg_tag: class: 'az-pay__icon' }}{%- endfor -%}</div>
+  </div>
+</div>
+<div class="az-cookie" id="azCookie" style="display:none" role="dialog" aria-label="Cookies et confidentialite">
+  <div class="az-cookie__box">
+    <h2 class="az-cookie__title">Cookies &amp; confidentialite</h2>
+    <p class="az-cookie__text">Chez <strong>IATECHFUTUR</strong>, nous utilisons des cookies et technologies similaires pour faire fonctionner la boutique, garder votre panier en memoire, mesurer l'audience et ameliorer votre experience d'achat. Avec votre accord, nous les utilisons aussi pour personnaliser le contenu et nos offres. Vous pouvez accepter, refuser, ou regler vos preferences a tout moment. Pour en savoir plus, consultez notre <a href="{{ shop.privacy_policy.url | default: '/policies/privacy-policy' }}">politique de confidentialite</a>.</p>
+    <div class="az-cookie__btns">
+      <button type="button" class="az-cookie__accept" onclick="azCookie('accept')">Accepter</button>
+      <button type="button" class="az-cookie__refuse" onclick="azCookie('refuse')">Refuser</button>
+      <a class="az-cookie__more" href="{{ shop.privacy_policy.url | default: '/policies/privacy-policy' }}">Personnaliser / En savoir plus</a>
+    </div>
+  </div>
+</div>
+{%- comment -%} Chat IA Chatbase (Plan Free) — remplace l'ancien chat personnalisé {%- endcomment -%}
+<script>
+  (function(){if(!window.chatbase||window.chatbase("getState")!=="initialized"){window.chatbase=(...arguments)=>{if(!window.chatbase.q){window.chatbase.q=[]}window.chatbase.q.push(arguments)};window.chatbase=new Proxy(window.chatbase,{get(target,prop){if(prop==="q"){return target.q}return(...args)=>target(prop,...args)}})}const onLoad=function(){const s=document.createElement("script");s.src="https://www.chatbase.co/embed.min.js";s.id="3qTKmiqFrgRNk9yueSoY2";s.domain="www.chatbase.co";document.body.appendChild(s)};if(document.readyState==="complete"){onLoad()}else{window.addEventListener("load",onLoad)}})();
+</script>
+<script>
+  (function(){
+    function hide(){var el=document.getElementById('azCookie'); if(el) el.style.display='none';}
+    function show(){var el=document.getElementById('azCookie'); if(el) el.style.display='block';}
+    window.azCookie=function(choice){
+      var granted = choice==='accept';
+      try{ if(window.Shopify && Shopify.customerPrivacy && Shopify.customerPrivacy.setTrackingConsent){ Shopify.customerPrivacy.setTrackingConsent(granted, function(){}); } }catch(e){}
+      try{ localStorage.setItem('iatf_cookie', choice); }catch(e){}
+      hide();
+      try{ if(window.azChatOpen) azChatOpen(); }catch(e){}
+    };
+    try{ if(!localStorage.getItem('iatf_cookie')) show(); }catch(e){ show(); }
+  })();
+  (function(){
+    // Clic sur le CTA d'une fiche produit -> page produit (affiche toutes les options/variantes, meme s'il n'y en a qu'une)
+    document.addEventListener('click', function(e){
+      if(!e.target || !e.target.closest) return;
+      var b = e.target.closest('.quick-add__submit, .quick-add button, .card-wrapper modal-opener button, .card modal-opener button');
+      if(!b) return;
+      var card = b.closest('.card-wrapper, .grid__item, .card');
+      if(!card) return;
+      var link = card.querySelector('a[href*="/products/"]');
+      if(!link) return;
+      e.preventDefault(); e.stopPropagation();
+      window.location.href = link.getAttribute('href');
+    }, true);
+  })();
+  (function(){
+    // Reorganise l'en-tete facon Amazon :
+    //  - a gauche : logo (coin haut-gauche) + adresse de livraison juste en dessous
+    //  - a droite : langue + connexion/inscription + panier regroupes
+    function layout(){
+      var header=document.querySelector('.header');
+      if(!header) return;
+      var logo=header.querySelector('.header__heading');
+      var d=document.getElementById('azDeliver');
+      var acc=document.querySelector('.az-account');
+      var icons=document.querySelector('.header__icons');
+      // Bloc marque a gauche (logo + adresse empilee)
+      if(logo){
+        var brand=document.getElementById('azBrand');
+        if(!brand){ brand=document.createElement('div'); brand.id='azBrand'; brand.className='az-brand'; logo.parentNode.insertBefore(brand, logo); }
+        if(logo.parentNode!==brand){ brand.appendChild(logo); }
+        if(d){ if(d.parentNode!==brand){ brand.appendChild(d); } d.style.display='flex'; }
+      }
+      // Bloc haut-droite (langue + connexion/inscription + panier)
+      var tr=document.getElementById('azTopRight');
+      if(!tr){ tr=document.createElement('div'); tr.id='azTopRight'; tr.className='az-topright'; header.appendChild(tr); }
+      if(acc && acc.parentNode!==tr){ tr.appendChild(acc); }
+      if(icons && icons.parentNode!==tr){ tr.appendChild(icons); }
+    }
+    if(document.readyState!=='loading'){ layout(); } else { document.addEventListener('DOMContentLoaded', layout); }
+    window.addEventListener('load', layout);
+  })();
+  (function(){
+    // Place la barre de recherche DANS la rangee d'en-tete (au milieu, entre le logo et le compte) — facon Amazon, compact
+    function place(){
+      var sb=document.querySelector('.amazon-search-bar');
+      var header=document.querySelector('.header');
+      if(!sb||!header) return;
+      if(sb.parentNode!==header){ header.appendChild(sb); }
+    }
+    if(document.readyState!=='loading'){ place(); } else { document.addEventListener('DOMContentLoaded', place); }
+    window.addEventListener('load', place);
+  })();
+  (function(){
+    function place(){
+      var wrap=document.getElementById('azPayWrap'); if(!wrap) return;
+      var node=wrap.querySelector('.az-pay'); if(!node) return;
+      var ctas=document.querySelector('.cart__ctas');
+      if(!ctas || !ctas.parentNode) return;
+      if(node.parentNode!==ctas.parentNode){ ctas.parentNode.insertBefore(node, ctas.nextSibling); }
+    }
+    if(document.readyState!=='loading'){ place(); } else { document.addEventListener('DOMContentLoaded', place); }
+  })();
+  function azChatToggle(){ document.documentElement.classList.toggle('az-chat-open'); }
+  function azChatOpen(){ document.documentElement.classList.add('az-chat-open'); }
+  window.azChatToggle=azChatToggle; window.azChatOpen=azChatOpen;
+  function azChatSend(e){
+    e.preventDefault();
+    var inp=document.getElementById('azChatInput'); var body=document.getElementById('azChatBody');
+    if(!inp||!body) return false;
+    var v=(inp.value||'').trim(); if(!v) return false;
+    var u=document.createElement('div'); u.className='az-chat__msg az-chat__msg--user'; u.textContent=v; body.appendChild(u);
+    inp.value='';
+    var b=document.createElement('div'); b.className='az-chat__msg az-chat__msg--bot';
+    b.innerHTML='Merci ! Notre \u00e9quipe vous r\u00e9pond vite. \u00c9crivez-nous \u00e0 <a href="mailto:iatechfutur@mail.com?subject=Question%20boutique&body='+encodeURIComponent(v)+'">iatechfutur@mail.com</a> ou via la <a href="/pages/contact">page Contact</a>.';
+    body.appendChild(b); body.scrollTop=body.scrollHeight;
+    return false;
+  }
+  window.azChatSend=azChatSend;
+  (function(){
+    var EXP_ID=56079543599444;
+    function init(){
+      var ctas=document.querySelector('.cart__ctas'); if(!ctas||!ctas.parentNode) return;
+      if(document.getElementById('azExpress')) return;
+      var box=document.createElement('label'); box.id='azExpress';
+      box.style.cssText='display:flex;align-items:center;gap:10px;margin:12px 0;padding:11px 13px;border:1px solid #D5D9D9;border-radius:8px;font-size:14px;cursor:pointer;background:#fff;';
+      box.innerHTML='<input type="checkbox" style="width:18px;height:18px;flex:0 0 auto;"> <span>\u26A1 Livraison rapide (express) \u2014 <strong>+6,99 \u20AC</strong></span>';
+      ctas.parentNode.insertBefore(box, ctas);
+      var cb=box.querySelector('input');
+      fetch('/cart.js').then(function(r){return r.json();}).then(function(c){ cb.checked=(c.items||[]).some(function(i){return String(i.variant_id)===String(EXP_ID);}); }).catch(function(){});
+      cb.addEventListener('change', function(){
+        cb.disabled=true;
+        if(cb.checked){ fetch('/cart/add.js',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items:[{id:EXP_ID,quantity:1}]})}).then(function(){location.reload();}).catch(function(){location.reload();}); }
+        else { fetch('/cart/change.js',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:String(EXP_ID),quantity:0})}).then(function(){location.reload();}).catch(function(){location.reload();}); }
+      });
+    }
+    if(document.readyState!=='loading'){ init(); } else { document.addEventListener('DOMContentLoaded', init); }
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Rayons Amazon",
+  "settings": []
+}
+{% endschema %}

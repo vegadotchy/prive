@@ -1,0 +1,197 @@
+# IATECHFUTUR — Refonte « style Amazon »
+
+Archive versionnée de la personnalisation appliquée à la boutique Shopify
+**IATECHFUTUR** (iatechfutur.be) pour reproduire l'ergonomie et l'agencement
+d'Amazon, avec la marque IATECHFUTUR (pas de logo ni de marque Amazon — choix
+volontaire pour éviter toute contrefaçon / risque de confusion).
+
+## Ce qui a été fait
+
+### 1. Navigation « rayons » (appliquée en LIVE)
+Le menu principal (`main-menu`) a été restructuré en départements façon Amazon,
+avec sous-rayons, à partir des collections existantes (collections vides exclues) :
+
+- **Nouveautés**, **Meilleures ventes**, **Promotions** (en tête)
+- **High-Tech & Informatique** → High-Tech & Gadgets, Informatique, Multimédia, Logiciels, Bureautique, Abonnements
+- **Mode & Accessoires** → Mode Femme/Homme/Enfant, Chaussures (F/H/E), Lingerie, Accessoires F/H, Maroquinerie & Luxe
+- **Maison, Cuisine & Jardin** → Maison & Déco, Cuisine, Chambre, Salle de bain, Literie, Jardin
+- **Beauté & Santé** → Beauté & Hygiène, Santé & Bien-être, Équipements médicaux
+- **Bébé, Jouets & Jeux** → Bébé & Puériculture, Jouets & Jeux, Recharges de jeux
+- **Sport & Loisirs** → Sport & Fitness, Football, Livres
+- **Auto, Bricolage & Animaux** → Auto & Moto, Bricolage & Réparation, Sécurité, Animaux
+- **Marques & Luxe**
+
+### 2. Habillage visuel (sur un thème dupliqué, NON publié)
+Thème : **« IATECHFUTUR - Style Amazon »** (dupliqué depuis « Copie de Refresh »).
+
+- En-tête sombre Amazon (`#131921`) : logo, barre de recherche large à fond blanc
+  avec bouton de recherche orange (`#FEBD69`), icônes compte/panier à droite.
+- 2ᵉ barre pleine largeur « Tous les rayons » (`#232f3e`) avec les départements.
+- Boutons jaune/orange Amazon (`#FFD814` / `#FFA41C`), en forme de pilule.
+- Fiches produits compactes : carte blanche, titre bleu lien (`#007185`),
+  prix rouge (`#B12704`), notes en orange, ombre au survol, grille plus dense.
+- Pied de page sombre avec bandeau « ↑ Retour en haut ».
+- Bandeau d'annonce ramené à une taille raisonnable (22px → 16px).
+
+Fichiers sauvegardés ici :
+- `amazon-overrides.css` — feuille de style d'overrides (chargée dans `layout/theme.liquid`).
+- `sections-header-group.json` — réglages d'en-tête (menu déroulant, correctif couleur recherche).
+
+## Étape restante (1 clic, côté propriétaire)
+
+L'intégration Shopify **bloque, pour raisons de sécurité, l'édition et la
+publication directes du thème live**. L'habillage a donc été construit sur une
+copie. Pour le mettre en ligne :
+
+1. Admin Shopify → **Boutique en ligne → Thèmes**
+2. Thème **« IATECHFUTUR - Style Amazon »** → **Aperçu** pour vérifier
+3. **Publier** quand le rendu convient
+
+La navigation en rayons, elle, est déjà active sur le thème en ligne actuel.
+
+## Référence technique
+- Boutique : IATECHFUTUR — iatechfutur.be (Shopify Basic, EUR, Belgique)
+- Thème live : « Copie de Refresh » (`OnlineStoreTheme/191595675988`)
+- Thème refonte : « IATECHFUTUR - Style Amazon » (`OnlineStoreTheme/197803114836`)
+- Menu : `Menu/260179296596` (`main-menu`)
+
+## Mise à jour — Barre de rayons 1 ligne + menu latéral
+Ajout d'une section `sections/amazon-categories.liquid` (enregistrée dans
+`header-group.json`) qui remplace le menu déroulant qui passait à la ligne par :
+- une **barre de rayons sur une seule ligne** (#232f3e), défilement horizontal discret ;
+- un bouton **« ☰ Tous les rayons »** qui ouvre un **menu latéral coulissant**
+  (« Bonjour, … » + « Choisir une catégorie » + liste verticale des départements
+  avec chevrons et sous-rayons dépliables), façon panneau Amazon.
+
+Fichier sauvegardé : `shopify/amazon-categories.liquid`.
+
+## Correctif images produits (thème v2)
+La règle `mix-blend-mode:multiply` (+ overrides) sur les images de fiches
+produits les rendait invisibles. Correctif ajouté dans le `<style>` de
+`amazon-categories.liquid` : `object-fit:contain`, `opacity/visibility` forcés,
+`mix-blend-mode:normal`, fond blanc — l'image produit s'affiche en entier façon Amazon.
+
+Comme le thème « IATECHFUTUR - Style Amazon » a été publié (devenu LIVE),
+l'API bloque toute écriture dessus. Le correctif a donc été appliqué sur une
+nouvelle copie **« IATECHFUTUR - Style Amazon v2 »** (`OnlineStoreTheme/197805572436`),
+à publier en 1 clic. Toute modif visuelle ultérieure suit le même cycle
+(copie → édition → publication manuelle).
+
+## v3 — Images à taille fixe (200px) + suppression des filtres
+- Cause réelle des images invisibles : les overrides cassaient le système de
+  **ratio** de Dawn → la boîte image se retrouvait sans hauteur. Correctif :
+  `.card__media` forcé en `position:relative;height:200px;overflow:hidden`,
+  image en `position:absolute;inset:0;object-fit:contain` → image entière,
+  taille fixe, façon Amazon (descriptif/titre dessous, 2 lignes max).
+- Suppression du **panneau de filtres latéral** des pages collection
+  (`#main-collection-filters`, `.facets*`) ; grille produits en pleine largeur.
+- Appliqué sur **« IATECHFUTUR - Style Amazon v3 »** (`OnlineStoreTheme/197807440212`).
+  ⚠️ À tester en **Aperçu** avant de publier (publier verrouille l'édition via l'API).
+
+## v4 — Espace connexion / inscription (façon Amazon)
+Ajout d'un bloc compte dans la barre de rayons (à droite) :
+- Déconnecté : « Bonjour · Identifiez-vous » (→ login) + bouton « S'inscrire » (→ register)
+- Connecté : « Bonjour, {prénom} · Mon compte » (→ compte)
+Et l'en-tête « Bonjour… » du menu latéral devient cliquable (login/compte) +
+lien « Nouveau client ? Inscrivez-vous » pour le mobile.
+Appliqué sur **« IATECHFUTUR - Style Amazon v4 »** (`OnlineStoreTheme/197808161108`).
+
+## v5 — Recherche visible, cookies, langue+drapeau, Aide & paramètres, options produit
+Tout regroupé sur **« IATECHFUTUR - Style Amazon v5 »** (`OnlineStoreTheme/197856592212`) :
+- **Recherche** : texte tapé forcé en noir lisible (`-webkit-text-fill-color`), corrige le texte invisible.
+- **Bandeau cookies** IATECHFUTUR à l'ouverture (Accepter / Refuser / Personnaliser), mémorisé via localStorage + Shopify customerPrivacy. Texte original (pas celui d'Amazon).
+- **Sélecteur de langue avec drapeau** (🇫🇷 FR ▾) à droite de la barre de rayons ; liste les langues actives avec leur drapeau (form localization).
+- **Bloc « Aide et paramètres »** en bas du menu latéral : Votre compte, 🌐 langue, 🏳️ pays (drapeau), devise, Service client, Se connecter.
+- **Fiches produits** : clic sur le bouton (« Choisir des options » / « Ajouter au panier ») → ouvre la **page produit** où **toutes les options/variantes** s'affichent, même s'il n'y en a qu'une.
+
+## v5 (suite) — Adresse de livraison à côté du logo
+Bloc « 📍 Votre adresse de livraison : {pays} » injecté dans l'en-tête à côté
+du logo IATECHFUTUR (pays issu de `localization.country` → Belgique par défaut),
+cliquable pour ouvrir le panneau latéral. Toujours sur le thème v5
+(`OnlineStoreTheme/197856592212`).
+
+## v5 (suite) — Modes de paiement (panier), recherche compacte, refactor CSS
+- **Modes de paiement acceptés** : bloc affiché sur la page panier (sous « Procéder
+  au paiement ») avec les **logos officiels Shopify** des moyens activés
+  (`shop.enabled_payment_types`). ⚠️ Le vrai choix du paiement reste sur la page
+  de paiement sécurisée Shopify (non modifiable par le thème).
+- **Barre de recherche** : rendue compacte (flex 1 1 200px, max 560px) et garantie
+  visible (jamais masquée).
+- **Refactor** : tout le CSS de la section déplacé dans `assets/amazon-cats.css`
+  (chargé via `stylesheet_tag`) → fichiers plus petits, éditions plus fiables.
+Fichiers : `shopify/amazon-categories.liquid`, `shopify/amazon-cats.css`.
+
+## v6/v7 — Barre de recherche encore plus petite (240px)
+Barre de recherche réduite (largeur fixe ~320 px, max 320 px) avec input qui se
+contracte (`flex:1 1 auto; min-width:0`) et bouton garanti visible (`flex:0 0 42px`)
+→ plus de bouton coupé ni de barre trop large. Appliqué sur
+**« IATECHFUTUR - Style Amazon v6 »** (`OnlineStoreTheme/197893456212`).
+
+## v7 — Barre de recherche 240px
+Largeur réduite à 240px (max 240) sur **« IATECHFUTUR - Style Amazon v7 »**
+(`OnlineStoreTheme/197894504788`). À publier (la précédente, v6, avait été publiée).
+
+## v7 (complet) — Recherche 180px, chat, paiement cliquable, livraison express
+Sur le thème v7 (`OnlineStoreTheme/197894504788`) :
+- **Barre de recherche** ramenée à **180px** (max 180, min 110), input qui se
+  contracte, bouton toujours visible.
+- **Bot de chat** : widget en bas à droite qui s'ouvre **juste après le choix
+  cookies**, message « Hi {prénom si connecté}, how can I help you today? ».
+- **Modes de paiement (panier)** : badges des moyens activés, **cliquables →
+  page de paiement** (`/checkout`).
+- **Livraison rapide (Express) +6,99 €** : **option case à cocher dans le panier**
+  (produit/variant `56079543599444`) que le client ajoute s'il le souhaite,
+  façon Amazon — ce n'est PAS un tarif d'expédition imposé.
+
+## Cohérence boutique (réglages Shopify, hors thème)
+Corrections appliquées via l'API Admin pour régler les incohérences signalées :
+- **Devise USD / livraison « United States » supprimées** : choix retenu
+  **Belgique + Europe en EUR**. Le marché **Belgique** (principal, EUR) reste
+  actif ; le marché **International** a été reconfiguré en **EUR uniquement
+  (local currencies désactivées)** et **restreint à 16 pays européens** (US,
+  UAE, Canada, Australie, Japon, etc. retirés). Les marchés *Global Market* et
+  *AR-Zone* sont passés en **brouillon**. Plus aucune devise USD ni livraison
+  « United States ». Réversible dans Réglages → Marchés.
+- **Codes promo -5%** créés : `NEWSLETTER5` (inscription newsletter) et
+  `BIENVENUE5` (création de compte), -5% tous produits, tous clients.
+- **Titres produits** : réécriture en **titres français courts et naturels**
+  (catalogue de 646 produits, beaucoup importés en EN/PT avec titres trop longs).
+  Traitement par lots via `productUpdate`.
+- **Langues** : choix du propriétaire de **garder les 6 langues** publiées.
+  ⚠️ Tant que le contenu n'est pas traduit, les versions /en, /es… affichent du
+  texte FR. Pour une vraie traduction : app gratuite **Translate & Adapt**.
+
+### Étape propriétaire (1 clic) — emails automatiques
+Les emails automatiques ne se règlent pas dans le thème mais dans l'admin :
+- **Abandon de panier** : Réglages → Notifications → Paniers abandonnés (activer).
+- **Remerciement après achat** : notification « Confirmation de commande » (active
+  par défaut) — personnaliser le texte.
+- **Visite sans achat / abandon de navigation** & **-5% newsletter/compte** :
+  Marketing → Automatisations → modèles Shopify Email (relier les codes
+  `NEWSLETTER5` / `BIENVENUE5`).
+
+### Itération v8 (brouillon `IATECHFUTUR - Style Amazon v8`, à publier)
+> Les écritures sur le thème **publié** sont bloquées par l'API Shopify. Ces
+> changements ont donc été appliqués à un **duplicata v8 (brouillon)** ; le
+> marchand doit le **publier** (Boutique en ligne → Thèmes → v8 → Publier).
+
+- **Barre de rayons raccourcie** : les liens de rayons en ligne sont masqués
+  (`.az-deptbar__scroll{display:none}` dans `amazon-cats.css`) → il ne reste que
+  le bouton **≡ Tous les rayons** (toutes les catégories via le menu latéral),
+  ce qui **redonne de la place à la barre de recherche**.
+- **Vidéo d'accueil réduite à 50 % et centrée** (desktop) via
+  `.video-section__media{max-width:50%;margin:auto}` (`amazon-cats.css`).
+- **Bandeau « Garanties »** : retrait des lignes « Retours gratuits pendant
+  30 jours » et « Garantie satisfait ou remboursé » (`templates/index.json`).
+- **Droit de rétractation (conforme)** :
+  - Page **`/pages/droit-de-retractation`** (template `page.retraction`,
+    section `retraction-form.liquid`) avec **parcours en 2 clics** (déclarer →
+    confirmer), formulaire de contact (notifie le marchand), message d'**accusé
+    de réception**, et modèle de lettre.
+  - **Bouton accueil** « Se rétracter / Renoncer à ma commande » (section
+    `retraction_iatf` dans `templates/index.json`).
+  - **Lien permanent en pied de page** (menu `footer`) → visible sur toutes les
+    pages pendant tout le délai légal.
+  - ⚠️ L'**accusé de réception automatique par e-mail au client** nécessite une
+    automatisation (Shopify Flow / app d'e-mails) ou une réponse manuelle : le
+    formulaire notifie le marchand, qui confirme. À activer côté admin.
