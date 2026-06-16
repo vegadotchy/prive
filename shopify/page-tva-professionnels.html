@@ -1,0 +1,75 @@
+<!--
+  Page Shopify : « Gérer votre TVA – comptes professionnels »
+  Handle : tva-professionnels  (URL : /pages/tva-professionnels)
+  Lien ajoute dans le menu « footer » (Informations & Aide).
+
+  Formulaire facon Amazon Business : collecte du n° de TVA + n° de participant
+  Peppol + adresse societe. Soumission via le formulaire de contact Shopify
+  (form_type=contact) : les champs contact[...] arrivent par e-mail au marchand,
+  qui peut ensuite emettre une facture conforme / e-facture Peppol.
+
+  NB : ce formulaire COLLECTE les infos. La transmission Peppol reelle se fait
+  via un Access Point certifie (ex. Billit), au niveau de la facturation.
+-->
+<div id="tvaThanks" style="display:none;background:#e6f4ea;border:1px solid #b7dfc3;color:#1e4620;padding:14px 16px;border-radius:8px;margin-bottom:18px;">✅ Merci ! Vos informations fiscales ont bien été envoyées à notre service. Nous les utiliserons pour établir vos factures conformes (e-facturation Peppol).</div>
+
+<p>Vous achetez pour le compte d'une entreprise ? Communiquez-nous les informations fiscales de votre organisation <strong>exactement telles qu'elles apparaissent sur vos documents fiscaux officiels</strong>, afin d'éviter tout problème de calcul de TVA et de facturation.</p>
+<p style="font-size:14px;color:#555;">Conformément à l'obligation belge d'e-facturation entre entreprises (réseau <strong>Peppol</strong>, en vigueur depuis le 1<sup>er</sup> janvier 2026), ces informations nous permettent de vous adresser des <strong>factures électroniques structurées et conformes</strong>.</p>
+
+<form method="post" action="/contact#tva-form" id="tva-form" accept-charset="UTF-8" style="max-width:640px;">
+  <input type="hidden" name="form_type" value="contact">
+  <input type="hidden" name="utf8" value="✓">
+
+  <h3 style="margin:22px 0 8px;border-bottom:2px solid #FFA41C;padding-bottom:6px;">Informations fiscales</h3>
+
+  <label style="display:block;font-weight:600;margin:12px 0 4px;">Pays d'immatriculation TVA</label>
+  <select name="contact[Pays TVA]" style="width:100%;max-width:340px;padding:10px;border:1px solid #ccc;border-radius:6px;">
+    <option>Belgique</option><option>France</option><option>Luxembourg</option><option>Pays-Bas</option><option>Allemagne</option><option>Autre (UE)</option>
+  </select>
+
+  <label style="display:block;font-weight:600;margin:14px 0 4px;">Numéro d'inscription à la TVA</label>
+  <input type="text" name="contact[Numéro de TVA]" placeholder="BE0123456789" required style="width:100%;max-width:340px;padding:10px;border:1px solid #ccc;border-radius:6px;">
+
+  <label style="display:block;font-weight:600;margin:14px 0 4px;">Numéro de participant Peppol</label>
+  <input type="text" name="contact[Peppol]" placeholder="0208:0123456789" style="width:100%;max-width:340px;padding:10px;border:1px solid #ccc;border-radius:6px;">
+  <p style="font-size:12px;color:#777;margin:6px 0 0;">Format belge : <code>0208:</code> suivi de votre numéro d'entreprise (BCE), ex. <code>0208:0123456789</code>. Laissez vide si vous ne le connaissez pas : nous le déduirons de votre numéro de TVA.</p>
+
+  <h3 style="margin:24px 0 8px;border-bottom:2px solid #FFA41C;padding-bottom:6px;">Adresse de l'entreprise</h3>
+
+  <label style="display:block;font-weight:600;margin:12px 0 4px;">Nom de l'entreprise</label>
+  <input type="text" name="contact[Société]" required style="width:100%;max-width:480px;padding:10px;border:1px solid #ccc;border-radius:6px;">
+
+  <label style="display:block;font-weight:600;margin:14px 0 4px;">Ligne d'adresse 1</label>
+  <input type="text" name="contact[Adresse 1]" required style="width:100%;max-width:480px;padding:10px;border:1px solid #ccc;border-radius:6px;">
+
+  <label style="display:block;font-weight:600;margin:14px 0 4px;">Ligne d'adresse 2</label>
+  <input type="text" name="contact[Adresse 2]" style="width:100%;max-width:480px;padding:10px;border:1px solid #ccc;border-radius:6px;">
+
+  <label style="display:block;font-weight:600;margin:14px 0 4px;">Ville</label>
+  <input type="text" name="contact[Ville]" required style="width:100%;max-width:320px;padding:10px;border:1px solid #ccc;border-radius:6px;">
+
+  <label style="display:block;font-weight:600;margin:14px 0 4px;">État / Province / Région</label>
+  <input type="text" name="contact[Province]" style="width:100%;max-width:320px;padding:10px;border:1px solid #ccc;border-radius:6px;">
+
+  <label style="display:block;font-weight:600;margin:14px 0 4px;">Code postal</label>
+  <input type="text" name="contact[Code postal]" required style="width:100%;max-width:200px;padding:10px;border:1px solid #ccc;border-radius:6px;">
+
+  <label style="display:block;font-weight:600;margin:14px 0 4px;">Pays</label>
+  <select name="contact[Pays]" style="width:100%;max-width:320px;padding:10px;border:1px solid #ccc;border-radius:6px;">
+    <option>Belgique</option><option>France</option><option>Luxembourg</option><option>Pays-Bas</option><option>Allemagne</option><option>Autre (UE)</option>
+  </select>
+
+  <label style="display:block;font-weight:600;margin:14px 0 4px;">Numéro de téléphone</label>
+  <input type="tel" name="contact[Téléphone]" style="width:100%;max-width:320px;padding:10px;border:1px solid #ccc;border-radius:6px;">
+
+  <label style="display:block;font-weight:600;margin:14px 0 4px;">E-mail de contact</label>
+  <input type="email" name="contact[email]" required style="width:100%;max-width:340px;padding:10px;border:1px solid #ccc;border-radius:6px;">
+
+  <label style="display:block;font-weight:600;margin:14px 0 4px;">Message (facultatif)</label>
+  <textarea name="contact[body]" rows="3" style="width:100%;max-width:480px;padding:10px;border:1px solid #ccc;border-radius:6px;"></textarea>
+
+  <div style="margin-top:18px;"><button type="submit" style="background:#FFD814;border:1px solid #FCD200;border-radius:100px;padding:12px 24px;font-weight:700;color:#0F1111;cursor:pointer;">Envoyer mes informations fiscales</button></div>
+  <p style="font-size:12px;color:#777;margin:10px 0 0;">En envoyant ce formulaire, vous acceptez que ces informations soient utilisées par IATECHFUTUR pour l'établissement de vos factures conformes. Voir notre <a href="/pages/mentions-legales">politique de confidentialité</a>.</p>
+</form>
+
+<script>(function(){try{if(location.search.indexOf('contact_posted=true')>-1){var t=document.getElementById('tvaThanks');if(t){t.style.display='block';t.scrollIntoView({behavior:'smooth'});}}}catch(e){}})();</script>
