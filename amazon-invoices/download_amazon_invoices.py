@@ -2,28 +2,19 @@
 """
 Télécharge les factures et notes de crédit Amazon (par défaut année 2026).
 
-À EXÉCUTER SUR VOTRE PROPRE MACHINE — ce script a besoin d'accéder à votre
-session Amazon via un vrai navigateur. Il ne fonctionnera pas dans un
-environnement cloud sans interface graphique.
-
-Fonctionnement :
-  1. Ouvre Chromium avec un profil persistant (./.amazon_profile).
-  2. Au premier lancement, vous vous connectez À LA MAIN à Amazon
-     (e-mail + mot de passe + éventuelle validation 2FA). La session est
-     ensuite mémorisée pour les fois suivantes.
-  3. Le script ouvre l'historique des commandes, filtre sur l'année demandée,
-     ouvre la fenêtre « Facture » de chaque commande et télécharge tous les
-     PDF (factures + notes de crédit) dans ./factures_<année>/.
+À EXÉCUTER SUR VOTRE PROPRE MACHINE — accès à votre session Amazon via un vrai
+navigateur requis.
 
 Usage :
-    python download_amazon_invoices.py                 # année 2026, amazon.com.be
+    python download_amazon_invoices.py                 # 2026, amazon.com.be
     python download_amazon_invoices.py --year 2025
     python download_amazon_invoices.py --domain amazon.fr
-    python download_amazon_invoices.py --headless      # une fois connecté
+    python download_amazon_invoices.py --include-summaries   # aussi les récap.
+    python download_amazon_invoices.py --debug              # logs détaillés
 
 Prérequis :
     pip install playwright
-    playwright install chromium
+    python -m playwright install chromium
 """
 
 import argparse
@@ -33,57 +24,39 @@ import time
 from pathlib import Path
 
 try:
-    from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
+    from playwright.sync_api import sync_playwright
 except ImportError:
-    sys.exit(
-        "Playwright n'est pas installé.\n"
-        "  pip install playwright\n"
-        "  playwright install chromium"
-    )
+    sys.exit("Playwright manquant : pip install playwright  puis  python -m playwright install chromium")
 
 
 def parse_args():
     p = argparse.ArgumentParser(description="Télécharge les factures Amazon d'une année.")
-    p.add_argument("--year", type=int, default=2026, help="Année à récupérer (défaut: 2026)")
-    p.add_argument("--domain", default="amazon.com.be",
-                   help="Domaine Amazon (ex: amazon.com.be, amazon.fr, amazon.de)")
-    p.add_argument("--out", default=None, help="Dossier de sortie (défaut: factures_<année>)")
-    p.add_argument("--profile", default=".amazon_profile",
-                   help="Dossier du profil navigateur persistant")
-    p.add_argument("--headless", action="store_true",
-                   help="Navigateur invisible (à utiliser seulement une fois connecté)")
+    p.add_argument("--year", type=int, default=2026)
+    p.add_argument("--domain", default="amazon.com.be")
+    p.add_argument("--out", default=None)
+    p.add_argument("--profile", default=".amazon_profile")
+    p.add_argument("--headless", action="store_true")
+    p.add_argument("--include-summaries", action="store_true",
+                   help="Télécharge aussi les récapitulatifs de commande")
+    p.add_argument("--debug", action="store_true")
     return p.parse_args()
 
 
 def sanitize(name: str) -> str:
-    return re.sub(r"[^\w\-.]+", "_", name).strip("_")[:120]
+    name = re.sub(r"\s+", "_", name.strip())
+    name = re.sub(r"[^\w\-.]+", "", name)
+    return name.strip("_")[:80] or "document"
 
 
-def wait_for_login(page, domain):
-    """Attend que l'utilisateur soit connecté (présence du menu compte)."""
-    print("\n>>> Si la page de connexion s'affiche, connectez-vous manuellement.")
-    print(">>> Le script attend que vous soyez connecté...\n")
-    for _ in range(600):  # ~10 minutes max
-        try:
-            if page.locator("#nav-link-accountList").count() > 0:
-                # Heuristique : connecté si le lien ne propose plus "S'identifier" seul
-                txt = page.locator("#nav-link-accountList").inner_text(timeout=2000).lower()
-                if "identifie" not in txt and "sign in" not in txt and "hello" in txt.lower() or "bonjour" in txt:
-                    return True
-                # Fallback : présence d'un greeting personnalisé
-                if page.locator("#nav-link-accountList-nav-line-1").count() > 0:
-                    line = page.locator("#nav-link-accountList-nav-line-1").inner_text(timeout=2000)
-                    if line and "identifi" not in line.lower() and "sign in" not in line.lower():
-                        return True
-        except Exception:
-            pass
-        time.sleep(1)
-    return False
+def is_summary(text: str) -> bool:
+    t = text.lower()
+    return any(k in t for k in ("récapitulatif", "recapitulatif", "summary", "order summary"))
 
 
-def get_order_history_url(domain, year):
-    # orderFilter=year-XXXX filtre directement sur l'année
-    return f"https://www.{domain}/gp/css/order-history?orderFilter=year-{year}&ref_=ppx_yo2ov_dt_b_filter_all_y{year}"
+def is_invoice_like(text: str) -> bool:
+    t = text.lower()
+    return any(k in t for k in ("facture", "invoice", "note de crédit", "note de credit",
+                                "credit note", "avoir"))
 
 
 def main():
@@ -92,102 +65,125 @@ def main():
     out_dir.mkdir(parents=True, exist_ok=True)
     profile_dir = Path(args.profile).resolve()
 
-    print(f"Domaine      : {args.domain}")
-    print(f"Année        : {args.year}")
-    print(f"Sortie       : {out_dir.resolve()}")
-    print(f"Profil navig.: {profile_dir}")
+    def log(*a):
+        if args.debug:
+            print("   [debug]", *a)
+
+    print(f"Domaine: {args.domain} | Année: {args.year} | Sortie: {out_dir.resolve()}")
 
     with sync_playwright() as pw:
         ctx = pw.chromium.launch_persistent_context(
             user_data_dir=str(profile_dir),
             headless=args.headless,
             accept_downloads=True,
-            viewport={"width": 1280, "height": 900},
+            viewport={"width": 1280, "height": 950},
         )
         page = ctx.pages[0] if ctx.pages else ctx.new_page()
 
-        # 1) Connexion
+        # --- Connexion ---
         page.goto(f"https://www.{args.domain}/", wait_until="domcontentloaded")
         if not args.headless:
-            if not wait_for_login(page, args.domain):
-                print("Connexion non détectée — fermeture.")
-                ctx.close()
-                return
+            print("\n>>> Connectez-vous à Amazon dans la fenêtre du navigateur si besoin.")
+            print(">>> Le script démarre dès qu'il détecte la page des commandes.\n")
 
-        # 2) Historique des commandes filtré sur l'année
-        page.goto(get_order_history_url(args.domain, args.year),
-                  wait_until="domcontentloaded")
+        # --- Collecte des liens de factures, commande par commande ---
+        collected = []   # liste de (text, href)
+        seen_href = set()
+        page_no = 0
+
+        url = (f"https://www.{args.domain}/gp/css/order-history"
+               f"?orderFilter=year-{args.year}")
+        page.goto(url, wait_until="domcontentloaded")
         time.sleep(2)
 
-        downloaded = 0
-        seen_pages = 0
+        # Si redirigé vers une page de login, on attend l'utilisateur
+        for _ in range(600):
+            if "/ap/signin" in page.url or "signin" in page.url:
+                time.sleep(1)
+                continue
+            break
+        if "/ap/signin" in page.url:
+            page.goto(url, wait_until="domcontentloaded")
+            time.sleep(2)
+
         while True:
-            seen_pages += 1
-            # Sélecteurs des cartes de commande (Amazon en a plusieurs variantes)
-            cards = page.locator(".order-card, .order, .js-order-card")
+            page_no += 1
+            cards = page.locator(".order-card, li.order-card, .js-order-card, .order")
             n = cards.count()
-            print(f"\nPage {seen_pages} : {n} commande(s) détectée(s).")
+            print(f"\nPage {page_no} : {n} commande(s).")
 
-            # Cherche tous les liens "Facture / Invoice" de la page
-            invoice_triggers = page.locator(
-                "a:has-text('Facture'), a:has-text('Invoice'), "
-                "span:has-text('Facture'), a:has-text('Note de crédit'), "
-                "a:has-text('Credit note')"
-            )
-
-            # On collecte les liens PDF directement présents dans la page après
-            # avoir ouvert chaque popover de facture.
-            triggers_count = invoice_triggers.count()
-            for i in range(triggers_count):
-                try:
-                    trig = invoice_triggers.nth(i)
-                    trig.scroll_into_view_if_needed(timeout=3000)
-                    trig.click(timeout=3000)
-                    time.sleep(1)
-                except Exception:
+            for ci in range(n):
+                card = cards.nth(ci)
+                # bouton/lien "Facture" dans cette commande
+                trigger = card.locator(
+                    "a:has-text('Facture'), span:has-text('Facture'), "
+                    "a:has-text('Invoice'), span:has-text('Invoice')"
+                ).first
+                if trigger.count() == 0:
+                    log(f"commande {ci}: pas de bouton Facture")
                     continue
+                try:
+                    trigger.scroll_into_view_if_needed(timeout=3000)
+                    trigger.click(timeout=4000)
+                except Exception as e:
+                    log(f"commande {ci}: clic impossible ({e})")
+                    continue
+                time.sleep(1.2)
 
-                # Liens PDF apparus (popover ou nouvelle section)
-                pdf_links = page.locator(
-                    "a[href*='invoice'], a[href*='Facture'], a[href$='.pdf'], "
-                    "a[href*='generated_invoices'], a[href*='creditNote']"
-                )
-                for j in range(pdf_links.count()):
-                    href = pdf_links.nth(j).get_attribute("href") or ""
-                    if not href:
-                        continue
+                # liens dans le popover ouvert
+                popover_links = page.locator(".a-popover-content a, .a-popover a")
+                pcount = popover_links.count()
+                links_here = []
+                if pcount > 0:
+                    for li in range(pcount):
+                        try:
+                            a = popover_links.nth(li)
+                            txt = (a.inner_text(timeout=1500) or "").strip()
+                            href = a.get_attribute("href", timeout=1500) or ""
+                        except Exception:
+                            continue
+                        if href:
+                            links_here.append((txt, href))
+                else:
+                    # pas de popover : liens directs dans la carte
+                    inner = card.locator("a")
+                    for li in range(min(inner.count(), 30)):
+                        try:
+                            a = inner.nth(li)
+                            txt = (a.inner_text(timeout=800) or "").strip()
+                            href = a.get_attribute("href", timeout=800) or ""
+                        except Exception:
+                            continue
+                        if href and is_invoice_like(txt):
+                            links_here.append((txt, href))
+
+                for txt, href in links_here:
                     if not href.startswith("http"):
                         href = f"https://www.{args.domain}{href}"
-                    try:
-                        with page.expect_download(timeout=15000) as dl_info:
-                            page.evaluate("(u)=>window.location.assign(u)", href)
-                        dl = dl_info.value
-                        fname = sanitize(dl.suggested_filename or f"facture_{downloaded}.pdf")
-                        if not fname.lower().endswith(".pdf"):
-                            fname += ".pdf"
-                        dl.save_as(str(out_dir / fname))
-                        downloaded += 1
-                        print(f"  ✓ {fname}")
-                    except PWTimeout:
-                        # Pas un téléchargement direct : ouvre dans un onglet et imprime
-                        try:
-                            inv_page = ctx.new_page()
-                            inv_page.goto(href, wait_until="networkidle", timeout=20000)
-                            pdf_path = out_dir / f"facture_{args.year}_{downloaded:03d}.pdf"
-                            inv_page.pdf(path=str(pdf_path))
-                            downloaded += 1
-                            print(f"  ✓ {pdf_path.name} (rendu HTML→PDF)")
-                            inv_page.close()
-                        except Exception as e:
-                            print(f"  ✗ échec sur {href[:80]} : {e}")
-                    except Exception as e:
-                        print(f"  ✗ échec sur {href[:80]} : {e}")
+                    if href in seen_href:
+                        continue
+                    keep = is_invoice_like(txt) or (args.include_summaries and is_summary(txt))
+                    # certains liens "Facture" ont un texte vide mais une URL parlante
+                    if not keep and any(k in href.lower() for k in
+                                        ("invoice", "creditnote", "credit_note")):
+                        keep = True
+                    if keep:
+                        seen_href.add(href)
+                        collected.append((txt or "facture", href))
+                        log(f"commande {ci}: + '{txt}' -> {href[:90]}")
 
-            # Pagination : bouton "Suivant" / "Next"
-            nxt = page.locator("li.a-last a, a:has-text('Suivant'), a:has-text('Next')")
-            if nxt.count() > 0 and nxt.first.is_enabled():
+                # fermer le popover
                 try:
-                    nxt.first.click()
+                    page.keyboard.press("Escape")
+                    time.sleep(0.3)
+                except Exception:
+                    pass
+
+            # pagination
+            nxt = page.locator("ul.a-pagination li.a-last a, a:has-text('Suivant'), a:has-text('Next')")
+            if nxt.count() > 0:
+                try:
+                    nxt.first.click(timeout=4000)
                     page.wait_for_load_state("domcontentloaded")
                     time.sleep(2)
                     continue
@@ -195,7 +191,32 @@ def main():
                     break
             break
 
-        print(f"\nTerminé : {downloaded} fichier(s) téléchargé(s) dans {out_dir.resolve()}")
+        print(f"\n{len(collected)} lien(s) de document(s) trouvé(s). Téléchargement...\n")
+
+        # --- Téléchargement via la session (cookies) ---
+        downloaded = 0
+        for idx, (txt, href) in enumerate(collected):
+            base = f"{args.year}_{idx:03d}_{sanitize(txt)}"
+            try:
+                resp = ctx.request.get(href, timeout=30000)
+                ctype = (resp.headers.get("content-type") or "").lower()
+                body = resp.body()
+                if "pdf" in ctype or body[:4] == b"%PDF":
+                    (out_dir / f"{base}.pdf").write_bytes(body)
+                    print(f"  ✓ {base}.pdf")
+                    downloaded += 1
+                else:
+                    # page HTML -> rendu PDF via le navigateur
+                    inv = ctx.new_page()
+                    inv.goto(href, wait_until="networkidle", timeout=25000)
+                    inv.pdf(path=str(out_dir / f"{base}.pdf"))
+                    inv.close()
+                    print(f"  ✓ {base}.pdf (HTML→PDF)")
+                    downloaded += 1
+            except Exception as e:
+                print(f"  ✗ {base} : {e}")
+
+        print(f"\nTerminé : {downloaded}/{len(collected)} fichier(s) dans {out_dir.resolve()}")
         if not args.headless:
             input("Appuyez sur Entrée pour fermer le navigateur...")
         ctx.close()
