@@ -140,12 +140,24 @@
   #azChatForm{display:flex;border-top:1px solid #e3e6e6;}
   #azChatInput{flex:1;border:none;padding:12px;font-size:14px;outline:none;}
   #azChatSend{background:#FFD814;border:none;border-left:1px solid #FCD200;padding:0 16px;font-weight:700;cursor:pointer;}
+  #azChatConsent{flex:1;display:flex;flex-direction:column;background:#fff;padding:18px;font-size:13.5px;color:#0F1111;overflow-y:auto;}
+  #azChatConsent h3{font-size:16px;margin:0 0 14px;color:#0F1111;}
+  #azChatConsent label{display:flex;gap:8px;align-items:flex-start;line-height:1.5;cursor:pointer;}
+  #azChatConsent label input{margin-top:3px;flex:0 0 auto;width:16px;height:16px;}
+  #azChatConsent a{color:#007185;}
+  #azChatStart{margin-top:16px;background:#FFD814;border:1px solid #FCD200;border-radius:8px;padding:11px;font-weight:700;color:#0F1111;cursor:pointer;}
+  #azChatStart:disabled{background:#e7e9ec;border-color:#d5d9d9;color:#9aa0a6;cursor:not-allowed;}
 </style>
 <button id="azChatBtn" type="button" onclick="azChatOpen()">&#128172; Besoin d'aide ?</button>
 <div id="azChat" role="dialog" aria-label="Assistant IATECHFUTUR">
   <header><span class="t">Assistant IATECHFUTUR</span><button type="button" aria-label="Fermer" onclick="azChatClose()">&times;</button></header>
-  <div id="azChatBody"></div>
-  <form id="azChatForm" autocomplete="off">
+  <div id="azChatConsent">
+    <h3>Politique de confidentialit&eacute; et d'utilisation des cookies</h3>
+    <label><input type="checkbox" id="azChatAccept"> <span>J'accepte qu'IATECHFUTUR enregistre et utilise les messages de la discussion conform&eacute;ment &agrave; la <a href="/pages/data-sharing-opt-out" target="_blank">Politique de confidentialit&eacute; et d'utilisation des cookies</a>.</span></label>
+    <button type="button" id="azChatStart" disabled>Chatter en direct</button>
+  </div>
+  <div id="azChatBody" style="display:none;"></div>
+  <form id="azChatForm" autocomplete="off" style="display:none;">
     <input id="azChatInput" type="text" placeholder="Posez une question ou cherchez un article…">
     <button id="azChatSend" type="submit">Envoyer</button>
   </form>
@@ -153,7 +165,9 @@
 <script>
 (function(){
   var started=false;
-  window.azChatOpen=function(){document.getElementById('azChat').style.display='flex';document.getElementById('azChatBtn').style.display='none';if(!started){started=true;greet();}setTimeout(function(){var i=document.getElementById('azChatInput');if(i)i.focus();},50);};
+  function consentGiven(){try{return !!localStorage.getItem('azchat_consent');}catch(e){return false;}}
+  function showChatUI(){var c=document.getElementById('azChatConsent');if(c)c.style.display='none';document.getElementById('azChatBody').style.display='block';document.getElementById('azChatForm').style.display='flex';if(!started){started=true;greet();}setTimeout(function(){var i=document.getElementById('azChatInput');if(i)i.focus();},50);}
+  window.azChatOpen=function(){document.getElementById('azChat').style.display='flex';document.getElementById('azChatBtn').style.display='none';if(consentGiven()){showChatUI();}else{document.getElementById('azChatConsent').style.display='flex';document.getElementById('azChatBody').style.display='none';document.getElementById('azChatForm').style.display='none';}};
   window.azChatClose=function(){document.getElementById('azChat').style.display='none';document.getElementById('azChatBtn').style.display='flex';};
   function el(){return document.getElementById('azChatBody');}
   function scroll(){var b=el();b.scrollTop=b.scrollHeight;}
@@ -205,6 +219,8 @@
   }
   var form=document.getElementById('azChatForm');
   if(form){form.addEventListener('submit',function(e){e.preventDefault();var i=document.getElementById('azChatInput');var v=i.value;i.value='';handle(v);});}
+  var acc=document.getElementById('azChatAccept');var start=document.getElementById('azChatStart');
+  if(acc&&start){acc.addEventListener('change',function(){start.disabled=!acc.checked;});start.addEventListener('click',function(){if(!acc.checked)return;try{localStorage.setItem('azchat_consent','1');}catch(e){}showChatUI();});}
 })();
 </script>
 
