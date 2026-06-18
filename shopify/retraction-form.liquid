@@ -1,0 +1,64 @@
+{%- comment -%}
+  Mécanisme de rétractation conforme : accès direct, libellé clair,
+  parcours en 2 clics (déclarer puis remplir + envoyer), accusé de réception affiché.
+  Formulaire de contact natif Shopify -> envoie la demande à la boîte e-mail de la boutique.
+{%- endcomment -%}
+<div class="page-width retraction" style="max-width:760px;margin:0 auto;padding:28px 18px;">
+  <h1 style="font-size:28px;font-weight:700;color:#0F1111;margin:0 0 8px;">Se rétracter du contrat — Renoncer à ma commande</h1>
+  <p style="color:#333;line-height:1.6;">Conformément à la loi, vous disposez d'un délai de <strong>14 jours</strong> à compter de la réception de votre commande pour exercer votre droit de rétractation, <strong>sans avoir à vous justifier</strong>. La rétractation est gratuite. Ce formulaire est le mécanisme officiel d'annulation, accessible en permanence pendant tout le délai légal.</p>
+
+  {%- if form.posted_successfully? -%}
+    <div style="border:1px solid #2e7d32;background:#edf7ed;border-radius:8px;padding:18px;margin:18px 0;">
+      <h2 style="margin:0 0 6px;color:#2e7d32;font-size:19px;">✅ Votre demande de rétractation est confirmée</h2>
+      <p style="margin:0;color:#1b4d1e;line-height:1.6;">Votre demande a bien été envoyée et enregistrée. Cet écran et l'e-mail que vous recevez valent <strong>accusé de réception</strong> : conservez-les comme preuve. Notre équipe procède au remboursement sous 14 jours suivant la réception du retour.</p>
+    </div>
+  {%- else -%}
+    <div class="retraction__step" data-step="1"{% if form.errors %} style="display:none;"{% endif %}>
+      <p style="color:#333;line-height:1.6;background:#f7f7f7;border-radius:8px;padding:14px;">Pour éviter toute annulation accidentelle, la démarche se fait en <strong>deux étapes</strong> : déclarez d'abord votre intention, puis remplissez et envoyez votre demande.</p>
+      <button type="button" id="retrStep1" style="margin-top:14px;background:#FFD814;border:1px solid #FCD200;border-radius:100px;padding:13px 28px;font-size:15px;font-weight:600;color:#0F1111;cursor:pointer;">Étape 1 / 2 — Déclarer mon annulation</button>
+    </div>
+
+    <div class="retraction__step" data-step="2" style="{% if form.errors %}display:block{% else %}display:none{% endif %};border:1px solid #D5D9D9;border-radius:8px;padding:18px;margin-top:10px;background:#fff;">
+      <p style="margin:0 0 14px;font-weight:600;color:#0F1111;line-height:1.5;">Étape 2 / 2 — Remplissez et envoyez votre demande. Un <strong>accusé de réception</strong> s'affichera et vous sera envoyé par e-mail.</p>
+
+      {%- form 'contact', id: 'RetractationForm' -%}
+        {%- if form.errors -%}
+          <div style="border:1px solid #c0392b;background:#fdecea;border-radius:8px;padding:12px;margin-bottom:14px;color:#922b21;">Merci de vérifier les champs obligatoires : {{ form.errors | default_errors }}</div>
+        {%- endif -%}
+        <input type="hidden" name="contact[Type de demande]" value="DROIT DE RÉTRACTATION (annulation sous 14 jours)">
+
+        <label style="display:block;margin:0 0 4px;font-weight:600;">Nom et prénom *</label>
+        <input type="text" name="contact[Nom]" required style="width:100%;padding:11px;border:1px solid #8c8c8c;border-radius:6px;box-sizing:border-box;">
+        <label style="display:block;margin:14px 0 4px;font-weight:600;">Votre e-mail *</label>
+        <input type="email" name="contact[email]" required style="width:100%;padding:11px;border:1px solid #8c8c8c;border-radius:6px;box-sizing:border-box;">
+        <label style="display:block;margin:14px 0 4px;font-weight:600;">Numéro de commande *</label>
+        <input type="text" name="contact[Numéro de commande]" required placeholder="#1234" style="width:100%;padding:11px;border:1px solid #8c8c8c;border-radius:6px;box-sizing:border-box;">
+        <label style="display:block;margin:14px 0 4px;font-weight:600;">Motif (facultatif)</label>
+        <textarea name="contact[Motif]" rows="3" style="width:100%;padding:11px;border:1px solid #8c8c8c;border-radius:6px;box-sizing:border-box;"></textarea>
+
+        <div style="margin-top:18px;">
+          <button type="submit" style="background:#c0392b;border:1px solid #a93226;border-radius:100px;padding:13px 30px;font-size:15px;font-weight:700;color:#fff;cursor:pointer;">Envoyer ma demande de rétractation</button>
+          <button type="button" id="retrBack" style="margin-left:10px;background:#fff;border:1px solid #8c8c8c;border-radius:100px;padding:13px 22px;font-size:14px;cursor:pointer;">Retour</button>
+        </div>
+      {%- endform -%}
+    </div>
+
+    <script>
+      (function(){
+        var s1=document.querySelector('.retraction__step[data-step="1"]');
+        var s2=document.querySelector('.retraction__step[data-step="2"]');
+        var b1=document.getElementById('retrStep1');
+        var bb=document.getElementById('retrBack');
+        if(b1){b1.addEventListener('click',function(){ s1.style.display='none'; s2.style.display='block'; s2.scrollIntoView({behavior:'smooth',block:'center'}); });}
+        if(bb){bb.addEventListener('click',function(){ s2.style.display='none'; s1.style.display='block'; });}
+      })();
+    </script>
+  {%- endif -%}
+</div>
+
+{% schema %}
+{
+  "name": "Rétractation",
+  "settings": []
+}
+{% endschema %}

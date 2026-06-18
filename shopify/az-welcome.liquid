@@ -1,0 +1,252 @@
+{%- comment -%}
+  Pop-up de bienvenue -10% (code IATF10) + suppression de la musique de fond auto.
+  Rendu sur tout le site via le groupe d'en-tete.
+{%- endcomment -%}
+<div id="azWel" style="display:none;position:fixed;inset:0;z-index:2000;align-items:center;justify-content:center;font-family:Arial,Helvetica,sans-serif;">
+  <div onclick="azWelClose()" style="position:absolute;inset:0;background:rgba(0,0,0,.55);"></div>
+  <div style="position:relative;background:#fff;border-radius:14px;max-width:420px;width:calc(100% - 32px);padding:26px 24px;box-shadow:0 12px 40px rgba(0,0,0,.3);text-align:center;">
+    <button type="button" onclick="azWelClose()" aria-label="Fermer" style="position:absolute;top:8px;right:12px;background:none;border:none;font-size:26px;line-height:1;cursor:pointer;color:#555;">&times;</button>
+    <div style="font-size:34px;">&#127873;</div>
+    <h2 style="font-size:22px;margin:6px 0 4px;color:#0F1111;">-10% de bienvenue</h2>
+    <p style="font-size:14px;color:#444;margin:0 0 16px;">Inscrivez-vous et recevez <strong>-10%</strong> sur votre premi&egrave;re commande.</p>
+    <form id="azWelForm" style="display:flex;flex-direction:column;gap:10px;">
+      <input type="email" id="azWelEmail" required placeholder="Votre adresse e-mail" style="padding:12px;border:1px solid #ccd0d5;border-radius:8px;font-size:15px;">
+      <button type="submit" style="background:#FFD814;border:1px solid #FCD200;border-radius:100px;padding:12px;font-size:15px;font-weight:700;color:#0F1111;cursor:pointer;">Recevoir mon code -10%</button>
+    </form>
+    <div id="azWelDone" style="display:none;">
+      <p style="margin:0 0 6px;color:#0F1111;">Merci ! Voici votre code :</p>
+      <div style="font-size:22px;font-weight:800;letter-spacing:2px;background:#FFF3C4;border:1px dashed #FCD200;border-radius:8px;padding:10px;color:#0F1111;">IATF10</div>
+      <p style="font-size:12px;color:#777;margin:8px 0 12px;">&Agrave; saisir au paiement. Valable sur votre 1re commande.</p>
+      <a href="/collections/all" style="display:inline-block;background:#FFD814;border:1px solid #FCD200;border-radius:100px;padding:11px 22px;font-weight:700;color:#0F1111;text-decoration:none;">Commencer mes achats</a>
+    </div>
+    <p style="font-size:11px;color:#999;margin:14px 0 0;">En vous inscrivant, vous acceptez de recevoir nos offres par e-mail. D&eacute;sinscription &agrave; tout moment.</p>
+  </div>
+</div>
+<script>
+  /* Suppression de la musique de fond automatique */
+  (function(){function k(){var a=document.getElementById('bg-music');if(a){try{a.pause();}catch(e){}a.remove();}}if(document.readyState!=='loading'){k();}else{document.addEventListener('DOMContentLoaded',k);}window.addEventListener('load',k);})();
+  /* Pop-up de bienvenue (une fois par visiteur) */
+  (function(){
+    function show(){var el=document.getElementById('azWel'); if(el){el.style.display='flex';}}
+    window.azWelClose=function(){var el=document.getElementById('azWel'); if(el) el.style.display='none'; try{localStorage.setItem('azwel_seen','1');}catch(e){}};
+    try{ if(localStorage.getItem('azwel_seen')) return; }catch(e){}
+    setTimeout(show, 4000);
+    document.addEventListener('DOMContentLoaded', function(){
+      var f=document.getElementById('azWelForm');
+      if(f){ f.addEventListener('submit', function(e){
+        e.preventDefault();
+        var email=(document.getElementById('azWelEmail')||{}).value||'';
+        try{ fetch('/contact', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:'form_type=customer&utf8=%E2%9C%93&contact[email]='+encodeURIComponent(email)+'&contact[tags]=newsletter,bienvenue'}); }catch(err){}
+        f.style.display='none';
+        var d=document.getElementById('azWelDone'); if(d) d.style.display='block';
+        try{localStorage.setItem('azwel_seen','1');}catch(e){}
+      }); }
+    });
+  })();
+</script>
+
+{%- comment -%}
+  Bandeau des rayons :
+  - clic sur un departement (avec sous-categories) => affiche un panneau avec ses sous-rayons pour que le client choisisse
+  - les liens simples (sans sous-categorie) naviguent normalement
+  - « Tous les rayons » ouvre le menu lateral
+  - le rayon actif/ouvert est mis en orange (sinon invisible sur le fond sombre)
+{%- endcomment -%}
+<div id="azSub" style="display:none;position:fixed;left:0;right:0;z-index:1500;background:#232f3e;border-top:1px solid #3a4553;box-shadow:0 8px 22px rgba(0,0,0,.32);"></div>
+<style>#azSub a:hover{background:#37475A !important;text-decoration:underline !important;}</style>
+<script>
+  (function(){
+    function nav(){ return document.querySelector('.header__inline-menu'); }
+    function box(){ return document.getElementById('azSub'); }
+    var cur=null;
+    function place(){ var n=nav(); if(!n) return; var r=n.getBoundingClientRect(); box().style.top=r.bottom+'px'; }
+    function hide(){ var b=box(); if(b) b.style.display='none'; if(cur){ cur.classList.remove('az-open'); cur=null; } }
+    function openDept(sum, det){
+      var anchors=det.querySelectorAll('a');
+      if(!anchors.length) return false;
+      var label=(sum.textContent||'').replace(/\s+/g,' ').trim();
+      var h='<div style="max-width:1500px;margin:0 auto;padding:10px max(1rem,calc(50vw - 750px + 1rem));display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;">';
+      h+='<span style="color:#FF9900;font-weight:700;font-size:13px;margin-right:6px;">'+label+'</span>';
+      for(var i=0;i<anchors.length;i++){
+        var a=anchors[i]; var u=a.getAttribute('href')||'#'; var t=(a.textContent||'').replace(/\s+/g,' ').trim();
+        if(!t) continue;
+        h+='<a href="'+u+'" style="color:#fff;font-size:13px;text-decoration:none;white-space:nowrap;padding:4px 8px;border-radius:3px;">'+t+'</a>';
+      }
+      h+='</div>';
+      var b=box(); b.innerHTML=h; place(); b.style.display='block';
+      if(cur&&cur!==sum) cur.classList.remove('az-open');
+      sum.classList.add('az-open'); cur=sum;
+      return true;
+    }
+    function wire(){
+      var n=nav(); if(!n) return;
+      if(!n.dataset.azNavWired){
+        n.dataset.azNavWired='1';
+        n.addEventListener('click', function(e){ if(e.target===n){ document.documentElement.classList.add('az-side-open'); } });
+      }
+      var items=n.querySelectorAll('.header__menu-item');
+      for(var i=0;i<items.length;i++){
+        (function(it){
+          if(it.dataset.azWired) return;
+          var det=it.closest('details');
+          if(!det) return; /* lien simple sans sous-categorie : navigation normale */
+          it.dataset.azWired='1'; it.style.cursor='pointer';
+          it.addEventListener('click', function(ev){
+            ev.preventDefault(); ev.stopPropagation();
+            det.removeAttribute('open'); /* neutralise le menu deroulant natif (souvent rogne) */
+            if(cur===it){ hide(); return; }
+            openDept(it, det);
+          });
+        })(items[i]);
+      }
+    }
+    document.addEventListener('click', function(e){
+      var b=box();
+      if(b && b.style.display==='block'){
+        if(!b.contains(e.target) && !(e.target.closest && e.target.closest('.header__menu-item'))){ hide(); }
+      }
+    });
+    document.addEventListener('keydown', function(e){ if(e.key==='Escape') hide(); });
+    window.addEventListener('resize', function(){ if(box()&&box().style.display==='block') place(); });
+    window.addEventListener('scroll', function(){ if(box()&&box().style.display==='block') place(); }, {passive:true});
+    if(document.readyState!=='loading'){ wire(); } else { document.addEventListener('DOMContentLoaded', wire); }
+    window.addEventListener('load', wire);
+  })();
+</script>
+
+{%- comment -%}
+  Assistant de chat (FAQ automatique + recherche produits en direct via l'API Shopify).
+  100% cote client, aucun service externe.
+{%- endcomment -%}
+<style>
+  #azChatBtn{position:fixed;right:18px;bottom:18px;z-index:1800;background:#FFA41C;color:#0F1111;border:none;border-radius:100px;padding:12px 18px;font-weight:700;font-family:Arial,Helvetica,sans-serif;font-size:14px;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.25);display:flex;align-items:center;gap:8px;}
+  #azChatBtn:hover{background:#FA8900;}
+  #azChat{position:fixed;right:18px;bottom:18px;z-index:1900;width:340px;max-width:calc(100vw - 24px);height:520px;max-height:calc(100vh - 24px);background:#fff;border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.32);display:none;flex-direction:column;overflow:hidden;font-family:Arial,Helvetica,sans-serif;}
+  #azChat header{background:#131921;color:#fff;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;}
+  #azChat header .t{font-weight:700;font-size:15px;}
+  #azChat header button{background:none;border:none;color:#fff;font-size:22px;cursor:pointer;line-height:1;}
+  #azChatBody{flex:1;overflow-y:auto;padding:12px;background:#EAEDED;}
+  .azMsg{max-width:85%;padding:9px 12px;border-radius:12px;margin:6px 0;font-size:13.5px;line-height:1.4;}
+  .azBot{background:#fff;color:#0F1111;border:1px solid #e3e6e6;border-bottom-left-radius:3px;}
+  .azBot a{color:#007185;}
+  .azUser{background:#FFE9C7;color:#0F1111;margin-left:auto;border-bottom-right-radius:3px;}
+  .azQuick{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 2px;}
+  .azQuick button{background:#fff;border:1px solid #FFA41C;color:#0F1111;border-radius:100px;padding:6px 10px;font-size:12px;cursor:pointer;}
+  .azQuick button:hover{background:#FFF3C4;}
+  .azProd{display:flex;gap:10px;background:#fff;border:1px solid #e3e6e6;border-radius:10px;padding:8px;margin:6px 0;text-decoration:none;color:#0F1111;}
+  .azProd img{width:54px;height:54px;object-fit:cover;border-radius:6px;flex:0 0 auto;background:#f3f3f3;}
+  .azProd .pt{font-size:12.5px;color:#007185;line-height:1.3;}
+  .azProd .pp{font-size:13px;color:#B12704;font-weight:700;margin-top:2px;}
+  #azChatForm{display:flex;border-top:1px solid #e3e6e6;}
+  #azChatInput{flex:1;border:none;padding:12px;font-size:14px;outline:none;}
+  #azChatSend{background:#FFD814;border:none;border-left:1px solid #FCD200;padding:0 16px;font-weight:700;cursor:pointer;}
+  #azChatConsent{flex:1;display:flex;flex-direction:column;background:#fff;padding:18px;font-size:13.5px;color:#0F1111;overflow-y:auto;}
+  #azChatConsent h3{font-size:16px;margin:0 0 14px;color:#0F1111;}
+  #azChatConsent label{display:flex;gap:8px;align-items:flex-start;line-height:1.5;cursor:pointer;}
+  #azChatConsent label input{margin-top:3px;flex:0 0 auto;width:16px;height:16px;}
+  #azChatConsent a{color:#007185;}
+  #azChatStart{margin-top:16px;background:#FFD814;border:1px solid #FCD200;border-radius:8px;padding:11px;font-weight:700;color:#0F1111;cursor:pointer;}
+  #azChatStart:disabled{background:#e7e9ec;border-color:#d5d9d9;color:#9aa0a6;cursor:not-allowed;}
+</style>
+<button id="azChatBtn" type="button" onclick="azChatOpen()">&#128172; Besoin d'aide ?</button>
+<div id="azChat" role="dialog" aria-label="Assistant IATECHFUTUR">
+  <header><span class="t">Assistant IATECHFUTUR</span><button type="button" aria-label="Fermer" onclick="azChatClose()">&times;</button></header>
+  <div id="azChatConsent">
+    <h3>Politique de confidentialit&eacute; et d'utilisation des cookies</h3>
+    <label><input type="checkbox" id="azChatAccept"> <span>J'accepte qu'IATECHFUTUR enregistre et utilise les messages de la discussion conform&eacute;ment &agrave; la <a href="/pages/data-sharing-opt-out" target="_blank">Politique de confidentialit&eacute; et d'utilisation des cookies</a>.</span></label>
+    <button type="button" id="azChatStart" disabled>Chatter en direct</button>
+  </div>
+  <div id="azChatBody" style="display:none;"></div>
+  <form id="azChatForm" autocomplete="off" style="display:none;">
+    <input id="azChatInput" type="text" placeholder="Posez une question ou cherchez un article…">
+    <button id="azChatSend" type="submit">Envoyer</button>
+  </form>
+</div>
+<script>
+(function(){
+  var started=false;
+  function consentGiven(){try{return !!localStorage.getItem('azchat_consent');}catch(e){return false;}}
+  function showChatUI(){var c=document.getElementById('azChatConsent');if(c)c.style.display='none';document.getElementById('azChatBody').style.display='block';document.getElementById('azChatForm').style.display='flex';if(!started){started=true;greet();}setTimeout(function(){var i=document.getElementById('azChatInput');if(i)i.focus();},50);}
+  window.azChatOpen=function(){document.getElementById('azChat').style.display='flex';document.getElementById('azChatBtn').style.display='none';if(consentGiven()){showChatUI();}else{document.getElementById('azChatConsent').style.display='flex';document.getElementById('azChatBody').style.display='none';document.getElementById('azChatForm').style.display='none';}};
+  window.azChatClose=function(){document.getElementById('azChat').style.display='none';document.getElementById('azChatBtn').style.display='flex';};
+  function el(){return document.getElementById('azChatBody');}
+  function scroll(){var b=el();b.scrollTop=b.scrollHeight;}
+  function bot(html){var d=document.createElement('div');d.className='azMsg azBot';d.innerHTML=html;el().appendChild(d);scroll();}
+  function user(t){var d=document.createElement('div');d.className='azMsg azUser';d.textContent=t;el().appendChild(d);scroll();}
+  function quick(items){var w=document.createElement('div');w.className='azQuick';items.forEach(function(it){var b=document.createElement('button');b.type='button';b.textContent=it.l;b.onclick=function(){handle(it.q||it.l);};w.appendChild(b);});el().appendChild(w);scroll();}
+  function greet(){
+    bot("Bonjour &#128075; Je suis l'assistant IATECHFUTUR. Je r&eacute;ponds &agrave; vos questions et je vous aide &agrave; trouver un article. Que recherchez-vous ?");
+    quick([{l:'🚚 Livraison',q:'livraison'},{l:'↩️ Retours',q:'retour'},{l:'💳 Paiement',q:'paiement'},{l:'📦 Suivre ma commande',q:'suivi'},{l:'🧾 Facture / TVA pro',q:'tva'},{l:'✉️ Contact',q:'contact'}]);
+  }
+  var FAQ=[
+    {k:['livraison','livr','delai','délai','expedition','expédition','shipping'],a:"🚚 <b>Livraison</b> : nous livrons en Belgique et en Europe. D&eacute;lais et frais d&eacute;taill&eacute;s ici : <a href='/pages/politique-de-livraison' target='_blank'>Politique de livraison</a>."},
+    {k:['retour','rembours'],a:"↩️ <b>Retours &amp; remboursement</b> : vous disposez d'un droit de retour. D&eacute;tails : <a href='/pages/politique-de-retour' target='_blank'>Politique de retour</a>."},
+    {k:['retract','rétract','annuler','annulation'],a:"📝 <b>Droit de r&eacute;tractation</b> : annulez votre commande sous 14 jours. Voir : <a href='/pages/droit-de-retractation' target='_blank'>Droit de r&eacute;tractation</a>."},
+    {k:['paiement','payer','carte','klarna','bancontact','paypal'],a:"💳 <b>Paiement</b> : 100% s&eacute;curis&eacute; (cartes, et paiement en plusieurs fois via Klarna selon &eacute;ligibilit&eacute;)."},
+    {k:['suivi','suivre','tracking','ou est','où est'],a:"📦 <b>Suivi de commande</b> : connectez-vous &agrave; votre compte &rarr; <a href='/account' target='_blank'>Mes commandes</a>. Un e-mail de suivi vous est aussi envoy&eacute;."},
+    {k:['tva','facture','professionnel','entreprise','peppol','b2b'],a:"🧾 <b>Comptes professionnels</b> : transmettez votre n&deg; de TVA et votre identifiant Peppol ici : <a href='/pages/tva-professionnels' target='_blank'>G&eacute;rer votre TVA</a>."},
+    {k:['contact','joindre','telephone','téléphone','email','e-mail','service client'],a:"✉️ <b>Contact</b> : via la page <a href='/pages/contact' target='_blank'>Contact</a> ou &agrave; iatechfutur@mail.com. R&eacute;ponse rapide."},
+    {k:['promo','code','reduction','réduction','soldes'],a:"🎁 <b>Bon plan</b> : code <b>IATF10</b> pour -10% sur votre 1re commande. Voir nos <a href='/collections/promotions' target='_blank'>Promotions</a>."},
+    {k:['garantie'],a:"🛡️ <b>Garantie</b> : garantie l&eacute;gale de conformit&eacute; sur vos achats. En cas de souci, contactez le service client."},
+    {k:['bonjour','salut','hello','coucou','aide','help'],a:"Bonjour ! Dites-moi ce que vous cherchez (ex. &laquo; &eacute;couteurs &raquo;, &laquo; legging &raquo;, &laquo; blender &raquo;) ou choisissez un sujet &#128071;"}
+  ];
+  function findFaq(q){var s=q.toLowerCase();for(var i=0;i<FAQ.length;i++){for(var j=0;j<FAQ[i].k.length;j++){if(s.indexOf(FAQ[i].k[j])>-1)return FAQ[i].a;}}return null;}
+  function search(q){
+    bot("Je cherche &laquo; "+q+" &raquo; dans notre catalogue…");
+    fetch('/search/suggest.json?q='+encodeURIComponent(q)+'&resources[type]=product&resources[limit]=5&resources[options][unavailable_products]=last')
+      .then(function(r){return r.json();})
+      .then(function(d){
+        var ps=(d.resources&&d.resources.results&&d.resources.results.products)||[];
+        if(!ps.length){bot("Je n'ai pas trouv&eacute; d'article pour &laquo; "+q+" &raquo;. Essayez un autre mot-cl&eacute;, ou parcourez nos <a href='/collections/all' target='_blank'>rayons</a>.");return;}
+        bot("Voici ce que j'ai trouv&eacute; :");
+        ps.forEach(function(p){
+          var img=(p.featured_image&&p.featured_image.url)?p.featured_image.url:(p.image||'');
+          var price=p.price?(''+p.price).replace(/[^0-9.,]/g,''):'';
+          var a=document.createElement('a');a.className='azProd';a.href=p.url;a.target='_blank';
+          a.innerHTML=(img?"<img src='"+img+"' alt=''>":"")+"<div><div class='pt'>"+p.title+"</div>"+(price?"<div class='pp'>"+price+" &euro;</div>":"")+"</div>";
+          el().appendChild(a);
+        });
+        scroll();
+        bot("Vous pouvez aussi <a href='/search?q="+encodeURIComponent(q)+"' target='_blank'>voir tous les r&eacute;sultats</a>.");
+      })
+      .catch(function(){bot("D&eacute;sol&eacute;, la recherche est momentan&eacute;ment indisponible. Utilisez la barre de recherche du site.");});
+  }
+  function handle(q){
+    q=(q||'').trim();if(!q)return;
+    user(q);
+    var f=findFaq(q);
+    if(f){bot(f);}else{search(q);}
+  }
+  var form=document.getElementById('azChatForm');
+  if(form){form.addEventListener('submit',function(e){e.preventDefault();var i=document.getElementById('azChatInput');var v=i.value;i.value='';handle(v);});}
+  var acc=document.getElementById('azChatAccept');var start=document.getElementById('azChatStart');
+  if(acc&&start){acc.addEventListener('change',function(){start.disabled=!acc.checked;});start.addEventListener('click',function(){if(!acc.checked)return;try{localStorage.setItem('azchat_consent','1');}catch(e){}showChatUI();});}
+})();
+</script>
+
+{%- comment -%}
+  Mention permanente sous les articles du panier (page panier + tiroir / mini-panier).
+{%- endcomment -%}
+<script>
+(function(){
+  var TXT="Le prix et la disponibilit&eacute; des articles sont sujets &agrave; changement. Le panier est un espace temporaire qui refl&egrave;te le prix le plus r&eacute;cent de chaque article. Vous disposez d'un code promotionnel ? Vous pourrez le saisir au moment du paiement.";
+  function mk(){var d=document.createElement('div');d.className='az-cart-note';d.style.cssText='background:#FFF8E1;border:1px solid #FCD200;border-radius:8px;padding:12px 14px;margin:14px 0;font-size:13px;color:#565959;line-height:1.5;';d.innerHTML=TXT;return d;}
+  function place(){
+    var cf=document.querySelector('.cart__footer');
+    if(cf&&cf.parentNode&&!cf.parentNode.querySelector('.az-cart-note')){cf.parentNode.insertBefore(mk(),cf);}
+    var df=document.querySelector('.cart-drawer .drawer__footer, .cart-drawer__footer');
+    if(df&&df.parentNode&&!df.parentNode.querySelector('.az-cart-note')){df.parentNode.insertBefore(mk(),df);}
+  }
+  var t;function schedule(){clearTimeout(t);t=setTimeout(place,150);}
+  if(document.readyState!=='loading'){place();}else{document.addEventListener('DOMContentLoaded',place);}
+  window.addEventListener('load',place);
+  try{var mo=new MutationObserver(schedule);mo.observe(document.body,{childList:true,subtree:true});}catch(e){}
+})();
+</script>
+
+{% schema %}
+{
+  "name": "Bienvenue -10%",
+  "settings": []
+}
+{% endschema %}

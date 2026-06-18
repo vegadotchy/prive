@@ -1,0 +1,99 @@
+/* ============================================================
+   AMAZON-STYLE OVERRIDES — iatechfutur.be (IATECHFUTUR)
+   Reproduit l'ergonomie/agencement type Amazon avec la marque
+   IATECHFUTUR (pas de logo/marque Amazon). Couche d'overrides.
+   Chargé dans layout/theme.liquid via stylesheet_tag.
+   ============================================================ */
+:root{
+  --az-dark:#131921; --az-dark2:#232f3e; --az-dark3:#37475A;
+  --az-yellow:#FFD814; --az-yellow-h:#F7CA00;
+  --az-orange:#FFA41C; --az-orange-h:#FA8900;
+  --az-search:#FEBD69; --az-search-h:#F3A847;
+  --az-link:#007185; --az-link-h:#C7511F; --az-price:#B12704;
+  --az-bg:#EAEDED; --az-text:#0F1111; --az-border:#D5D9D9;
+}
+
+/* BASE */
+body.gradient,body{background:var(--az-bg)!important;background-image:none!important;font-family:"Amazon Ember",Arial,sans-serif!important;color:var(--az-text)!important;letter-spacing:normal!important;}
+.gradient{background-image:none!important;}
+.page-width{max-width:1500px!important;}
+
+/* HEADER barre principale */
+.section-header,.shopify-section-group-header-group{background:var(--az-dark)!important;background-image:none!important;margin-bottom:0!important;box-shadow:none!important;}
+.header-wrapper{background:var(--az-dark)!important;border-bottom:none!important;color:#fff!important;}
+.header{background:var(--az-dark)!important;display:flex!important;flex-wrap:wrap!important;align-items:center!important;gap:8px!important;padding:4px 1.5rem!important;max-width:1500px!important;position:relative!important;}
+.header__heading,.header__heading-link{margin:0!important;padding:4px 6px!important;border:1px solid transparent!important;border-radius:3px!important;}
+.header__heading-link:hover{border-color:#fff!important;}
+span.h2{color:#fff!important;}
+
+/* MARQUE : logo (coin haut-gauche) + adresse de livraison empilee juste dessous */
+.az-brand{order:1!important;display:flex!important;flex-direction:column!important;align-items:flex-start!important;gap:2px!important;}
+.az-brand .header__heading,.az-brand .header__heading-link{order:0!important;margin:0!important;}
+.az-brand .az-deliver{order:1!important;display:flex!important;margin:0!important;padding:2px 6px!important;}
+
+/* HAUT-DROITE : langue + connexion/inscription + panier regroupes au coin droit */
+.az-topright{order:3!important;margin-left:auto!important;display:flex!important;align-items:center!important;gap:8px!important;}
+.az-topright .az-account{margin-left:0!important;}
+.az-topright .header__icons{order:0!important;margin:0!important;}
+.header__icon--account{display:none!important;} /* evite le doublon avec « Identifiez-vous » */
+
+/* RECHERCHE (markup .amazon-search-bar dans header.liquid) */
+.header__search,.header__icon--search,[data-modal-open="search"]{display:none!important;}
+.amazon-search-bar{order:2!important;flex:1 1 320px!important;min-width:240px!important;margin:0 8px!important;}
+.amazon-search-form{display:flex!important;height:42px!important;border-radius:6px!important;overflow:hidden!important;}
+.amazon-search-form:focus-within{box-shadow:0 0 0 3px var(--az-search)!important;}
+.amazon-search-input{flex:1!important;padding:0 12px!important;font-size:15px!important;border:none!important;outline:none!important;background:#fff!important;color:var(--az-text)!important;}
+.amazon-search-btn{width:46px!important;background:var(--az-search)!important;border:none!important;cursor:pointer!important;display:flex!important;align-items:center!important;justify-content:center!important;color:var(--az-text)!important;}
+.amazon-search-btn:hover{background:var(--az-search-h)!important;}
+
+/* ICONES compte/panier */
+.header__icons{order:3!important;display:flex!important;align-items:center!important;gap:4px!important;}
+.header__icon{color:#fff!important;padding:6px 8px!important;border:1px solid transparent!important;border-radius:3px!important;}
+.header__icon:hover{border-color:#fff!important;}
+.header__icon svg,.header__icon path,.header__icon .svg-wrapper{color:#fff!important;fill:#fff!important;}
+.cart-count-bubble{background:var(--az-orange)!important;color:var(--az-text)!important;font-weight:700!important;border-radius:50%!important;}
+
+/* BARRE DES RAYONS (2e ligne pleine largeur) */
+nav.header__inline-menu,.header__inline-menu{order:10!important;flex:0 0 100%!important;width:100vw!important;position:relative!important;left:50%!important;transform:translateX(-50%)!important;margin:4px 0 0 0!important;background:var(--az-dark2)!important;padding:3px max(1rem,calc(50vw - 750px + 1rem))!important;display:flex!important;flex-wrap:nowrap!important;align-items:center!important;gap:6px!important;overflow:visible!important;}
+.header__inline-menu::before{content:"\2261  Tous les rayons"!important;color:#fff!important;font-weight:700!important;font-size:12px!important;padding:4px 4px!important;white-space:nowrap!important;flex:0 0 auto!important;}
+.header__inline-menu .list-menu--inline,.header__inline-menu>ul{flex:1 1 auto!important;min-width:0!important;display:flex!important;flex-wrap:nowrap!important;justify-content:space-between!important;align-items:center!important;gap:2px!important;overflow-x:auto!important;margin:0!important;padding:0!important;}
+.header__inline-menu .list-menu--inline::-webkit-scrollbar,.header__inline-menu>ul::-webkit-scrollbar{height:0!important;}
+.header__inline-menu .list-menu--inline>li,.header__inline-menu>ul>li{flex:0 0 auto!important;}
+.header__inline-menu .header__menu-item,.header__inline-menu .list-menu__item{color:#fff!important;font-size:12px!important;padding:4px 4px!important;white-space:nowrap!important;border:1px solid transparent!important;border-radius:3px!important;}
+.header__inline-menu a.header__menu-item:hover,.header__inline-menu summary:hover{border-color:#fff!important;}
+/* Rayon actif (page en cours) ou ouvert : titre en orange (sinon invisible sur fond sombre) */
+.header__inline-menu .header__active-menu-item,
+.header__inline-menu .header__menu-item.header__active-menu-item,
+.header__inline-menu .list-menu__item--active,
+.header__inline-menu .header__menu-item[aria-current],
+.header__inline-menu .header__menu-item.az-open,
+.header__inline-menu summary.az-open{color:var(--az-orange)!important;font-weight:700!important;}
+/* Bouton « Marketplace » en orange pour le rendre visible */
+.header__inline-menu a[href*="marketplace" i]{background:var(--az-orange)!important;color:var(--az-text)!important;font-weight:700!important;border-radius:100px!important;padding:4px 10px!important;}
+.header__inline-menu a[href*="marketplace" i]:hover{background:var(--az-orange-h)!important;border-color:transparent!important;}
+
+/* BOUTONS jaune/orange Amazon */
+.button,.btn,.button--primary,.product-form__submit,input[type="submit"]{background:var(--az-yellow)!important;background-image:none!important;color:var(--az-text)!important;border:1px solid #FCD200!important;border-radius:100px!important;padding:9px 18px!important;font-weight:500!important;cursor:pointer!important;}
+.button:hover,.product-form__submit:hover{background:var(--az-yellow-h)!important;}
+
+/* FICHES PRODUITS */
+.card-wrapper,.product-card-wrapper{background:#fff!important;border:1px solid transparent!important;border-radius:8px!important;box-shadow:none!important;transition:box-shadow .15s,border-color .15s!important;}
+.card-wrapper:hover{box-shadow:0 2px 10px rgba(15,17,17,.18)!important;border-color:var(--az-border)!important;}
+.card__heading a,.full-unstyled-link{color:var(--az-link)!important;font-size:14px!important;font-weight:400!important;text-decoration:none!important;}
+.card__heading a:hover{color:var(--az-link-h)!important;text-decoration:underline!important;}
+.price-item{color:var(--az-price)!important;font-size:19px!important;}
+.price--on-sale .price-item--regular{color:#565959!important;text-decoration:line-through!important;font-size:13px!important;}
+.rating-star{color:var(--az-orange)!important;}
+
+/* FOOTER sombre + Retour en haut */
+.shopify-section-group-footer-group,.footer{background:var(--az-dark2)!important;background-image:none!important;color:#fff!important;}
+.shopify-section-group-footer-group::before{content:"\2191  Retour en haut"!important;display:block!important;background:var(--az-dark3)!important;color:#fff!important;text-align:center!important;padding:14px!important;font-size:13px!important;cursor:pointer!important;}
+.shopify-section-group-footer-group a{color:#DDD!important;}
+.shopify-section-group-footer-group a:hover{color:#fff!important;text-decoration:underline!important;}
+.footer__content-bottom{background:var(--az-dark)!important;}
+
+/* RESPONSIVE */
+@media screen and (max-width:989px){
+  .amazon-search-bar{order:3!important;flex:1 1 100%!important;min-width:100%!important;margin:6px 0 0 0!important;}
+  nav.header__inline-menu,.header__inline-menu{display:none!important;}
+}

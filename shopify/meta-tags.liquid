@@ -1,0 +1,52 @@
+{%- liquid
+  assign og_title = page_title | default: shop.name
+  assign og_url = canonical_url | default: request.origin
+  assign og_type = 'website'
+  assign og_description = page_description | default: shop.description | default: shop.name
+
+  if request.page_type == 'product'
+    assign og_type = 'product'
+  elsif request.page_type == 'article'
+    assign og_type = 'article'
+  elsif request.page_type == 'password'
+    assign og_url = request.origin
+  endif
+%}
+
+<meta property="og:site_name" content="{{ shop.name }}">
+<meta property="og:url" content="{{ og_url }}">
+<meta property="og:title" content="{{ og_title | escape }}">
+<meta property="og:type" content="{{ og_type }}">
+<meta property="og:description" content="{{ og_description | escape }}">
+
+{%- if page_image -%}
+  <meta property="og:image" content="http:{{ page_image | image_url }}">
+  <meta property="og:image:secure_url" content="https:{{ page_image | image_url }}">
+  <meta property="og:image:width" content="{{ page_image.width }}">
+  <meta property="og:image:height" content="{{ page_image.height }}">
+{%- endif -%}
+
+{%- if request.page_type == 'product' -%}
+  <meta property="og:price:amount" content="{{ product.price | money_without_currency | strip_html }}">
+  <meta property="og:price:currency" content="{{ cart.currency.iso_code }}">
+{%- endif -%}
+
+{%- if settings.social_twitter_link != blank -%}
+  <meta name="twitter:site" content="{{ settings.social_twitter_link | split: 'twitter.com/' | last | prepend: '@' }}">
+{%- endif -%}
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{ og_title | escape }}">
+<meta name="twitter:description" content="{{ og_description | escape }}">
+
+{%- comment -%} ===== PWA : application installable IATECHFUTUR ===== {%- endcomment -%}
+{%- assign pwa_logo = settings.logo | default: settings.favicon -%}
+<meta name="theme-color" content="#131921">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="IATECHFUTUR">
+{%- if pwa_logo != blank -%}
+<link rel="apple-touch-icon" href="{{ pwa_logo | image_url: width: 180, height: 180, crop: 'center' }}">
+{%- endif -%}
+{%- capture pwa_manifest -%}{"name":"IATECHFUTUR","short_name":"IATECHFUTUR","start_url":"{{ request.origin }}/","scope":"{{ request.origin }}/","display":"standalone","orientation":"portrait","background_color":"#ffffff","theme_color":"#131921","icons":[{% if pwa_logo != blank %}{"src":"{{ pwa_logo | image_url: width: 192, height: 192, crop: 'center' }}","sizes":"192x192","type":"image/png","purpose":"any maskable"},{"src":"{{ pwa_logo | image_url: width: 512, height: 512, crop: 'center' }}","sizes":"512x512","type":"image/png","purpose":"any maskable"}{% endif %}]}{%- endcapture -%}
+<link rel="manifest" href="data:application/manifest+json,{{ pwa_manifest | url_encode }}">
