@@ -208,6 +208,26 @@
 })();
 </script>
 
+{%- comment -%}
+  Mention permanente sous les articles du panier (page panier + tiroir / mini-panier).
+{%- endcomment -%}
+<script>
+(function(){
+  var TXT="Le prix et la disponibilit&eacute; des articles sont sujets &agrave; changement. Le panier est un espace temporaire qui refl&egrave;te le prix le plus r&eacute;cent de chaque article. Vous disposez d'un code promotionnel ? Vous pourrez le saisir au moment du paiement.";
+  function mk(){var d=document.createElement('div');d.className='az-cart-note';d.style.cssText='background:#FFF8E1;border:1px solid #FCD200;border-radius:8px;padding:12px 14px;margin:14px 0;font-size:13px;color:#565959;line-height:1.5;';d.innerHTML=TXT;return d;}
+  function place(){
+    var cf=document.querySelector('.cart__footer');
+    if(cf&&cf.parentNode&&!cf.parentNode.querySelector('.az-cart-note')){cf.parentNode.insertBefore(mk(),cf);}
+    var df=document.querySelector('.cart-drawer .drawer__footer, .cart-drawer__footer');
+    if(df&&df.parentNode&&!df.parentNode.querySelector('.az-cart-note')){df.parentNode.insertBefore(mk(),df);}
+  }
+  var t;function schedule(){clearTimeout(t);t=setTimeout(place,150);}
+  if(document.readyState!=='loading'){place();}else{document.addEventListener('DOMContentLoaded',place);}
+  window.addEventListener('load',place);
+  try{var mo=new MutationObserver(schedule);mo.observe(document.body,{childList:true,subtree:true});}catch(e){}
+})();
+</script>
+
 {% schema %}
 {
   "name": "Bienvenue -10%",
