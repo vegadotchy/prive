@@ -114,6 +114,100 @@
   })();
 </script>
 
+{%- comment -%}
+  Assistant de chat (FAQ automatique + recherche produits en direct via l'API Shopify).
+  100% cote client, aucun service externe.
+{%- endcomment -%}
+<style>
+  #azChatBtn{position:fixed;right:18px;bottom:18px;z-index:1800;background:#FFA41C;color:#0F1111;border:none;border-radius:100px;padding:12px 18px;font-weight:700;font-family:Arial,Helvetica,sans-serif;font-size:14px;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.25);display:flex;align-items:center;gap:8px;}
+  #azChatBtn:hover{background:#FA8900;}
+  #azChat{position:fixed;right:18px;bottom:18px;z-index:1900;width:340px;max-width:calc(100vw - 24px);height:520px;max-height:calc(100vh - 24px);background:#fff;border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.32);display:none;flex-direction:column;overflow:hidden;font-family:Arial,Helvetica,sans-serif;}
+  #azChat header{background:#131921;color:#fff;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;}
+  #azChat header .t{font-weight:700;font-size:15px;}
+  #azChat header button{background:none;border:none;color:#fff;font-size:22px;cursor:pointer;line-height:1;}
+  #azChatBody{flex:1;overflow-y:auto;padding:12px;background:#EAEDED;}
+  .azMsg{max-width:85%;padding:9px 12px;border-radius:12px;margin:6px 0;font-size:13.5px;line-height:1.4;}
+  .azBot{background:#fff;color:#0F1111;border:1px solid #e3e6e6;border-bottom-left-radius:3px;}
+  .azBot a{color:#007185;}
+  .azUser{background:#FFE9C7;color:#0F1111;margin-left:auto;border-bottom-right-radius:3px;}
+  .azQuick{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 2px;}
+  .azQuick button{background:#fff;border:1px solid #FFA41C;color:#0F1111;border-radius:100px;padding:6px 10px;font-size:12px;cursor:pointer;}
+  .azQuick button:hover{background:#FFF3C4;}
+  .azProd{display:flex;gap:10px;background:#fff;border:1px solid #e3e6e6;border-radius:10px;padding:8px;margin:6px 0;text-decoration:none;color:#0F1111;}
+  .azProd img{width:54px;height:54px;object-fit:cover;border-radius:6px;flex:0 0 auto;background:#f3f3f3;}
+  .azProd .pt{font-size:12.5px;color:#007185;line-height:1.3;}
+  .azProd .pp{font-size:13px;color:#B12704;font-weight:700;margin-top:2px;}
+  #azChatForm{display:flex;border-top:1px solid #e3e6e6;}
+  #azChatInput{flex:1;border:none;padding:12px;font-size:14px;outline:none;}
+  #azChatSend{background:#FFD814;border:none;border-left:1px solid #FCD200;padding:0 16px;font-weight:700;cursor:pointer;}
+</style>
+<button id="azChatBtn" type="button" onclick="azChatOpen()">&#128172; Besoin d'aide ?</button>
+<div id="azChat" role="dialog" aria-label="Assistant IATECHFUTUR">
+  <header><span class="t">Assistant IATECHFUTUR</span><button type="button" aria-label="Fermer" onclick="azChatClose()">&times;</button></header>
+  <div id="azChatBody"></div>
+  <form id="azChatForm" autocomplete="off">
+    <input id="azChatInput" type="text" placeholder="Posez une question ou cherchez un article…">
+    <button id="azChatSend" type="submit">Envoyer</button>
+  </form>
+</div>
+<script>
+(function(){
+  var started=false;
+  window.azChatOpen=function(){document.getElementById('azChat').style.display='flex';document.getElementById('azChatBtn').style.display='none';if(!started){started=true;greet();}setTimeout(function(){var i=document.getElementById('azChatInput');if(i)i.focus();},50);};
+  window.azChatClose=function(){document.getElementById('azChat').style.display='none';document.getElementById('azChatBtn').style.display='flex';};
+  function el(){return document.getElementById('azChatBody');}
+  function scroll(){var b=el();b.scrollTop=b.scrollHeight;}
+  function bot(html){var d=document.createElement('div');d.className='azMsg azBot';d.innerHTML=html;el().appendChild(d);scroll();}
+  function user(t){var d=document.createElement('div');d.className='azMsg azUser';d.textContent=t;el().appendChild(d);scroll();}
+  function quick(items){var w=document.createElement('div');w.className='azQuick';items.forEach(function(it){var b=document.createElement('button');b.type='button';b.textContent=it.l;b.onclick=function(){handle(it.q||it.l);};w.appendChild(b);});el().appendChild(w);scroll();}
+  function greet(){
+    bot("Bonjour &#128075; Je suis l'assistant IATECHFUTUR. Je r&eacute;ponds &agrave; vos questions et je vous aide &agrave; trouver un article. Que recherchez-vous ?");
+    quick([{l:'🚚 Livraison',q:'livraison'},{l:'↩️ Retours',q:'retour'},{l:'💳 Paiement',q:'paiement'},{l:'📦 Suivre ma commande',q:'suivi'},{l:'🧾 Facture / TVA pro',q:'tva'},{l:'✉️ Contact',q:'contact'}]);
+  }
+  var FAQ=[
+    {k:['livraison','livr','delai','délai','expedition','expédition','shipping'],a:"🚚 <b>Livraison</b> : nous livrons en Belgique et en Europe. D&eacute;lais et frais d&eacute;taill&eacute;s ici : <a href='/pages/politique-de-livraison' target='_blank'>Politique de livraison</a>."},
+    {k:['retour','rembours'],a:"↩️ <b>Retours &amp; remboursement</b> : vous disposez d'un droit de retour. D&eacute;tails : <a href='/pages/politique-de-retour' target='_blank'>Politique de retour</a>."},
+    {k:['retract','rétract','annuler','annulation'],a:"📝 <b>Droit de r&eacute;tractation</b> : annulez votre commande sous 14 jours. Voir : <a href='/pages/droit-de-retractation' target='_blank'>Droit de r&eacute;tractation</a>."},
+    {k:['paiement','payer','carte','klarna','bancontact','paypal'],a:"💳 <b>Paiement</b> : 100% s&eacute;curis&eacute; (cartes, et paiement en plusieurs fois via Klarna selon &eacute;ligibilit&eacute;)."},
+    {k:['suivi','suivre','tracking','ou est','où est'],a:"📦 <b>Suivi de commande</b> : connectez-vous &agrave; votre compte &rarr; <a href='/account' target='_blank'>Mes commandes</a>. Un e-mail de suivi vous est aussi envoy&eacute;."},
+    {k:['tva','facture','professionnel','entreprise','peppol','b2b'],a:"🧾 <b>Comptes professionnels</b> : transmettez votre n&deg; de TVA et votre identifiant Peppol ici : <a href='/pages/tva-professionnels' target='_blank'>G&eacute;rer votre TVA</a>."},
+    {k:['contact','joindre','telephone','téléphone','email','e-mail','service client'],a:"✉️ <b>Contact</b> : via la page <a href='/pages/contact' target='_blank'>Contact</a> ou &agrave; iatechfutur@mail.com. R&eacute;ponse rapide."},
+    {k:['promo','code','reduction','réduction','soldes'],a:"🎁 <b>Bon plan</b> : code <b>IATF10</b> pour -10% sur votre 1re commande. Voir nos <a href='/collections/promotions' target='_blank'>Promotions</a>."},
+    {k:['garantie'],a:"🛡️ <b>Garantie</b> : garantie l&eacute;gale de conformit&eacute; sur vos achats. En cas de souci, contactez le service client."},
+    {k:['bonjour','salut','hello','coucou','aide','help'],a:"Bonjour ! Dites-moi ce que vous cherchez (ex. &laquo; &eacute;couteurs &raquo;, &laquo; legging &raquo;, &laquo; blender &raquo;) ou choisissez un sujet &#128071;"}
+  ];
+  function findFaq(q){var s=q.toLowerCase();for(var i=0;i<FAQ.length;i++){for(var j=0;j<FAQ[i].k.length;j++){if(s.indexOf(FAQ[i].k[j])>-1)return FAQ[i].a;}}return null;}
+  function search(q){
+    bot("Je cherche &laquo; "+q+" &raquo; dans notre catalogue…");
+    fetch('/search/suggest.json?q='+encodeURIComponent(q)+'&resources[type]=product&resources[limit]=5&resources[options][unavailable_products]=last')
+      .then(function(r){return r.json();})
+      .then(function(d){
+        var ps=(d.resources&&d.resources.results&&d.resources.results.products)||[];
+        if(!ps.length){bot("Je n'ai pas trouv&eacute; d'article pour &laquo; "+q+" &raquo;. Essayez un autre mot-cl&eacute;, ou parcourez nos <a href='/collections/all' target='_blank'>rayons</a>.");return;}
+        bot("Voici ce que j'ai trouv&eacute; :");
+        ps.forEach(function(p){
+          var img=(p.featured_image&&p.featured_image.url)?p.featured_image.url:(p.image||'');
+          var price=p.price?(''+p.price).replace(/[^0-9.,]/g,''):'';
+          var a=document.createElement('a');a.className='azProd';a.href=p.url;a.target='_blank';
+          a.innerHTML=(img?"<img src='"+img+"' alt=''>":"")+"<div><div class='pt'>"+p.title+"</div>"+(price?"<div class='pp'>"+price+" &euro;</div>":"")+"</div>";
+          el().appendChild(a);
+        });
+        scroll();
+        bot("Vous pouvez aussi <a href='/search?q="+encodeURIComponent(q)+"' target='_blank'>voir tous les r&eacute;sultats</a>.");
+      })
+      .catch(function(){bot("D&eacute;sol&eacute;, la recherche est momentan&eacute;ment indisponible. Utilisez la barre de recherche du site.");});
+  }
+  function handle(q){
+    q=(q||'').trim();if(!q)return;
+    user(q);
+    var f=findFaq(q);
+    if(f){bot(f);}else{search(q);}
+  }
+  var form=document.getElementById('azChatForm');
+  if(form){form.addEventListener('submit',function(e){e.preventDefault();var i=document.getElementById('azChatInput');var v=i.value;i.value='';handle(v);});}
+})();
+</script>
+
 {% schema %}
 {
   "name": "Bienvenue -10%",
