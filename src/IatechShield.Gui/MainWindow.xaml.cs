@@ -88,6 +88,7 @@ public partial class MainWindow : Window
         PageFirewall.Visibility = Visibility.Collapsed;
         PageTools.Visibility = Visibility.Collapsed;
         PageNetwork.Visibility = Visibility.Collapsed;
+        PageDevice.Visibility = Visibility.Collapsed;
         PageSettings.Visibility = Visibility.Collapsed;
         PageLogs.Visibility = Visibility.Collapsed;
 
@@ -98,6 +99,7 @@ public partial class MainWindow : Window
             "Firewall" => PageFirewall,
             "Outils" => PageTools,
             "Réseau" => PageNetwork,
+            "Appareil" => PageDevice,
             "Settings" => PageSettings,
             "Logs" => PageLogs,
             _ => PageDashboard
@@ -990,6 +992,73 @@ public partial class MainWindow : Window
         UrlVerdictText.Text = $"{verdict.BandLabel}  —  {verdict.Score}/100";
         UrlReasonsText.Text = string.Join("\n", verdict.Reasons.Select(r => "• " + r));
         Log($"URL analysée : {url} → {verdict.BandLabel} ({verdict.Score}/100)");
+    }
+
+    // ----------------------------------------------------- sécurité appareil --
+
+    private async void OnCheckDevice(object sender, RoutedEventArgs e)
+    {
+        DeviceCheckButton.IsEnabled = false;
+        CoreIsolationStatus.Text = TpmStatus.Text = SecureBootStatus.Text = BitLockerStatus.Text = "Vérification…";
+        try
+        {
+            string hvci = await RunPs(
+                @"(Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity' -ErrorAction SilentlyContinue).Enabled");
+            CoreIsolationStatus.Text = hvci.Trim() == "1" ? "Activée ✓" : "Désactivée";
+
+            string tpm = await RunPs("(Get-Tpm).TpmReady");
+            TpmStatus.Text = tpm.Trim() == "True" ? "Présent et prêt ✓" : "Non disponible / non prêt";
+
+            string sb = await RunPs("try { Confirm-SecureBootUEFI } catch { 'N/A' }");
+            SecureBootStatus.Text = sb.Trim() switch
+            {
+                "True" => "Activé ✓",
+                "False" => "Désactivé",
+                _ => "Non applicable (BIOS hérité)"
+            };
+
+            string bl = await RunPs("try { (Get-BitLockerVolume -MountPoint C:).ProtectionStatus } catch { 'N/A' }");
+            BitLockerStatus.Text = bl.Contains("On") ? "Activé sur C: ✓"
+                                 : bl.Contains("Off") ? "Désactivé sur C:" : "Indisponible";
+
+            Log("État de sécurité de l'appareil vérifié.");
+        }
+        catch (Exception ex)
+        {
+            Log($"Vérification appareil impossible : {ex.Message}");
+        }
+        finally
+        {
+            DeviceCheckButton.IsEnabled = true;
+        }
+    }
+
+    private void OnOpenTpm(object sender, RoutedEventArgs e) => OpenShell("tpm.msc");
+
+    private void OnOpenBitlocker(object sender, RoutedEventArgs e) =>
+        OpenShell("control", "/name Microsoft.BitLockerDriveEncryption");
+
+    private void OpenShell(string file, string args = "")
+    {
+        try { Process.Start(new ProcessStartInfo(file, args) { UseShellExecute = true }); }
+        catch (Exception ex) { Log($"Ouverture impossible ({file}) : {ex.Message}"); }
+    }
+
+    private static async Task<string> RunPs(string command)
+    {
+        var psi = new ProcessStartInfo("powershell",
+            $"-NoProfile -NonInteractive -Command \"{command}\"")
+        {
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        using var p = Process.Start(psi);
+        if (p is null) return "";
+        string output = await p.StandardOutput.ReadToEndAsync();
+        p.WaitForExit(8000);
+        return output.Trim();
     }
 
     // ----------------------------------------------------- options avancées ---

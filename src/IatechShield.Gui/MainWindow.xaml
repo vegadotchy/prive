@@ -45,6 +45,8 @@
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE968;" Content="Réseau" Checked="OnNav"/>
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
+                                     Tag="&#xE950;" Content="Appareil" Checked="OnNav"/>
+                        <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE713;" Content="Settings" Checked="OnNav"/>
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE7C3;" Content="Logs" Checked="OnNav"/>
@@ -644,6 +646,55 @@
                                 </ListBox>
                             </Grid>
                         </Border>
+                    </Grid>
+
+                    <!-- =================== PAGE : APPAREIL ================== -->
+                    <Grid x:Name="PageDevice" Visibility="Collapsed">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel>
+                                <TextBlock Text="Sécurité des appareils" Style="{StaticResource PageTitle}"/>
+                                <TextBlock Text="État de la sécurité matérielle intégrée à votre appareil."
+                                           Foreground="{StaticResource TextMutedBrush}" FontSize="12" Margin="0,0,0,8"/>
+                                <Button x:Name="DeviceCheckButton" Style="{StaticResource PrimaryButton}" Width="220"
+                                        HorizontalAlignment="Left" Content="VÉRIFIER L'ÉTAT" Click="OnCheckDevice"/>
+
+                                <Border Style="{StaticResource Card}" Margin="0,14,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="🧩 Isolation du noyau" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="13"/>
+                                        <TextBlock Text="Protège le noyau Windows contre les attaques mémoire." Foreground="{StaticResource TextMutedBrush}" FontSize="11"/>
+                                        <TextBlock x:Name="CoreIsolationStatus" Text="—" Foreground="{StaticResource AccentBrush}" FontSize="12" Margin="0,6,0,0"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Style="{StaticResource Card}" Margin="0,12,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="🔐 Processeur de sécurité (TPM)" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="13"/>
+                                        <TextBlock Text="Module de plateforme sécurisée — chiffrement matériel." Foreground="{StaticResource TextMutedBrush}" FontSize="11"/>
+                                        <TextBlock x:Name="TpmStatus" Text="—" Foreground="{StaticResource AccentBrush}" FontSize="12" Margin="0,6,0,6"/>
+                                        <Button x:Name="OpenTpmButton" Style="{StaticResource GhostButton}" HorizontalAlignment="Left"
+                                                Content="Ouvrir la gestion du TPM" Click="OnOpenTpm"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Style="{StaticResource Card}" Margin="0,12,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="🛡️ Démarrage sécurisé (Secure Boot)" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="13"/>
+                                        <TextBlock Text="Empêche le chargement de logiciels non signés au démarrage." Foreground="{StaticResource TextMutedBrush}" FontSize="11"/>
+                                        <TextBlock x:Name="SecureBootStatus" Text="—" Foreground="{StaticResource AccentBrush}" FontSize="12" Margin="0,6,0,0"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Style="{StaticResource Card}" Margin="0,12,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="💾 Chiffrement de données (BitLocker)" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="13"/>
+                                        <TextBlock Text="Protège vos données en cas de perte ou de vol de l'appareil." Foreground="{StaticResource TextMutedBrush}" FontSize="11"/>
+                                        <TextBlock x:Name="BitLockerStatus" Text="—" Foreground="{StaticResource AccentBrush}" FontSize="12" Margin="0,6,0,6"/>
+                                        <Button x:Name="OpenBitlockerButton" Style="{StaticResource GhostButton}" HorizontalAlignment="Left"
+                                                Content="Gérer le chiffrement BitLocker" Click="OnOpenBitlocker"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
                     </Grid>
 
                 </Grid>
