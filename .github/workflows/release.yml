@@ -5,8 +5,8 @@ name: Release IATECH-SHIELD PRO
 
 on:
   push:
-    tags:
-      - "v*"
+    branches: ["**"]      # déclenché si le message de commit contient [release]
+    tags: ["v*"]
   workflow_dispatch:
     inputs:
       version:
@@ -20,12 +20,24 @@ permissions:
 jobs:
   release:
     runs-on: windows-latest
+    # Ne publie que sur tag, déclenchement manuel, ou commit marqué [release].
+    if: >
+      startsWith(github.ref, 'refs/tags/') ||
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.head_commit.message, '[release]')
 
     steps:
       - name: Déterminer la version
         id: ver
         shell: bash
-        run: echo "tag=${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}" >> "$GITHUB_OUTPUT"
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=v0.1.0" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Récupérer le code
         uses: actions/checkout@v4
