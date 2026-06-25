@@ -1,7 +1,11 @@
+using System.Diagnostics;
 using System.IO;
+using System.Net.NetworkInformation;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
@@ -20,19 +24,26 @@ public partial class MainWindow : Window
     private RealtimeMonitor? _monitor;
     private RansomwareGuard? _ransomGuard;
     private readonly ProcessCuller _culler = new();
+    private readonly RegistryGuard _registry = new();
     private readonly LicenseManager _license = new();
-    private bool _activated = true;
 
+    private bool _activated = true;
+    private bool _ready;
     private int _threatCount;
     private bool _scanning;
+    private readonly StringBuilder _log = new();
 
     public MainWindow()
     {
         InitializeComponent();
-        Loaded += (_, _) => InitEngine();
+        Loaded += (_, _) =>
+        {
+            InitEngine();
+            _ready = true;
+            ShowPage("Dashboard");
+        };
     }
 
-    // Branche l'écoute des événements matériels (clés USB) une fois la fenêtre prête.
     protected override void OnSourceInitialized(EventArgs e)
     {
         base.OnSourceInitialized(e);
@@ -41,6 +52,44 @@ public partial class MainWindow : Window
             _knownDrives = new HashSet<string>(GetReadyRemovableDrives(), StringComparer.OrdinalIgnoreCase);
             source.AddHook(WndProc);
         }
+    }
+
+    // ------------------------------------------------------------- navigation -
+
+    private void OnNav(object sender, RoutedEventArgs e)
+    {
+        if (!_ready || sender is not RadioButton rb)
+            return;
+        ShowPage(rb.Content?.ToString() ?? "Dashboard");
+    }
+
+    private void ShowPage(string name)
+    {
+        if (PageDashboard is null)
+            return;
+
+        PageDashboard.Visibility = Visibility.Collapsed;
+        PageProtection.Visibility = Visibility.Collapsed;
+        PageScan.Visibility = Visibility.Collapsed;
+        PageFirewall.Visibility = Visibility.Collapsed;
+        PageSettings.Visibility = Visibility.Collapsed;
+        PageLogs.Visibility = Visibility.Collapsed;
+
+        Grid page = name switch
+        {
+            "Protection" => PageProtection,
+            "Scan" => PageScan,
+            "Firewall" => PageFirewall,
+            "Settings" => PageSettings,
+            "Logs" => PageLogs,
+            _ => PageDashboard
+        };
+        page.Visibility = Visibility.Visible;
+
+        if (page == PageSettings)
+            ApiKeyStatusText.Text = AiAssistant.IsConfigured
+                ? "Clé ANTHROPIC_API_KEY détectée — assistant IA actif."
+                : "Aucune clé détectée. Définissez ANTHROPIC_API_KEY pour activer l'assistant IA.";
     }
 
     // --------------------------------------------------------------- moteur ---
@@ -56,71 +105,16 @@ public partial class MainWindow : Window
 
             SignatureCountText.Text = $"{_db.Signatures.Count} signatures chargées";
             UpdatesDateText.Text = $"Dernière vérification : {DateTime.Now:dd/MM/yyyy}";
+            Log($"Moteur prêt — {_db.Signatures.Count} signatures.");
         }
         catch (Exception ex)
         {
             ScanStatusText.Text = $"Erreur moteur : {ex.Message}";
             ScanButton.IsEnabled = false;
+            Log($"Erreur moteur : {ex.Message}");
         }
 
         RefreshLicense();
-    }
-
-    // -------------------------------------------------------------- licence ---
-
-    private void RefreshLicense()
-    {
-        var status = _license.GetStatus(DateTimeOffset.UtcNow);
-        _activated = status.IsActivated;
-
-        var green = (Brush)FindResource("GreenBrush");
-        var accent = (Brush)FindResource("AccentBrush");
-        var alert = new SolidColorBrush(Color.FromRgb(0xFF, 0x5C, 0x5C));
-
-        switch (status.State)
-        {
-            case LicenseState.Licensed:
-                LicenseStatusText.Text = status.License!.IsLifetime
-                    ? "Licence à vie" : $"Licence {status.License.TierLabel}";
-                LicenseStatusText.Foreground = green;
-                LicenseBadge.BorderBrush = green;
-                ActivateButton.Visibility = Visibility.Collapsed;
-                break;
-            case LicenseState.TrialActive:
-                LicenseStatusText.Text = $"Essai — {status.TrialDaysRemaining} j";
-                LicenseStatusText.Foreground = accent;
-                LicenseBadge.BorderBrush = accent;
-                ActivateButton.Visibility = Visibility.Visible;
-                break;
-            default: // TrialExpired / Unlicensed
-                LicenseStatusText.Text = "Essai expiré";
-                LicenseStatusText.Foreground = alert;
-                LicenseBadge.BorderBrush = alert;
-                ActivateButton.Visibility = Visibility.Visible;
-                break;
-        }
-
-        // À la fin de l'essai sans licence, on bloque les fonctions de protection.
-        ScanButton.IsEnabled = _activated && _scanner is not null;
-        if (!_activated)
-            ScanStatusText.Text = "Période d'essai terminée — activez une licence pour continuer.";
-    }
-
-    private void OnOpenLicense(object sender, RoutedEventArgs e)
-    {
-        var status = _license.GetStatus(DateTimeOffset.UtcNow);
-        var dialog = new LicenseWindow(_license, status) { Owner = this };
-        dialog.ShowDialog();
-        if (dialog.Activated)
-            RefreshLicense();
-    }
-
-    private bool EnsureActivated()
-    {
-        if (_activated)
-            return true;
-        OnOpenLicense(this, new RoutedEventArgs());
-        return _activated;
     }
 
     private static string DefaultQuarantineDir()
@@ -138,71 +132,264 @@ public partial class MainWindow : Window
         return Directory.Exists(downloads) ? downloads : profile;
     }
 
-    // -------------------------------------------------------------- analyse ---
+    // -------------------------------------------------------------- licence ---
+
+    private void RefreshLicense()
+    {
+        var status = _license.GetStatus(DateTimeOffset.UtcNow);
+        _activated = status.IsActivated;
+
+        var green = (Brush)FindResource("GreenBrush");
+        var accent = (Brush)FindResource("AccentBrush");
+        var alert = new SolidColorBrush(Color.FromRgb(0xFF, 0x5C, 0x5C));
+
+        switch (status.State)
+        {
+            case LicenseState.Licensed:
+                LicenseStatusText.Text = status.License!.IsLifetime ? "Licence à vie" : $"Licence {status.License.TierLabel}";
+                LicenseStatusText.Foreground = green;
+                LicenseBadge.BorderBrush = green;
+                ActivateButton.Visibility = Visibility.Collapsed;
+                break;
+            case LicenseState.TrialActive:
+                LicenseStatusText.Text = $"Essai — {status.TrialDaysRemaining} j";
+                LicenseStatusText.Foreground = accent;
+                LicenseBadge.BorderBrush = accent;
+                ActivateButton.Visibility = Visibility.Visible;
+                break;
+            default:
+                LicenseStatusText.Text = "Essai expiré";
+                LicenseStatusText.Foreground = alert;
+                LicenseBadge.BorderBrush = alert;
+                ActivateButton.Visibility = Visibility.Visible;
+                break;
+        }
+
+        ScanButton.IsEnabled = _activated && _scanner is not null;
+        if (FullScanButton is not null)
+            FullScanButton.IsEnabled = _activated && _scanner is not null;
+    }
+
+    private void OnOpenLicense(object sender, RoutedEventArgs e)
+    {
+        var status = _license.GetStatus(DateTimeOffset.UtcNow);
+        var dialog = new LicenseWindow(_license, status) { Owner = this };
+        dialog.ShowDialog();
+        if (dialog.Activated)
+            RefreshLicense();
+    }
+
+    private void OnDeactivateLicense(object sender, RoutedEventArgs e)
+    {
+        _license.Deactivate();
+        RefreshLicense();
+        Log("Licence désactivée (retour en mode essai).");
+    }
+
+    private bool EnsureActivated()
+    {
+        if (_activated)
+            return true;
+        OnOpenLicense(this, new RoutedEventArgs());
+        return _activated;
+    }
+
+    // ----------------------------------------------------------- analyse rapide
 
     private async void OnQuickScan(object sender, RoutedEventArgs e)
     {
-        if (_scanning || _scanner is null)
-            return;
-        if (!EnsureActivated())
+        if (_scanning || _scanner is null || !EnsureActivated())
             return;
 
-        var dialog = new OpenFolderDialog
-        {
-            Title = "Choisir le dossier à analyser",
-            InitialDirectory = DefaultScanFolder()
-        };
+        var dialog = new OpenFolderDialog { Title = "Choisir le dossier à analyser", InitialDirectory = DefaultScanFolder() };
         if (dialog.ShowDialog(this) != true)
             return;
 
-        string target = dialog.FolderName;
+        await RunScanAsync(new[] { dialog.FolderName }, status => ScanStatusText.Text = status);
+    }
+
+    // ------------------------------------------------------------ scan complet -
+
+    private async void OnFullScan(object sender, RoutedEventArgs e)
+    {
+        if (_scanning || _scanner is null || !EnsureActivated())
+            return;
+
+        var targets = BuildScanTargets();
+        if (targets.Count == 0)
+        {
+            FullScanStatus.Text = "Sélectionnez au moins une option à analyser.";
+            return;
+        }
+
+        ScanResultsList.Items.Clear();
+        await RunScanAsync(targets, status => FullScanStatus.Text = status, ScanResultsList);
+
+        // Action après scan (extinction / redémarrage).
+        if (PostShutdown.IsChecked == true)
+            SchedulePower("/s", "extinction");
+        else if (PostRestart.IsChecked == true)
+            SchedulePower("/r", "redémarrage");
+    }
+
+    private List<string> BuildScanTargets()
+    {
+        var targets = new List<string>();
+        var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        void Add(string? p)
+        {
+            if (!string.IsNullOrEmpty(p) && set.Add(p))
+                targets.Add(p);
+        }
+
+        foreach (var d in DriveInfo.GetDrives())
+        {
+            try
+            {
+                if (!d.IsReady) continue;
+                bool fixedDrive = d.DriveType == DriveType.Fixed;
+                bool removable = d.DriveType == DriveType.Removable;
+                if ((ChkAllFiles.IsChecked == true) ||
+                    (ChkHardDrives.IsChecked == true && fixedDrive) ||
+                    (ChkRemovable.IsChecked == true && removable))
+                    Add(d.RootDirectory.FullName);
+            }
+            catch { /* lecteur indisponible */ }
+        }
+
+        if (ChkFolder.IsChecked == true)
+        {
+            var dlg = new OpenFolderDialog { Title = "Dossier à analyser", InitialDirectory = DefaultScanFolder() };
+            if (dlg.ShowDialog(this) == true) Add(dlg.FolderName);
+        }
+        if (ChkFile.IsChecked == true)
+        {
+            var dlg = new OpenFileDialog { Title = "Fichier à analyser" };
+            if (dlg.ShowDialog(this) == true) Add(dlg.FileName);
+        }
+        if (ChkMail.IsChecked == true)
+            foreach (var folder in MailFolders())
+                Add(folder);
+        if (ChkStartup.IsChecked == true)
+            foreach (var file in StartupFiles())
+                Add(file);
+
+        return targets;
+    }
+
+    private static IEnumerable<string> MailFolders()
+    {
+        string local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        string roaming = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        string[] candidates =
+        {
+            Path.Combine(local, "Microsoft", "Outlook"),
+            Path.Combine(local, "Microsoft", "Windows Live Mail"),
+            Path.Combine(roaming, "Thunderbird", "Profiles")
+        };
+        foreach (var c in candidates)
+            if (Directory.Exists(c)) yield return c;
+    }
+
+    private IEnumerable<string> StartupFiles()
+    {
+        foreach (var entry in _registry.ListAutoRuns())
+        {
+            string exe = ExtractExePath(entry.Command);
+            if (File.Exists(exe)) yield return exe;
+        }
+    }
+
+    private static string ExtractExePath(string command)
+    {
+        command = command.Trim();
+        if (command.StartsWith('"'))
+        {
+            int end = command.IndexOf('"', 1);
+            return end > 0 ? command.Substring(1, end - 1) : command.Trim('"');
+        }
+        int space = command.IndexOf(' ');
+        return space > 0 ? command[..space] : command;
+    }
+
+    private async Task RunScanAsync(IReadOnlyList<string> targets, Action<string> report, ListBox? results = null)
+    {
         _scanning = true;
         ScanButton.IsEnabled = false;
+        if (FullScanButton is not null) FullScanButton.IsEnabled = false;
         ResetThreats();
 
-        var service = new ScanService(_scanner, _quarantine);
-        int filesScanned = 0;
+        var service = new ScanService(_scanner!, _quarantine);
+        int files = 0, threats = 0;
+        Log($"Analyse démarrée ({targets.Count} cible(s)).");
 
         try
         {
-            var report = await Task.Run(() => service.Scan(target, result =>
+            await Task.Run(() =>
             {
-                filesScanned++;
-                // Mise à jour fluide de l'UI depuis le thread de scan.
-                if (filesScanned % 25 == 0 || result.IsThreat)
+                foreach (string target in targets)
                 {
-                    Dispatcher.Invoke(() =>
+                    service.Scan(target, result =>
                     {
-                        ScanStatusText.Text = $"Analyse… {filesScanned} fichiers";
+                        files++;
                         if (result.IsThreat)
-                            RegisterThreat();
+                        {
+                            threats++;
+                            Dispatcher.Invoke(() =>
+                            {
+                                RegisterThreat();
+                                results?.Items.Add($"⚠ {result.Match!.Name} — {result.Path}");
+                                Log($"MENACE : {result.Match.Name} — {result.Path}");
+                            });
+                        }
+                        if (files % 50 == 0)
+                            Dispatcher.Invoke(() => report($"Analyse… {files} fichiers, {threats} menace(s)"));
                     });
                 }
-            }));
+            });
 
-            ScanStatusText.Text =
-                $"Terminé : {report.FilesScanned} fichiers, {report.Threats.Count} menace(s).";
-            _threatCount = report.Threats.Count;
+            report($"Terminé : {files} fichiers analysés, {threats} menace(s).");
+            _threatCount = threats;
             UpdateThreatUi();
+            Log($"Analyse terminée : {files} fichiers, {threats} menace(s).");
+            results?.Items.Add(threats == 0 ? "✓ Aucune menace détectée." : $"{threats} menace(s) mise(s) en quarantaine.");
         }
         catch (Exception ex)
         {
-            ScanStatusText.Text = $"Échec de l'analyse : {ex.Message}";
+            report($"Échec : {ex.Message}");
+            Log($"Échec de l'analyse : {ex.Message}");
         }
         finally
         {
             _scanning = false;
-            ScanButton.IsEnabled = true;
+            RefreshLicense();
         }
     }
 
-    private void OnScanNav(object sender, RoutedEventArgs e) => OnQuickScan(sender, e);
+    private void SchedulePower(string flag, string label)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo("shutdown", $"{flag} /t 60 /c \"IATECH-SHIELD : {label} après analyse\"")
+            { CreateNoWindow = true, UseShellExecute = false });
+            Log($"{label} planifié dans 60 s (annuler : shutdown /a).");
+            MessageBox.Show(this,
+                $"L'ordinateur va procéder à un {label} dans 60 secondes.\n\n" +
+                "Pour annuler : ouvrez une invite de commande et tapez  shutdown /a",
+                "IATECH-SHIELD PRO", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        catch (Exception ex)
+        {
+            Log($"Action après scan impossible : {ex.Message}");
+        }
+    }
 
     // ----------------------------------------------------------- temps réel ---
 
     private void OnRealtimeToggled(object sender, RoutedEventArgs e)
     {
-        if (_scanner is null)
+        if (!_ready || _scanner is null)
             return;
 
         if (RealtimeSwitch.IsChecked == true)
@@ -214,6 +401,7 @@ public partial class MainWindow : Window
                 _monitor.ThreatDetected += OnRealtimeThreat;
                 _monitor.Start();
                 ScanStatusText.Text = $"Surveillance temps réel active : {folder}";
+                Log($"Temps réel activé : {folder}");
             }
             catch (Exception ex)
             {
@@ -226,6 +414,7 @@ public partial class MainWindow : Window
             _monitor?.Dispose();
             _monitor = null;
             ScanStatusText.Text = "Surveillance temps réel désactivée.";
+            Log("Temps réel désactivé.");
         }
     }
 
@@ -233,17 +422,16 @@ public partial class MainWindow : Window
     {
         Dispatcher.Invoke(() =>
         {
-            // Quarantaine immédiate du fichier détecté en temps réel.
             try
             {
                 string sha = Scanner.ComputeSha256(result.Path);
                 _quarantine?.Add(result.Path, result.Match!.Name, sha);
             }
-            catch { /* fichier verrouillé : on rapporte quand même */ }
-
+            catch { }
             RegisterThreat();
             UpdateThreatUi();
             ScanStatusText.Text = $"Menace bloquée : {Path.GetFileName(result.Path)}";
+            Log($"Temps réel — menace bloquée : {result.Path}");
         });
     }
 
@@ -251,6 +439,7 @@ public partial class MainWindow : Window
 
     private void OnRansomwareToggled(object sender, RoutedEventArgs e)
     {
+        if (!_ready) return;
         if (RansomwareSwitch.IsChecked == true)
         {
             string[] folders =
@@ -264,7 +453,8 @@ public partial class MainWindow : Window
                 _ransomGuard = new RansomwareGuard(folders);
                 _ransomGuard.Alert += OnRansomwareAlert;
                 _ransomGuard.Start();
-                ScanStatusText.Text = "Bouclier anti-ransomware actif (Documents, Images, Bureau).";
+                ScanStatusText.Text = "Bouclier anti-ransomware actif.";
+                Log("Anti-ransomware activé.");
             }
             catch (Exception ex)
             {
@@ -278,6 +468,7 @@ public partial class MainWindow : Window
             _ransomGuard?.Dispose();
             _ransomGuard = null;
             ScanStatusText.Text = "Bouclier anti-ransomware désactivé.";
+            Log("Anti-ransomware désactivé.");
         }
     }
 
@@ -285,17 +476,121 @@ public partial class MainWindow : Window
     {
         Dispatcher.Invoke(() =>
         {
-            // Réaction : on cible et arrête le processus le plus actif en écriture.
             var culprit = _culler.FindTopWriter();
             string action = "aucun processus dominant identifié";
             if (culprit is not null && _culler.Kill(culprit.Pid))
                 action = $"processus {culprit.Name} (PID {culprit.Pid}) arrêté";
-
             RegisterThreat();
             UpdateThreatUi();
             ScanStatusText.Text = $"⚠ RANSOMWARE : {alert.Reason} — {action}.";
+            Log($"RANSOMWARE : {alert.Reason} — {action}.");
             _ransomGuard?.Rearm();
         });
+    }
+
+    // ------------------------------------------------------------- démarrage --
+
+    private void OnAutostartToggled(object sender, RoutedEventArgs e)
+    {
+        if (!_ready) return;
+        string exe = Environment.ProcessPath ?? "";
+        bool ok = AutostartSwitch.IsChecked == true
+            ? _registry.EnableSelfAutostart(exe)
+            : _registry.DisableSelfAutostart();
+        Log(AutostartSwitch.IsChecked == true
+            ? (ok ? "Inscrit au démarrage de Windows." : "Échec de l'inscription au démarrage.")
+            : "Retiré du démarrage de Windows.");
+    }
+
+    // -------------------------------------------------------------- pare-feu --
+
+    private void OnOpenFirewall(object sender, RoutedEventArgs e)
+    {
+        try { Process.Start(new ProcessStartInfo("firewall.cpl") { UseShellExecute = true }); }
+        catch (Exception ex) { Log($"Ouverture du pare-feu impossible : {ex.Message}"); }
+    }
+
+    private void OnListConnections(object sender, RoutedEventArgs e)
+    {
+        ConnectionsList.Items.Clear();
+        try
+        {
+            var conns = IPGlobalProperties.GetIPGlobalProperties().GetActiveTcpConnections();
+            foreach (var c in conns)
+                ConnectionsList.Items.Add($"{c.LocalEndPoint}  →  {c.RemoteEndPoint}   [{c.State}]");
+            FirewallStateText.Text = $"{conns.Length} connexion(s) TCP active(s).";
+            Log($"Connexions TCP listées : {conns.Length}.");
+        }
+        catch (Exception ex)
+        {
+            ConnectionsList.Items.Add($"Erreur : {ex.Message}");
+        }
+    }
+
+    // ---------------------------------------------------------- quarantaine ---
+
+    private void OnOpenQuarantine(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            string dir = Path.Combine(DefaultQuarantineDir(), "store");
+            Directory.CreateDirectory(dir);
+            Process.Start(new ProcessStartInfo("explorer.exe", $"\"{dir}\"") { UseShellExecute = true });
+        }
+        catch (Exception ex) { Log($"Ouverture de la quarantaine impossible : {ex.Message}"); }
+    }
+
+    // -------------------------------------------------------------- journaux --
+
+    private void Log(string message)
+    {
+        string line = $"[{DateTime.Now:HH:mm:ss}] {message}";
+        _log.AppendLine(line);
+        if (LogBox is not null)
+        {
+            LogBox.AppendText(line + Environment.NewLine);
+            LogBox.ScrollToEnd();
+        }
+    }
+
+    private void OnSendLogMail(object sender, RoutedEventArgs e)
+    {
+        string to = EmailInput?.Text.Trim() ?? "";
+        string body = _log.ToString();
+        if (body.Length > 1500) body = body[^1500..]; // mailto limité : on garde la fin
+        string subject = Uri.EscapeDataString("Journal IATECH-SHIELD PRO");
+        string mailto = $"mailto:{to}?subject={subject}&body={Uri.EscapeDataString(body)}";
+        try
+        {
+            Process.Start(new ProcessStartInfo(mailto) { UseShellExecute = true });
+            Log("Ouverture du client mail pour l'envoi du journal.");
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, $"Impossible d'ouvrir le client mail : {ex.Message}\n\n" +
+                "Utilisez « Enregistrer le journal » puis joignez le fichier manuellement.",
+                "Envoi par e-mail", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private void OnSaveLog(object sender, RoutedEventArgs e)
+    {
+        var dlg = new SaveFileDialog
+        {
+            FileName = $"iatech-shield-log-{DateTime.Now:yyyyMMdd-HHmm}.txt",
+            Filter = "Fichier texte (*.txt)|*.txt"
+        };
+        if (dlg.ShowDialog(this) == true)
+        {
+            try { File.WriteAllText(dlg.FileName, _log.ToString()); Log($"Journal enregistré : {dlg.FileName}"); }
+            catch (Exception ex) { Log($"Enregistrement impossible : {ex.Message}"); }
+        }
+    }
+
+    private void OnClearLog(object sender, RoutedEventArgs e)
+    {
+        _log.Clear();
+        LogBox.Clear();
     }
 
     // -------------------------------------------------------------- USB --------
@@ -307,14 +602,9 @@ public partial class MainWindow : Window
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
         if (msg == WM_DEVICECHANGE && wParam.ToInt32() == DBT_DEVICEARRIVAL)
-        {
-            // Un périphérique vient d'être branché : on cherche le nouveau lecteur.
             foreach (string drive in GetReadyRemovableDrives())
-            {
                 if (_knownDrives.Add(drive))
                     AutoScanDrive(drive);
-            }
-        }
         return IntPtr.Zero;
     }
 
@@ -330,10 +620,9 @@ public partial class MainWindow : Window
 
     private async void AutoScanDrive(string drive)
     {
-        if (_scanner is null)
-            return;
-
+        if (_scanner is null) return;
         ScanStatusText.Text = $"Clé USB détectée ({drive}) — analyse automatique…";
+        Log($"Clé USB détectée : {drive} — analyse automatique.");
         var service = new ScanService(_scanner, _quarantine);
         try
         {
@@ -343,43 +632,10 @@ public partial class MainWindow : Window
                 _threatCount += report.Threats.Count;
                 UpdateThreatUi();
             }
-            ScanStatusText.Text =
-                $"USB {drive} : {report.FilesScanned} fichiers, {report.Threats.Count} menace(s).";
+            ScanStatusText.Text = $"USB {drive} : {report.FilesScanned} fichiers, {report.Threats.Count} menace(s).";
+            Log($"USB {drive} : {report.FilesScanned} fichiers, {report.Threats.Count} menace(s).");
         }
-        catch (Exception ex)
-        {
-            ScanStatusText.Text = $"Analyse USB échouée : {ex.Message}";
-        }
-    }
-
-    // ------------------------------------------------------------- affichage --
-
-    private void ResetThreats()
-    {
-        _threatCount = 0;
-        UpdateThreatUi();
-    }
-
-    private void RegisterThreat() => _threatCount++;
-
-    private void UpdateThreatUi()
-    {
-        ThreatCountText.Text = _threatCount.ToString();
-
-        bool safe = _threatCount == 0;
-        var green = (Brush)FindResource("GreenBrush");
-        var alert = new SolidColorBrush(Color.FromRgb(0xFF, 0x5C, 0x5C));
-
-        ThreatCountText.Foreground = safe ? green : alert;
-        ThreatStatusText.Foreground = safe ? green : alert;
-        ThreatStatusText.Text = safe ? "SÉCURISÉ" : "MENACES DÉTECTÉES";
-
-        ShieldStatusText.Foreground = safe ? green : alert;
-        ShieldStatusText.Text = safe ? "PROTÉGÉ" : "À RISQUE";
-
-        ReactorPulseText.Text = safe
-            ? "Pulsations du cœur-réacteur : STABLES"
-            : "Pulsations du cœur-réacteur : INSTABLES";
+        catch (Exception ex) { ScanStatusText.Text = $"Analyse USB échouée : {ex.Message}"; }
     }
 
     // ----------------------------------------------------------- assistant IA -
@@ -389,20 +645,15 @@ public partial class MainWindow : Window
         if (!AiAssistant.IsConfigured)
         {
             MessageBox.Show(this,
-                "L'assistant IA nécessite une clé Anthropic.\n\n" +
-                "Définissez la variable d'environnement ANTHROPIC_API_KEY, puis relancez " +
-                "IATECH-SHIELD PRO.",
-                "Assistant IA — configuration requise",
-                MessageBoxButton.OK, MessageBoxImage.Information);
+                "L'assistant IA nécessite une clé Anthropic.\n\nDéfinissez ANTHROPIC_API_KEY puis relancez l'application.",
+                "Assistant IA — configuration requise", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
-        // On résume l'état courant pour que l'IA donne un avis pertinent.
-        var guard = new RegistryGuard();
-        int suspectAutoruns = guard.ListAutoRuns().Count(a => a.Suspicious);
+        int suspect = _registry.ListAutoRuns().Count(a => a.Suspicious);
         string context =
-            $"État du système : {_threatCount} menace(s) détectée(s) lors du dernier scan, " +
-            $"{suspectAutoruns} programme(s) suspect(s) au démarrage automatique. " +
+            $"État du système : {_threatCount} menace(s) détectée(s), " +
+            $"{suspect} programme(s) suspect(s) au démarrage. " +
             "Donne un avis de sécurité et les prochaines actions recommandées.";
 
         AiButton.IsEnabled = false;
@@ -410,19 +661,40 @@ public partial class MainWindow : Window
         try
         {
             string answer = await new AiAssistant().AskAsync(context);
-            MessageBox.Show(this, answer, "Assistant IA — IATECH-SHIELD PRO",
-                MessageBoxButton.OK, MessageBoxImage.Information);
+            Log("Assistant IA consulté.");
+            MessageBox.Show(this, answer, "Assistant IA — IATECH-SHIELD PRO", MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, $"Assistant IA indisponible : {ex.Message}",
-                "Assistant IA", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(this, $"Assistant IA indisponible : {ex.Message}", "Assistant IA", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
         finally
         {
             AiButton.IsEnabled = true;
             AiButton.Content = "Assistant IA";
         }
+    }
+
+    // ------------------------------------------------------------- affichage --
+
+    private void ResetThreats() { _threatCount = 0; UpdateThreatUi(); }
+    private void RegisterThreat() => _threatCount++;
+
+    private void UpdateThreatUi()
+    {
+        ThreatCountText.Text = _threatCount.ToString();
+        bool safe = _threatCount == 0;
+        var green = (Brush)FindResource("GreenBrush");
+        var alert = new SolidColorBrush(Color.FromRgb(0xFF, 0x5C, 0x5C));
+
+        ThreatCountText.Foreground = safe ? green : alert;
+        ThreatStatusText.Foreground = safe ? green : alert;
+        ThreatStatusText.Text = safe ? "SÉCURISÉ" : "MENACES DÉTECTÉES";
+        ShieldStatusText.Foreground = safe ? green : alert;
+        ShieldStatusText.Text = safe ? "PROTÉGÉ" : "À RISQUE";
+        ReactorPulseText.Text = safe
+            ? "Pulsations du cœur-réacteur : STABLES"
+            : "Pulsations du cœur-réacteur : INSTABLES";
     }
 
     // -------------------------------------------------------- fenêtre / chrome -

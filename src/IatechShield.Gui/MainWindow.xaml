@@ -1,10 +1,10 @@
 <Window x:Class="IatechShield.Gui.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="IATECH-SHIELD PRO" Height="640" Width="1000"
+        Title="IATECH-SHIELD PRO" Height="680" Width="1040"
         WindowStartupLocation="CenterScreen"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
-        FontFamily="Segoe UI" MinWidth="900" MinHeight="600">
+        FontFamily="Segoe UI" MinWidth="940" MinHeight="640">
 
     <Border CornerRadius="16" Background="{StaticResource WindowBackground}"
             BorderBrush="{StaticResource PanelStrokeBrush}" BorderThickness="1">
@@ -17,7 +17,6 @@
             <!-- ======================= BARRE LATÉRALE ======================= -->
             <Border Grid.Column="0" Background="#0A1726" CornerRadius="16,0,0,16">
                 <DockPanel Margin="0,18">
-                    <!-- Logo -->
                     <StackPanel DockPanel.Dock="Top" HorizontalAlignment="Center" Margin="0,0,0,24">
                         <TextBlock Text="&#xEA18;" FontFamily="Segoe MDL2 Assets" FontSize="26"
                                    Foreground="{StaticResource AccentBrush}" HorizontalAlignment="Center"/>
@@ -27,20 +26,19 @@
                                    FontSize="9" HorizontalAlignment="Center" Margin="0,1,0,0"/>
                     </StackPanel>
 
-                    <!-- Navigation -->
                     <StackPanel DockPanel.Dock="Top">
-                        <RadioButton Style="{StaticResource NavButton}" GroupName="nav" Tag="&#xE80F;"
-                                     IsChecked="True" Content="Dashboard"/>
-                        <RadioButton Style="{StaticResource NavButton}" GroupName="nav" Tag="&#xE72E;"
-                                     Content="Protection"/>
-                        <RadioButton Style="{StaticResource NavButton}" GroupName="nav" Tag="&#xE721;"
-                                     Content="Scan" Click="OnScanNav"/>
-                        <RadioButton Style="{StaticResource NavButton}" GroupName="nav" Tag="&#xE83D;"
-                                     Content="Firewall"/>
-                        <RadioButton Style="{StaticResource NavButton}" GroupName="nav" Tag="&#xE713;"
-                                     Content="Settings"/>
-                        <RadioButton Style="{StaticResource NavButton}" GroupName="nav" Tag="&#xE7C3;"
-                                     Content="Logs"/>
+                        <RadioButton x:Name="NavDashboard" Style="{StaticResource NavButton}" GroupName="nav"
+                                     Tag="&#xE80F;" IsChecked="True" Content="Dashboard" Checked="OnNav"/>
+                        <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
+                                     Tag="&#xE72E;" Content="Protection" Checked="OnNav"/>
+                        <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
+                                     Tag="&#xE721;" Content="Scan" Checked="OnNav"/>
+                        <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
+                                     Tag="&#xE83D;" Content="Firewall" Checked="OnNav"/>
+                        <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
+                                     Tag="&#xE713;" Content="Settings" Checked="OnNav"/>
+                        <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
+                                     Tag="&#xE7C3;" Content="Logs" Checked="OnNav"/>
                     </StackPanel>
                 </DockPanel>
             </Border>
@@ -50,10 +48,9 @@
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
-                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <!-- En-tête (barre de titre déplaçable) -->
+                <!-- En-tête -->
                 <Grid Grid.Row="0" MouseLeftButtonDown="OnHeaderDrag" Background="Transparent">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <TextBlock Text="IATECH-SHIELD " FontSize="20" FontWeight="Bold"
@@ -87,162 +84,302 @@
                     </StackPanel>
                 </Grid>
 
-                <!-- Zone héro : bouclier + activité -->
+                <!-- ========================= PAGES ========================= -->
                 <Grid Grid.Row="1" Margin="0,12,0,0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="290"/>
-                    </Grid.ColumnDefinitions>
 
-                    <!-- Bouclier / cœur-réacteur -->
-                    <Grid Grid.Column="0">
-                        <Grid Width="300" Height="300" HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <!-- Anneaux concentriques -->
-                            <Ellipse Width="300" Height="300" Stroke="#143247" StrokeThickness="1"/>
-                            <Ellipse x:Name="RingOuter" Width="270" Height="270" Stroke="{StaticResource AccentDimBrush}"
-                                     StrokeThickness="1.5" StrokeDashArray="2 6" Opacity="0.7">
-                                <Ellipse.RenderTransform>
-                                    <RotateTransform x:Name="RingRotate" CenterX="135" CenterY="135"/>
-                                </Ellipse.RenderTransform>
-                            </Ellipse>
-                            <Ellipse Width="220" Height="220" Stroke="{StaticResource AccentBrush}" StrokeThickness="2" Opacity="0.85">
-                                <Ellipse.Effect>
-                                    <DropShadowEffect Color="#22D3E8" BlurRadius="25" ShadowDepth="0" Opacity="0.7"/>
-                                </Ellipse.Effect>
-                            </Ellipse>
+                    <!-- ================= PAGE : DASHBOARD ================= -->
+                    <Grid x:Name="PageDashboard">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
 
-                            <!-- Cœur-réacteur stylisé -->
-                            <Grid Width="150" Height="150">
-                                <Ellipse x:Name="CoreGlow" Width="150" Height="150" Fill="#1422D3E8"/>
-                                <Path Data="M75,128 C40,100 18,78 18,52 C18,33 33,20 50,20 C61,20 70,26 75,36 C80,26 89,20 100,20 C117,20 132,33 132,52 C132,78 110,100 75,128 Z"
-                                      Stretch="Uniform" Width="86" Height="86"
-                                      Fill="#11314A" Stroke="{StaticResource AccentBrush}" StrokeThickness="2">
-                                    <Path.Effect>
-                                        <DropShadowEffect Color="#22D3E8" BlurRadius="18" ShadowDepth="0" Opacity="0.9"/>
-                                    </Path.Effect>
-                                </Path>
-                                <Ellipse Width="26" Height="26" Fill="{StaticResource AccentBrush}">
-                                    <Ellipse.Effect>
-                                        <DropShadowEffect Color="#22D3E8" BlurRadius="30" ShadowDepth="0" Opacity="1"/>
-                                    </Ellipse.Effect>
-                                </Ellipse>
+                        <Grid Grid.Row="0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="290"/>
+                            </Grid.ColumnDefinitions>
+
+                            <Grid Grid.Column="0">
+                                <Grid Width="300" Height="300" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <Ellipse Width="300" Height="300" Stroke="#143247" StrokeThickness="1"/>
+                                    <Ellipse x:Name="RingOuter" Width="270" Height="270" Stroke="{StaticResource AccentDimBrush}"
+                                             StrokeThickness="1.5" StrokeDashArray="2 6" Opacity="0.7">
+                                        <Ellipse.RenderTransform>
+                                            <RotateTransform x:Name="RingRotate" CenterX="135" CenterY="135"/>
+                                        </Ellipse.RenderTransform>
+                                    </Ellipse>
+                                    <Ellipse Width="220" Height="220" Stroke="{StaticResource AccentBrush}" StrokeThickness="2" Opacity="0.85">
+                                        <Ellipse.Effect>
+                                            <DropShadowEffect Color="#22D3E8" BlurRadius="25" ShadowDepth="0" Opacity="0.7"/>
+                                        </Ellipse.Effect>
+                                    </Ellipse>
+                                    <Grid Width="150" Height="150">
+                                        <Ellipse x:Name="CoreGlow" Width="150" Height="150" Fill="#1422D3E8"/>
+                                        <Path Data="M75,128 C40,100 18,78 18,52 C18,33 33,20 50,20 C61,20 70,26 75,36 C80,26 89,20 100,20 C117,20 132,33 132,52 C132,78 110,100 75,128 Z"
+                                              Stretch="Uniform" Width="86" Height="86"
+                                              Fill="#11314A" Stroke="{StaticResource AccentBrush}" StrokeThickness="2">
+                                            <Path.Effect>
+                                                <DropShadowEffect Color="#22D3E8" BlurRadius="18" ShadowDepth="0" Opacity="0.9"/>
+                                            </Path.Effect>
+                                        </Path>
+                                        <Ellipse Width="26" Height="26" Fill="{StaticResource AccentBrush}">
+                                            <Ellipse.Effect>
+                                                <DropShadowEffect Color="#22D3E8" BlurRadius="30" ShadowDepth="0" Opacity="1"/>
+                                            </Ellipse.Effect>
+                                        </Ellipse>
+                                    </Grid>
+                                    <Border HorizontalAlignment="Left" VerticalAlignment="Center" Margin="-6,0,0,0"
+                                            Background="#0E2A3F" CornerRadius="8" Padding="10,6"
+                                            BorderBrush="{StaticResource GreenBrush}" BorderThickness="1">
+                                        <TextBlock x:Name="ShieldStatusText" Text="PROTÉGÉ" Foreground="{StaticResource GreenBrush}"
+                                                   FontWeight="Bold" FontSize="13"/>
+                                    </Border>
+                                </Grid>
                             </Grid>
 
-                            <!-- Badge PROTÉGÉ -->
-                            <Border HorizontalAlignment="Left" VerticalAlignment="Center" Margin="-6,0,0,0"
-                                    Background="#0E2A3F" CornerRadius="8" Padding="10,6"
-                                    BorderBrush="{StaticResource GreenBrush}" BorderThickness="1">
+                            <StackPanel Grid.Column="1">
+                                <Border Style="{StaticResource Card}">
+                                    <StackPanel>
+                                        <TextBlock Text="Activité du Système" Foreground="{StaticResource TextPrimaryBrush}"
+                                                   FontWeight="SemiBold" FontSize="13"/>
+                                        <Polyline Stroke="{StaticResource AccentBrush}" StrokeThickness="1.6" Margin="0,12,0,0"
+                                                  Points="0,30 15,22 30,34 45,12 60,26 75,8 90,28 105,18 120,32 135,14 150,24 165,10 180,26 195,20 210,30"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource Card}" Margin="0,12,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="Updates information" Foreground="{StaticResource TextPrimaryBrush}"
+                                                   FontWeight="SemiBold" FontSize="13"/>
+                                        <TextBlock x:Name="UpdatesDateText" Text="Base de données à jour"
+                                                   Foreground="{StaticResource TextMutedBrush}" FontSize="11" Margin="0,8,0,0"/>
+                                        <TextBlock x:Name="SignatureCountText" Text="" Foreground="{StaticResource AccentBrush}"
+                                                   FontSize="11" Margin="0,4,0,0"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </Grid>
+
+                        <Grid Grid.Row="1" Margin="0,16,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.Column="0" Style="{StaticResource Card}" Margin="0,0,8,0">
                                 <StackPanel>
-                                    <TextBlock x:Name="ShieldStatusText" Text="PROTÉGÉ" Foreground="{StaticResource GreenBrush}"
-                                               FontWeight="Bold" FontSize="13"/>
+                                    <TextBlock Text="Analyse rapide" Foreground="{StaticResource TextPrimaryBrush}"
+                                               FontWeight="SemiBold" FontSize="13"/>
+                                    <TextBlock x:Name="ScanStatusText" Text="Prêt à analyser." Foreground="{StaticResource TextMutedBrush}"
+                                               FontSize="11" Margin="0,6,0,0" TextTrimming="CharacterEllipsis"/>
+                                    <Button x:Name="ScanButton" Style="{StaticResource PrimaryButton}" Margin="0,12,0,0"
+                                            Click="OnQuickScan">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="&#xE721;" FontFamily="Segoe MDL2 Assets" FontSize="14"
+                                                       VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                            <TextBlock Text="LANCER L'ANALYSE RAPIDE" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+                            </Border>
+                            <Border Grid.Column="1" Style="{StaticResource Card}" Margin="8,0,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="Menaces Détectées" Foreground="{StaticResource TextPrimaryBrush}"
+                                               FontWeight="SemiBold" FontSize="13" HorizontalAlignment="Center"/>
+                                    <TextBlock x:Name="ThreatCountText" Text="0" Foreground="{StaticResource GreenBrush}"
+                                               FontSize="40" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                                    <TextBlock x:Name="ThreatStatusText" Text="SÉCURISÉ" Foreground="{StaticResource GreenBrush}"
+                                               FontWeight="Bold" FontSize="13" HorizontalAlignment="Center"/>
+                                    <TextBlock x:Name="ReactorPulseText" Text="Pulsations du cœur-réacteur : STABLES"
+                                               Foreground="{StaticResource TextMutedBrush}" FontSize="10"
+                                               HorizontalAlignment="Center" Margin="0,6,0,0" TextAlignment="Center"/>
                                 </StackPanel>
                             </Border>
                         </Grid>
                     </Grid>
 
-                    <!-- Colonne droite : activité + updates -->
-                    <StackPanel Grid.Column="1">
-                        <Border Style="{StaticResource Card}">
-                            <StackPanel>
-                                <TextBlock Text="Activité du Système" Foreground="{StaticResource TextPrimaryBrush}"
-                                           FontWeight="SemiBold" FontSize="13"/>
-                                <Polyline Stroke="{StaticResource AccentBrush}" StrokeThickness="1.6" Margin="0,12,0,0"
-                                          Points="0,30 15,22 30,34 45,12 60,26 75,8 90,28 105,18 120,32 135,14 150,24 165,10 180,26 195,20 210,30"/>
-                            </StackPanel>
-                        </Border>
-
-                        <Border Style="{StaticResource Card}" Margin="0,12,0,0">
-                            <StackPanel>
-                                <TextBlock Text="Updates information" Foreground="{StaticResource TextPrimaryBrush}"
-                                           FontWeight="SemiBold" FontSize="13"/>
-                                <TextBlock x:Name="UpdatesDateText" Text="Base de données à jour"
-                                           Foreground="{StaticResource TextMutedBrush}" FontSize="11" Margin="0,8,0,0"/>
-                                <TextBlock x:Name="SignatureCountText" Text="" Foreground="{StaticResource AccentBrush}"
-                                           FontSize="11" Margin="0,4,0,0"/>
-                            </StackPanel>
-                        </Border>
-                    </StackPanel>
-                </Grid>
-
-                <!-- ====================== CARTES DU BAS ======================= -->
-                <Grid Grid.Row="2" Margin="0,16,0,0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-
-                    <!-- 1. Scanner le système -->
-                    <Border Grid.Column="0" Style="{StaticResource Card}" Margin="0,0,8,0">
+                    <!-- ================= PAGE : PROTECTION ================= -->
+                    <Grid x:Name="PageProtection" Visibility="Collapsed">
                         <StackPanel>
-                            <TextBlock Text="1. Scanner le Système" Foreground="{StaticResource TextPrimaryBrush}"
-                                       FontWeight="SemiBold" FontSize="13"/>
-                            <TextBlock x:Name="ScanStatusText" Text="Prêt à analyser." Foreground="{StaticResource TextMutedBrush}"
-                                       FontSize="11" Margin="0,6,0,0" TextTrimming="CharacterEllipsis"/>
-                            <Button x:Name="ScanButton" Style="{StaticResource PrimaryButton}" Margin="0,12,0,0"
-                                    Click="OnQuickScan">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="&#xE721;" FontFamily="Segoe MDL2 Assets" FontSize="14"
-                                               VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                    <TextBlock Text="LANCER L'ANALYSE RAPIDE" VerticalAlignment="Center"/>
+                            <TextBlock Text="Protection En Direct" Style="{StaticResource PageTitle}"/>
+                            <TextBlock Text="Activez les boucliers de protection en temps réel."
+                                       Foreground="{StaticResource TextMutedBrush}" FontSize="12" Margin="0,0,0,14"/>
+
+                            <Border Style="{StaticResource Card}">
+                                <StackPanel>
+                                    <Grid Margin="0,4">
+                                        <StackPanel>
+                                            <TextBlock Text="Protection en Temps Réel" Foreground="{StaticResource TextPrimaryBrush}" FontSize="13"/>
+                                            <TextBlock Text="Analyse les fichiers à leur création/modification." Foreground="{StaticResource TextMutedBrush}" FontSize="10"/>
+                                        </StackPanel>
+                                        <ToggleButton x:Name="RealtimeSwitch" Style="{StaticResource Switch}" HorizontalAlignment="Right"
+                                                      IsChecked="False" Checked="OnRealtimeToggled" Unchecked="OnRealtimeToggled"/>
+                                    </Grid>
+                                    <Border Height="1" Background="{StaticResource PanelStrokeBrush}" Margin="0,8"/>
+                                    <Grid Margin="0,4">
+                                        <StackPanel>
+                                            <TextBlock Text="Bouclier Anti-Ransomware" Foreground="{StaticResource TextPrimaryBrush}" FontSize="13"/>
+                                            <TextBlock Text="Canaris + arrêt du processus chiffrant (Documents, Images, Bureau)." Foreground="{StaticResource TextMutedBrush}" FontSize="10"/>
+                                        </StackPanel>
+                                        <ToggleButton x:Name="RansomwareSwitch" Style="{StaticResource Switch}" HorizontalAlignment="Right"
+                                                      IsChecked="False" Checked="OnRansomwareToggled" Unchecked="OnRansomwareToggled"/>
+                                    </Grid>
+                                    <Border Height="1" Background="{StaticResource PanelStrokeBrush}" Margin="0,8"/>
+                                    <Grid Margin="0,4">
+                                        <StackPanel>
+                                            <TextBlock Text="Démarrer avec Windows" Foreground="{StaticResource TextPrimaryBrush}" FontSize="13"/>
+                                            <TextBlock Text="Inscrit IATECH-SHIELD au démarrage (registre)." Foreground="{StaticResource TextMutedBrush}" FontSize="10"/>
+                                        </StackPanel>
+                                        <ToggleButton x:Name="AutostartSwitch" Style="{StaticResource Switch}" HorizontalAlignment="Right"
+                                                      IsChecked="False" Checked="OnAutostartToggled" Unchecked="OnAutostartToggled"/>
+                                    </Grid>
                                 </StackPanel>
-                            </Button>
+                            </Border>
                         </StackPanel>
-                    </Border>
+                    </Grid>
 
-                    <!-- 2. Menaces détectées -->
-                    <Border Grid.Column="1" Style="{StaticResource Card}" Margin="8,0,8,0">
+                    <!-- ==================== PAGE : SCAN ==================== -->
+                    <Grid x:Name="PageScan" Visibility="Collapsed">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="320"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Options de scan -->
+                        <Border Grid.Column="0" Style="{StaticResource Card}" Margin="0,0,10,0">
+                            <StackPanel>
+                                <TextBlock Text="Analyser" Style="{StaticResource PageTitle}"/>
+                                <TextBlock Text="Choisissez ce qui doit être analysé :" Foreground="{StaticResource TextMutedBrush}"
+                                           FontSize="11" Margin="0,0,0,10"/>
+
+                                <CheckBox x:Name="ChkHardDrives" Style="{StaticResource Check}" Content="Disques durs (fixes)"/>
+                                <CheckBox x:Name="ChkRemovable"  Style="{StaticResource Check}" Content="Disques amovibles (clés USB)"/>
+                                <CheckBox x:Name="ChkAllFiles"   Style="{StaticResource Check}" Content="Tous les fichiers (analyse complète)"/>
+                                <CheckBox x:Name="ChkFolder"     Style="{StaticResource Check}" Content="Dossier spécifique…"/>
+                                <CheckBox x:Name="ChkFile"       Style="{StaticResource Check}" Content="Fichier spécifique…"/>
+                                <CheckBox x:Name="ChkMail"       Style="{StaticResource Check}" Content="Courriels (Outlook / Thunderbird)"/>
+                                <CheckBox x:Name="ChkStartup"    Style="{StaticResource Check}" Content="Mémoire et démarrage"/>
+
+                                <Border Height="1" Background="{StaticResource PanelStrokeBrush}" Margin="0,12"/>
+
+                                <TextBlock Text="Après le scan complet :" Foreground="{StaticResource TextPrimaryBrush}"
+                                           FontSize="12" Margin="0,0,0,6"/>
+                                <RadioButton x:Name="PostNone" GroupName="post" Foreground="{StaticResource TextPrimaryBrush}"
+                                             FontSize="12" Margin="0,3" IsChecked="True" Content="Ne rien faire"/>
+                                <RadioButton x:Name="PostShutdown" GroupName="post" Foreground="{StaticResource TextPrimaryBrush}"
+                                             FontSize="12" Margin="0,3" Content="Éteindre l'ordinateur"/>
+                                <RadioButton x:Name="PostRestart" GroupName="post" Foreground="{StaticResource TextPrimaryBrush}"
+                                             FontSize="12" Margin="0,3" Content="Redémarrer l'ordinateur"/>
+
+                                <Button x:Name="FullScanButton" Style="{StaticResource PrimaryButton}" Margin="0,14,0,0"
+                                        Click="OnFullScan" Content="LANCER L'ANALYSE"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Résultats -->
+                        <Border Grid.Column="1" Style="{StaticResource Card}">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Text="Résultats de l'analyse" Foreground="{StaticResource TextPrimaryBrush}"
+                                           FontWeight="SemiBold" FontSize="14"/>
+                                <TextBlock Grid.Row="1" x:Name="FullScanStatus" Text="En attente…" Foreground="{StaticResource TextMutedBrush}"
+                                           FontSize="11" Margin="0,6,0,8" TextWrapping="Wrap"/>
+                                <ListBox Grid.Row="2" x:Name="ScanResultsList" Background="#0A1726" BorderThickness="0"
+                                         Foreground="{StaticResource TextPrimaryBrush}" FontSize="12"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"/>
+                            </Grid>
+                        </Border>
+                    </Grid>
+
+                    <!-- ================== PAGE : FIREWALL ================== -->
+                    <Grid x:Name="PageFirewall" Visibility="Collapsed">
                         <StackPanel>
-                            <TextBlock Text="2. Menaces Détectées" Foreground="{StaticResource TextPrimaryBrush}"
-                                       FontWeight="SemiBold" FontSize="13" HorizontalAlignment="Center"/>
-                            <TextBlock x:Name="ThreatCountText" Text="0" Foreground="{StaticResource GreenBrush}"
-                                       FontSize="40" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,4,0,0"/>
-                            <TextBlock x:Name="ThreatStatusText" Text="SÉCURISÉ" Foreground="{StaticResource GreenBrush}"
-                                       FontWeight="Bold" FontSize="13" HorizontalAlignment="Center"/>
-                            <TextBlock x:Name="ReactorPulseText" Text="Pulsations du cœur-réacteur : STABLES"
-                                       Foreground="{StaticResource TextMutedBrush}" FontSize="10"
-                                       HorizontalAlignment="Center" Margin="0,6,0,0" TextAlignment="Center"/>
+                            <TextBlock Text="Pare-feu" Style="{StaticResource PageTitle}"/>
+                            <TextBlock Text="Surveillance des connexions réseau."
+                                       Foreground="{StaticResource TextMutedBrush}" FontSize="12" Margin="0,0,0,14"/>
+                            <Border Style="{StaticResource Card}">
+                                <StackPanel>
+                                    <Grid Margin="0,4">
+                                        <StackPanel>
+                                            <TextBlock Text="Pare-feu Windows" Foreground="{StaticResource TextPrimaryBrush}" FontSize="13"/>
+                                            <TextBlock x:Name="FirewallStateText" Text="État inconnu" Foreground="{StaticResource TextMutedBrush}" FontSize="10"/>
+                                        </StackPanel>
+                                        <Button x:Name="FirewallOpenButton" Style="{StaticResource GhostButton}" HorizontalAlignment="Right"
+                                                Content="Ouvrir le pare-feu Windows" Click="OnOpenFirewall"/>
+                                    </Grid>
+                                    <Border Height="1" Background="{StaticResource PanelStrokeBrush}" Margin="0,10"/>
+                                    <TextBlock Text="Connexions sortantes actives" Foreground="{StaticResource TextPrimaryBrush}" FontSize="13" Margin="0,0,0,8"/>
+                                    <Button x:Name="ListConnButton" Style="{StaticResource GhostButton}" HorizontalAlignment="Left"
+                                            Content="Lister les connexions" Click="OnListConnections"/>
+                                    <ListBox x:Name="ConnectionsList" Background="#0A1726" BorderThickness="0" Height="220"
+                                             Foreground="{StaticResource TextPrimaryBrush}" FontSize="11" Margin="0,10,0,0"/>
+                                </StackPanel>
+                            </Border>
                         </StackPanel>
-                    </Border>
+                    </Grid>
 
-                    <!-- 3. Protection en direct -->
-                    <Border Grid.Column="2" Style="{StaticResource Card}" Margin="8,0,0,0">
+                    <!-- ================== PAGE : SETTINGS ================== -->
+                    <Grid x:Name="PageSettings" Visibility="Collapsed">
                         <StackPanel>
-                            <TextBlock Text="3. Protection En Direct" Foreground="{StaticResource TextPrimaryBrush}"
-                                       FontWeight="SemiBold" FontSize="13"/>
-
-                            <Grid Margin="0,12,0,0">
-                                <TextBlock Text="Protection en Temps Réel" Foreground="{StaticResource TextPrimaryBrush}"
-                                           FontSize="12" VerticalAlignment="Center"/>
-                                <ToggleButton x:Name="RealtimeSwitch" Style="{StaticResource Switch}"
-                                              HorizontalAlignment="Right" IsChecked="False"
-                                              Checked="OnRealtimeToggled" Unchecked="OnRealtimeToggled"/>
-                            </Grid>
-                            <Grid Margin="0,10,0,0">
-                                <TextBlock Text="Firewall" Foreground="{StaticResource TextPrimaryBrush}"
-                                           FontSize="12" VerticalAlignment="Center"/>
-                                <ToggleButton Style="{StaticResource Switch}" HorizontalAlignment="Right"/>
-                            </Grid>
-                            <Grid Margin="0,10,0,0">
-                                <TextBlock Text="Web Shield" Foreground="{StaticResource TextPrimaryBrush}"
-                                           FontSize="12" VerticalAlignment="Center"/>
-                                <ToggleButton Style="{StaticResource Switch}" HorizontalAlignment="Right"/>
-                            </Grid>
-                            <Grid Margin="0,10,0,0">
-                                <TextBlock Text="Bouclier Anti-Ransomware" Foreground="{StaticResource TextPrimaryBrush}"
-                                           FontSize="12" VerticalAlignment="Center"/>
-                                <ToggleButton x:Name="RansomwareSwitch" Style="{StaticResource Switch}"
-                                              HorizontalAlignment="Right" IsChecked="False"
-                                              Checked="OnRansomwareToggled" Unchecked="OnRansomwareToggled"/>
-                            </Grid>
+                            <TextBlock Text="Paramètres" Style="{StaticResource PageTitle}"/>
+                            <Border Style="{StaticResource Card}" Margin="0,8,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="Assistant IA (Claude)" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="13"/>
+                                    <TextBlock x:Name="ApiKeyStatusText" Text="" Foreground="{StaticResource TextMutedBrush}" FontSize="11" Margin="0,6,0,0"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource Card}" Margin="0,12,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="Adresse e-mail (pour l'envoi des journaux)" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="13"/>
+                                    <TextBox x:Name="EmailInput" Background="#0A1726" Foreground="{StaticResource TextPrimaryBrush}"
+                                             BorderBrush="{StaticResource PanelStrokeBrush}" Padding="8" Margin="0,8,0,0" FontSize="12"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource Card}" Margin="0,12,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="Quarantaine &amp; licence" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="13"/>
+                                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                        <Button x:Name="OpenQuarantineButton" Style="{StaticResource GhostButton}"
+                                                Content="Ouvrir le dossier de quarantaine" Click="OnOpenQuarantine" Margin="0,0,10,0"/>
+                                        <Button x:Name="DeactivateButton" Style="{StaticResource GhostButton}"
+                                                Content="Désactiver la licence" Click="OnDeactivateLicense"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
                         </StackPanel>
-                    </Border>
+                    </Grid>
+
+                    <!-- ==================== PAGE : LOGS ==================== -->
+                    <Grid x:Name="PageLogs" Visibility="Collapsed">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <TextBlock Grid.Row="0" Text="Journal d'activité" Style="{StaticResource PageTitle}"/>
+                        <Border Grid.Row="1" Style="{StaticResource Card}" Margin="0,8,0,8">
+                            <TextBox x:Name="LogBox" Background="Transparent" Foreground="{StaticResource TextPrimaryBrush}"
+                                     BorderThickness="0" FontFamily="Consolas" FontSize="12" IsReadOnly="True"
+                                     TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" AcceptsReturn="True"/>
+                        </Border>
+                        <StackPanel Grid.Row="2" Orientation="Horizontal">
+                            <Button x:Name="SendLogMailButton" Style="{StaticResource GhostButton}"
+                                    Content="Envoyer par e-mail" Click="OnSendLogMail" Margin="0,0,10,0"/>
+                            <Button x:Name="SaveLogButton" Style="{StaticResource GhostButton}"
+                                    Content="Enregistrer le journal" Click="OnSaveLog" Margin="0,0,10,0"/>
+                            <Button x:Name="ClearLogButton" Style="{StaticResource GhostButton}"
+                                    Content="Effacer" Click="OnClearLog"/>
+                        </StackPanel>
+                    </Grid>
+
                 </Grid>
             </Grid>
         </Grid>
     </Border>
 
-    <!-- Animations de fond : rotation de l'anneau + pulsation du cœur -->
     <Window.Triggers>
         <EventTrigger RoutedEvent="Window.Loaded">
             <BeginStoryboard>
