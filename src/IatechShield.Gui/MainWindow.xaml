@@ -1,10 +1,15 @@
 <Window x:Class="IatechShield.Gui.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="IATECH-SHIELD PRO" Height="680" Width="1040"
+        Title="IATECH-SHIELD PRO" Height="820" Width="1280"
         WindowStartupLocation="CenterScreen"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
-        FontFamily="Segoe UI" MinWidth="940" MinHeight="640">
+        FontFamily="Segoe UI" MinWidth="1080" MinHeight="720"
+        UseLayoutRounding="True" SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType"
+        TextOptions.TextHintingMode="Fixed"
+        RenderOptions.ClearTypeHint="Enabled">
 
     <Border CornerRadius="16" Background="{StaticResource WindowBackground}"
             BorderBrush="{StaticResource PanelStrokeBrush}" BorderThickness="1">
@@ -291,9 +296,48 @@
                                            FontWeight="SemiBold" FontSize="14"/>
                                 <TextBlock Grid.Row="1" x:Name="FullScanStatus" Text="En attente…" Foreground="{StaticResource TextMutedBrush}"
                                            FontSize="11" Margin="0,6,0,8" TextWrapping="Wrap"/>
-                                <ListBox Grid.Row="2" x:Name="ScanResultsList" Background="#0A1726" BorderThickness="0"
+                                <ListBox Grid.Row="2" x:Name="ScanResultsList" Background="Transparent" BorderThickness="0"
                                          Foreground="{StaticResource TextPrimaryBrush}" FontSize="12"
-                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"/>
+                                         HorizontalContentAlignment="Stretch"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                    <ListBox.ItemContainerStyle>
+                                        <Style TargetType="ListBoxItem">
+                                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                            <Setter Property="Background" Value="Transparent"/>
+                                            <Setter Property="Padding" Value="0"/>
+                                        </Style>
+                                    </ListBox.ItemContainerStyle>
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="#26FFFFFF" CornerRadius="8" Padding="12" Margin="0,4"
+                                                    BorderBrush="#3344E0FF" BorderThickness="1">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="190"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding Name}" Foreground="#FF6B6B"
+                                                                   FontWeight="SemiBold" FontSize="13"/>
+                                                        <TextBlock Text="{Binding Path}" Foreground="{StaticResource TextMutedBrush}"
+                                                                   FontSize="10" TextTrimming="CharacterEllipsis"/>
+                                                    </StackPanel>
+                                                    <ComboBox Grid.Column="1" Margin="8,0" VerticalAlignment="Center"
+                                                              SelectedValuePath="Content"
+                                                              SelectedValue="{Binding SelectedAction, Mode=TwoWay}">
+                                                        <ComboBoxItem Content="Mettre en quarantaine"/>
+                                                        <ComboBoxItem Content="Supprimer"/>
+                                                        <ComboBoxItem Content="Analyser"/>
+                                                        <ComboBoxItem Content="Ignorer"/>
+                                                    </ComboBox>
+                                                    <Button Grid.Column="2" Content="Appliquer" Style="{StaticResource GhostButton}"
+                                                            Click="OnApplyThreatAction" VerticalAlignment="Center"/>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
                             </Grid>
                         </Border>
                     </Grid>

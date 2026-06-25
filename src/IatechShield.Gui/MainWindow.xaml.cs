@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Net.NetworkInformation;
@@ -34,12 +35,14 @@ public partial class MainWindow : Window
     private int _threatCount;
     private bool _scanning;
     private readonly StringBuilder _log = new();
+    private readonly ObservableCollection<ThreatItem> _threats = new();
 
     public MainWindow()
     {
         InitializeComponent();
         Loaded += (_, _) =>
         {
+            ScanResultsList.ItemsSource = _threats;
             InitEngine();
             _ready = true;
             ShowPage("Dashboard");
@@ -212,6 +215,8 @@ public partial class MainWindow : Window
             return;
 
         await RunScanAsync(new[] { dialog.FolderName }, status => ScanStatusText.Text = status);
+        if (_threats.Count > 0)
+            ScanStatusText.Text = $"{_threats.Count} menace(s) — voir l'onglet Scan pour agir.";
     }
 
     // ------------------------------------------------------------ scan complet -
@@ -228,8 +233,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        ScanResultsList.Items.Clear();
-        await RunScanAsync(targets, status => FullScanStatus.Text = status, ScanResultsList);
+        await RunScanAsync(targets, status => FullScanStatus.Text = status);
 
         // Action après scan (extinction / redémarrage).
         if (PostShutdown.IsChecked == true)
@@ -319,14 +323,15 @@ public partial class MainWindow : Window
         return space > 0 ? command[..space] : command;
     }
 
-    private async Task RunScanAsync(IReadOnlyList<string> targets, Action<string> report, ListBox? results = null)
+    private async Task RunScanAsync(IReadOnlyList<string> targets, Action<string> report)
     {
         _scanning = true;
         ScanButton.IsEnabled = false;
         if (FullScanButton is not null) FullScanButton.IsEnabled = false;
         ResetThreats();
 
-        var service = new ScanService(_scanner!, _quarantine);
+        // Pas de quarantaine automatique : on liste les menaces et l'utilisateur choisit l'action.
+        var service = new ScanService(_scanner!, quarantine: null);
         int files = 0, threats = 0;
         Log($"Analyse démarrée ({targets.Count} cible(s)).");
 
@@ -342,11 +347,15 @@ public partial class MainWindow : Window
                         if (result.IsThreat)
                         {
                             threats++;
+                            string sha = SafeSha(result.Path);
+                            string name = result.Match!.Name;
+                            string path = result.Path;
                             Dispatcher.Invoke(() =>
                             {
+                                _threats.Add(new ThreatItem { Name = name, Path = path, Sha = sha });
                                 RegisterThreat();
-                                results?.Items.Add($"⚠ {result.Match!.Name} — {result.Path}");
-                                Log($"MENACE : {result.Match.Name} — {result.Path}");
+                                UpdateThreatUi();
+                                Log($"MENACE : {name} — {path}");
                             });
                         }
                         if (files % 50 == 0)
@@ -356,10 +365,9 @@ public partial class MainWindow : Window
             });
 
             report($"Terminé : {files} fichiers analysés, {threats} menace(s).");
-            _threatCount = threats;
+            _threatCount = _threats.Count;
             UpdateThreatUi();
             Log($"Analyse terminée : {files} fichiers, {threats} menace(s).");
-            results?.Items.Add(threats == 0 ? "✓ Aucune menace détectée." : $"{threats} menace(s) mise(s) en quarantaine.");
         }
         catch (Exception ex)
         {
@@ -371,6 +379,53 @@ public partial class MainWindow : Window
             _scanning = false;
             RefreshLicense();
         }
+    }
+
+    private static string SafeSha(string path)
+    {
+        try { return Scanner.ComputeSha256(path); } catch { return ""; }
+    }
+
+    // Applique l'action choisie dans la liste déroulante d'une menace.
+    private void OnApplyThreatAction(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement fe || fe.DataContext is not ThreatItem item)
+            return;
+
+        try
+        {
+            switch (item.SelectedAction)
+            {
+                case "Supprimer":
+                    if (File.Exists(item.Path)) File.Delete(item.Path);
+                    Log($"Menace supprimée : {item.Path}");
+                    break;
+
+                case "Mettre en quarantaine":
+                    _quarantine?.Add(item.Path, item.Name, item.Sha);
+                    Log($"Menace mise en quarantaine : {item.Path}");
+                    break;
+
+                case "Analyser":
+                    string info = $"Menace : {item.Name}\nFichier : {item.Path}\nSHA-256 : {item.Sha}";
+                    MessageBox.Show(this, info, "Analyse de la menace", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return; // on garde la menace dans la liste
+
+                case "Ignorer":
+                    Log($"Menace ignorée : {item.Path}");
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, $"Action impossible : {ex.Message}", "Erreur",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        _threats.Remove(item);
+        _threatCount = _threats.Count;
+        UpdateThreatUi();
     }
 
     private void SchedulePower(string flag, string label)
@@ -683,7 +738,7 @@ public partial class MainWindow : Window
 
     // ------------------------------------------------------------- affichage --
 
-    private void ResetThreats() { _threatCount = 0; UpdateThreatUi(); }
+    private void ResetThreats() { _threats.Clear(); _threatCount = 0; UpdateThreatUi(); }
     private void RegisterThreat() => _threatCount++;
 
     private void UpdateThreatUi()
@@ -919,4 +974,13 @@ public partial class MainWindow : Window
         _ransomGuard?.Dispose();
         Close();
     }
+}
+
+/// <summary>Une menace affichée dans la liste, avec l'action choisie par l'utilisateur.</summary>
+public sealed class ThreatItem
+{
+    public string Name { get; init; } = "";
+    public string Path { get; init; } = "";
+    public string Sha { get; init; } = "";
+    public string SelectedAction { get; set; } = "Mettre en quarantaine";
 }

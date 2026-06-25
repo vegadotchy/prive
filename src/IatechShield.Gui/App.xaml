@@ -19,9 +19,11 @@
             <GradientStop Color="{StaticResource BgBottomColor}" Offset="1"/>
         </LinearGradientBrush>
 
+        <!-- Effet « glass » : translucide avec un léger dégradé de lumière en haut. -->
         <LinearGradientBrush x:Key="CardBackground" StartPoint="0,0" EndPoint="0,1">
-            <GradientStop Color="#13283D" Offset="0"/>
-            <GradientStop Color="#0D1E2F" Offset="1"/>
+            <GradientStop Color="#2BFFFFFF" Offset="0"/>
+            <GradientStop Color="#12FFFFFF" Offset="0.5"/>
+            <GradientStop Color="#1A0B1A2A" Offset="1"/>
         </LinearGradientBrush>
 
         <LinearGradientBrush x:Key="AccentButton" StartPoint="0,0" EndPoint="1,1">
@@ -32,13 +34,13 @@
         <!-- ============================ Carte ============================= -->
         <Style x:Key="Card" TargetType="Border">
             <Setter Property="Background" Value="{StaticResource CardBackground}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource PanelStrokeBrush}"/>
+            <Setter Property="BorderBrush" Value="#3355D8E8"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="CornerRadius" Value="14"/>
             <Setter Property="Padding" Value="18"/>
             <Setter Property="Effect">
                 <Setter.Value>
-                    <DropShadowEffect Color="#0A1A2A" BlurRadius="18" ShadowDepth="0" Opacity="0.6"/>
+                    <DropShadowEffect Color="#0622D3E8" BlurRadius="24" ShadowDepth="0" Opacity="0.45"/>
                 </Setter.Value>
             </Setter>
         </Style>
