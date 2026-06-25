@@ -53,6 +53,7 @@ public partial class MainWindow : Window
             ScanResultsList.ItemsSource = _threats;
             NetworkList.ItemsSource = _networkDevices;
             InitEngine();
+            SetupTray();
             _ready = true;
             ShowPage("Dashboard");
         };
@@ -379,6 +380,7 @@ public partial class MainWindow : Window
                                 UpdateThreatUi();
                                 Log($"MENACE : {name} — {path}");
                                 SoundFx.Threat();
+                                Notify("Menace détectée", $"{name}\n{path}");
                             });
                         }
                         if (files % 50 == 0)
@@ -518,6 +520,7 @@ public partial class MainWindow : Window
             ScanStatusText.Text = $"Menace bloquée : {Path.GetFileName(result.Path)}";
             Log($"Temps réel — menace bloquée : {result.Path}");
             SoundFx.Threat();
+            Notify("Menace bloquée (temps réel)", Path.GetFileName(result.Path));
         });
     }
 
@@ -571,6 +574,7 @@ public partial class MainWindow : Window
             ScanStatusText.Text = $"⚠ RANSOMWARE : {alert.Reason} — {action}.";
             Log($"RANSOMWARE : {alert.Reason} — {action}.");
             SoundFx.Danger();
+            Notify("⚠ Ransomware bloqué", $"{alert.Reason} — {action}");
             _ransomGuard?.Rearm();
         });
     }
@@ -1250,12 +1254,68 @@ public partial class MainWindow : Window
 
     private void OnMinimize(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
 
-    private void OnClose(object sender, RoutedEventArgs e)
+    // Le bouton X ne ferme pas l'app : il la réduit dans la barre des tâches.
+    private void OnClose(object sender, RoutedEventArgs e) => Close();
+
+    // ---------------------------------------------------- barre des tâches ----
+
+    private System.Windows.Forms.NotifyIcon? _tray;
+    private bool _reallyExit;
+
+    private void SetupTray()
     {
+        try
+        {
+            _tray = new System.Windows.Forms.NotifyIcon
+            {
+                Visible = true,
+                Text = "IATECH-SHIELD PRO — protection active"
+            };
+            try { _tray.Icon = System.Drawing.Icon.ExtractAssociatedIcon(Environment.ProcessPath ?? ""); }
+            catch { _tray.Icon = System.Drawing.SystemIcons.Shield; }
+
+            var menu = new System.Windows.Forms.ContextMenuStrip();
+            menu.Items.Add("Ouvrir IATECH-SHIELD", null, (_, _) => ShowFromTray());
+            menu.Items.Add("Analyse rapide", null, (_, _) => { ShowFromTray(); OnQuickScan(this, new RoutedEventArgs()); });
+            menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
+            menu.Items.Add("Quitter", null, (_, _) => { _reallyExit = true; Close(); });
+            _tray.ContextMenuStrip = menu;
+            _tray.DoubleClick += (_, _) => ShowFromTray();
+        }
+        catch { /* la barre des tâches n'est pas critique */ }
+    }
+
+    private void ShowFromTray()
+    {
+        Show();
+        WindowState = WindowState.Normal;
+        Activate();
+        Topmost = true; Topmost = false;
+    }
+
+    /// <summary>Notification système (bulle dans la barre des tâches).</summary>
+    private void Notify(string title, string message)
+    {
+        try { _tray?.ShowBalloonTip(4000, title, message, System.Windows.Forms.ToolTipIcon.Warning); }
+        catch { }
+    }
+
+    protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+    {
+        if (!_reallyExit)
+        {
+            // Fermeture = passage en arrière-plan (la protection continue).
+            e.Cancel = true;
+            Hide();
+            Notify("IATECH-SHIELD PRO", "La protection continue en arrière-plan. Clic droit sur l'icône pour quitter.");
+            return;
+        }
+
         _monitor?.Dispose();
         _ransomGuard?.RemoveCanaries();
         _ransomGuard?.Dispose();
-        Close();
+        _tray?.Dispose();
+        base.OnClosing(e);
     }
 }
 

@@ -9,7 +9,9 @@
         TextOptions.TextFormattingMode="Display"
         TextOptions.TextRenderingMode="ClearType"
         TextOptions.TextHintingMode="Fixed"
-        RenderOptions.ClearTypeHint="Enabled">
+        RenderOptions.ClearTypeHint="Enabled"
+        Icon="/icon.ico"
+        ShowInTaskbar="True">
 
     <Border CornerRadius="16" Background="{StaticResource WindowBackground}"
             BorderBrush="{StaticResource PanelStrokeBrush}" BorderThickness="1">
