@@ -2,10 +2,12 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Media;
+using System.Net.Http;
 using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
+using System.Windows.Threading;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -40,6 +42,8 @@ public partial class MainWindow : Window
     private readonly ObservableCollection<ThreatItem> _threats = new();
     private readonly ObservableCollection<NetworkDeviceItem> _networkDevices = new();
     private readonly DeviceNameStore _deviceNames = new();
+    private DispatcherTimer? _scheduleTimer;
+    private List<QuarantineEntry> _quarantineEntries = new();
 
     public MainWindow()
     {
@@ -101,9 +105,12 @@ public partial class MainWindow : Window
         page.Visibility = Visibility.Visible;
 
         if (page == PageSettings)
+        {
             ApiKeyStatusText.Text = AiAssistant.IsConfigured
                 ? "Clé ANTHROPIC_API_KEY détectée — assistant IA actif."
                 : "Aucune clé détectée. Définissez ANTHROPIC_API_KEY pour activer l'assistant IA.";
+            OnRefreshQuarantine(this, new RoutedEventArgs());
+        }
     }
 
     // --------------------------------------------------------------- moteur ---
@@ -985,6 +992,117 @@ public partial class MainWindow : Window
         Log($"URL analysée : {url} → {verdict.BandLabel} ({verdict.Score}/100)");
     }
 
+    // ----------------------------------------------------- options avancées ---
+
+    private void OnSilentToggled(object sender, RoutedEventArgs e)
+    {
+        if (!_ready) return;
+        SoundFx.Muted = SilentSwitch.IsChecked == true;
+        Log(SoundFx.Muted ? "Mode silencieux activé." : "Mode silencieux désactivé.");
+    }
+
+    private void OnScheduleChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_ready) return;
+        string choice = (ScheduleCombo.SelectedValue as string) ?? "Désactivée";
+        _scheduleTimer?.Stop();
+        _scheduleTimer = null;
+
+        TimeSpan? interval = choice switch
+        {
+            "Toutes les heures" => TimeSpan.FromHours(1),
+            "Toutes les 6 heures" => TimeSpan.FromHours(6),
+            "Une fois par jour" => TimeSpan.FromDays(1),
+            _ => null
+        };
+
+        if (interval is null)
+        {
+            Log("Analyse planifiée désactivée.");
+            return;
+        }
+
+        _scheduleTimer = new DispatcherTimer { Interval = interval.Value };
+        _scheduleTimer.Tick += async (_, _) =>
+        {
+            if (_scanning || _scanner is null || !_activated) return;
+            Log("Analyse planifiée déclenchée.");
+            await RunScanAsync(new[] { DefaultScanFolder() }, s => ScanStatusText.Text = s);
+        };
+        _scheduleTimer.Start();
+        Log($"Analyse planifiée : {choice}.");
+    }
+
+    private async void OnUpdateSignatures(object sender, RoutedEventArgs e)
+    {
+        string url = UpdateUrlInput.Text.Trim();
+        if (string.IsNullOrEmpty(url))
+        {
+            UpdateStatus.Text = "Saisissez l'URL d'une base signatures.json.";
+            return;
+        }
+
+        UpdateStatus.Text = "Téléchargement…";
+        try
+        {
+            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+            string json = await http.GetStringAsync(url);
+            string dbPath = Path.Combine(AppContext.BaseDirectory, "signatures.json");
+
+            // On valide le JSON avant de remplacer la base existante.
+            string tmp = Path.GetTempFileName();
+            await File.WriteAllTextAsync(tmp, json);
+            var test = SignatureDatabase.LoadFromFile(tmp);
+
+            File.Copy(tmp, dbPath, overwrite: true);
+            File.Delete(tmp);
+
+            _db = SignatureDatabase.LoadFromFile(dbPath);
+            _scanner = new Scanner(_db);
+            SignatureCountText.Text = $"{_db.Signatures.Count} signatures chargées";
+            UpdateStatus.Text = $"Base mise à jour : {test.Signatures.Count} signatures.";
+            UpdatesDateText.Text = $"Dernière mise à jour : {DateTime.Now:dd/MM/yyyy HH:mm}";
+            Log($"Signatures mises à jour depuis {url} ({test.Signatures.Count}).");
+        }
+        catch (Exception ex)
+        {
+            UpdateStatus.Text = $"Échec : {ex.Message}";
+        }
+    }
+
+    // ------------------------------------------------- gestion de la quarantaine
+
+    private void OnRefreshQuarantine(object sender, RoutedEventArgs e)
+    {
+        if (_quarantine is null) return;
+        _quarantineEntries = _quarantine.List().ToList();
+        QuarantineList.Items.Clear();
+        foreach (var entry in _quarantineEntries)
+            QuarantineList.Items.Add($"{entry.ThreatName}  —  {entry.OriginalPath}");
+        if (_quarantineEntries.Count == 0)
+            QuarantineList.Items.Add("(quarantaine vide)");
+    }
+
+    private void OnRestoreQuarantine(object sender, RoutedEventArgs e)
+    {
+        int i = QuarantineList.SelectedIndex;
+        if (_quarantine is null || i < 0 || i >= _quarantineEntries.Count) return;
+        var entry = _quarantineEntries[i];
+        if (_quarantine.Restore(entry.Id))
+            Log($"Fichier restauré : {entry.OriginalPath}");
+        OnRefreshQuarantine(sender, e);
+    }
+
+    private void OnDeleteQuarantine(object sender, RoutedEventArgs e)
+    {
+        int i = QuarantineList.SelectedIndex;
+        if (_quarantine is null || i < 0 || i >= _quarantineEntries.Count) return;
+        var entry = _quarantineEntries[i];
+        if (_quarantine.Delete(entry.Id))
+            Log($"Fichier supprimé définitivement : {entry.OriginalPath}");
+        OnRefreshQuarantine(sender, e);
+    }
+
     // -------------------------------------------------------- fenêtre / chrome -
 
     private void OnHeaderDrag(object sender, MouseButtonEventArgs e)
@@ -1063,10 +1181,12 @@ public sealed class DeviceNameStore
 /// <summary>Effets sonores via les sons système Windows (aucun fichier audio requis).</summary>
 internal static class SoundFx
 {
+    public static bool Muted { get; set; }
+
     public static void ScanStart() => Safe(() => SystemSounds.Asterisk.Play());
     public static void ScanDone() => Safe(() => SystemSounds.Asterisk.Play());
     public static void Threat() => Safe(() => SystemSounds.Exclamation.Play());
     public static void Danger() => Safe(() => SystemSounds.Hand.Play());
 
-    private static void Safe(Action a) { try { a(); } catch { } }
+    private static void Safe(Action a) { if (Muted) return; try { a(); } catch { } }
 }

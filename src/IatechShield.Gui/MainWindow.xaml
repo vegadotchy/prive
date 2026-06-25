@@ -371,6 +371,7 @@
 
                     <!-- ================== PAGE : SETTINGS ================== -->
                     <Grid x:Name="PageSettings" Visibility="Collapsed">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <StackPanel>
                             <TextBlock Text="Paramètres" Style="{StaticResource PageTitle}"/>
                             <Border Style="{StaticResource Card}" Margin="0,8,0,0">
@@ -386,6 +387,67 @@
                                              BorderBrush="{StaticResource PanelStrokeBrush}" Padding="8" Margin="0,8,0,0" FontSize="12"/>
                                 </StackPanel>
                             </Border>
+                            <!-- Options avancées -->
+                            <Border Style="{StaticResource Card}" Margin="0,12,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="Options de protection" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="13"/>
+
+                                    <Grid Margin="0,12,0,0">
+                                        <StackPanel>
+                                            <TextBlock Text="Mode silencieux" Foreground="{StaticResource TextPrimaryBrush}" FontSize="12"/>
+                                            <TextBlock Text="Désactive les effets sonores." Foreground="{StaticResource TextMutedBrush}" FontSize="10"/>
+                                        </StackPanel>
+                                        <ToggleButton x:Name="SilentSwitch" Style="{StaticResource Switch}" HorizontalAlignment="Right"
+                                                      IsChecked="False" Checked="OnSilentToggled" Unchecked="OnSilentToggled"/>
+                                    </Grid>
+
+                                    <Border Height="1" Background="{StaticResource PanelStrokeBrush}" Margin="0,12"/>
+
+                                    <TextBlock Text="Analyse planifiée" Foreground="{StaticResource TextPrimaryBrush}" FontSize="12"/>
+                                    <TextBlock Text="Lance automatiquement une analyse rapide à intervalle régulier." Foreground="{StaticResource TextMutedBrush}" FontSize="10" Margin="0,0,0,6"/>
+                                    <ComboBox x:Name="ScheduleCombo" Width="260" HorizontalAlignment="Left"
+                                              SelectedValuePath="Content" SelectionChanged="OnScheduleChanged">
+                                        <ComboBoxItem Content="Désactivée" IsSelected="True"/>
+                                        <ComboBoxItem Content="Toutes les heures"/>
+                                        <ComboBoxItem Content="Toutes les 6 heures"/>
+                                        <ComboBoxItem Content="Une fois par jour"/>
+                                    </ComboBox>
+
+                                    <Border Height="1" Background="{StaticResource PanelStrokeBrush}" Margin="0,12"/>
+
+                                    <TextBlock Text="Mise à jour des signatures" Foreground="{StaticResource TextPrimaryBrush}" FontSize="12"/>
+                                    <TextBlock Text="Télécharge une base de signatures depuis une URL (signatures.json)." Foreground="{StaticResource TextMutedBrush}" FontSize="10" Margin="0,0,0,6"/>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox x:Name="UpdateUrlInput" Grid.Column="0" Background="#0A1726" Foreground="{StaticResource TextPrimaryBrush}"
+                                                 BorderBrush="{StaticResource PanelStrokeBrush}" Padding="8" FontSize="12" VerticalContentAlignment="Center"/>
+                                        <Button x:Name="UpdateSigButton" Grid.Column="1" Style="{StaticResource GhostButton}"
+                                                Content="Mettre à jour" Click="OnUpdateSignatures" Margin="10,0,0,0"/>
+                                    </Grid>
+                                    <TextBlock x:Name="UpdateStatus" Text="" Foreground="{StaticResource AccentBrush}" FontSize="11" Margin="0,6,0,0"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Gestionnaire de quarantaine -->
+                            <Border Style="{StaticResource Card}" Margin="0,12,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="Gestionnaire de quarantaine" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="13"/>
+                                    <ListBox x:Name="QuarantineList" Background="#0A1726" BorderThickness="0" Height="140"
+                                             Foreground="{StaticResource TextPrimaryBrush}" FontSize="11" Margin="0,8,0,0"/>
+                                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                        <Button x:Name="RefreshQuarantineButton" Style="{StaticResource GhostButton}"
+                                                Content="Actualiser" Click="OnRefreshQuarantine" Margin="0,0,10,0"/>
+                                        <Button x:Name="RestoreQuarantineButton" Style="{StaticResource GhostButton}"
+                                                Content="Restaurer la sélection" Click="OnRestoreQuarantine" Margin="0,0,10,0"/>
+                                        <Button x:Name="DeleteQuarantineButton" Style="{StaticResource GhostButton}"
+                                                Content="Supprimer la sélection" Click="OnDeleteQuarantine"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+
                             <Border Style="{StaticResource Card}" Margin="0,12,0,0">
                                 <StackPanel>
                                     <TextBlock Text="Quarantaine &amp; licence" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="13"/>
@@ -398,6 +460,7 @@
                                 </StackPanel>
                             </Border>
                         </StackPanel>
+                        </ScrollViewer>
                     </Grid>
 
                     <!-- ==================== PAGE : LOGS ==================== -->
