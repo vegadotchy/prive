@@ -534,6 +534,59 @@
                                 </StackPanel>
                             </Border>
 
+                            <!-- Protection anti-altération -->
+                            <Border Style="{StaticResource Card}" Margin="0,12,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="Protection par mot de passe (anti-altération)" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="13"/>
+                                    <TextBlock Text="Exige un mot de passe pour quitter l'application ou désactiver la protection en temps réel." Foreground="{StaticResource TextMutedBrush}" FontSize="10" Margin="0,2,0,6" TextWrapping="Wrap"/>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <PasswordBox x:Name="TamperPwdInput" Grid.Column="0" Background="#0A1726"
+                                                     BorderBrush="{StaticResource PanelStrokeBrush}" Padding="8" FontSize="12" VerticalContentAlignment="Center"/>
+                                        <Button x:Name="TamperSetButton" Grid.Column="1" Style="{StaticResource GhostButton}"
+                                                Content="Définir" Click="OnSetTamperPassword" Margin="10,0,0,0"/>
+                                        <Button x:Name="TamperClearButton" Grid.Column="2" Style="{StaticResource GhostButton}"
+                                                Content="Retirer" Click="OnClearTamperPassword" Margin="8,0,0,0"/>
+                                    </Grid>
+                                    <TextBlock x:Name="TamperStatus" Text="" Foreground="{StaticResource AccentBrush}" FontSize="11" Margin="0,8,0,0" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Verrou de session (écran de veille + PIN) -->
+                            <Border Style="{StaticResource Card}" Margin="0,12,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="Verrou de session (écran logo + PIN)" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="13"/>
+                                    <TextBlock Text="Après une période d'inactivité, affiche un écran plein écran au logo IATECH-SHIELD, déverrouillé par un code PIN. (Confidentialité visuelle, pas un verrou Windows.)" Foreground="{StaticResource TextMutedBrush}" FontSize="10" Margin="0,2,0,6" TextWrapping="Wrap"/>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="120"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <PasswordBox x:Name="LockPinInput" Grid.Column="0" Background="#0A1726"
+                                                     BorderBrush="{StaticResource PanelStrokeBrush}" Padding="8" FontSize="12" VerticalContentAlignment="Center"/>
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="10,0,0,0" VerticalAlignment="Center">
+                                            <TextBox x:Name="LockDelayInput" Text="5" Width="44" Background="#0A1726" Foreground="{StaticResource TextPrimaryBrush}"
+                                                     BorderBrush="{StaticResource PanelStrokeBrush}" Padding="6,4" VerticalContentAlignment="Center" TextAlignment="Center"/>
+                                            <TextBlock Text="min" Foreground="{StaticResource TextMutedBrush}" FontSize="11" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                                        </StackPanel>
+                                        <Button x:Name="LockEnableButton" Grid.Column="2" Style="{StaticResource GhostButton}"
+                                                Content="Activer" Click="OnEnableLock" Margin="10,0,0,0"/>
+                                        <Button x:Name="LockDisableButton" Grid.Column="3" Style="{StaticResource GhostButton}"
+                                                Content="Désactiver" Click="OnDisableLock" Margin="8,0,0,0"/>
+                                    </Grid>
+                                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                        <Button x:Name="LockNowButton" Style="{StaticResource GhostButton}" Content="Verrouiller maintenant" Click="OnLockNow"/>
+                                        <TextBlock x:Name="LockStatus" Text="" Foreground="{StaticResource AccentBrush}" FontSize="11" Margin="12,0,0,0" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+
                             <!-- Gestionnaire de quarantaine -->
                             <Border Style="{StaticResource Card}" Margin="0,12,0,0">
                                 <StackPanel>

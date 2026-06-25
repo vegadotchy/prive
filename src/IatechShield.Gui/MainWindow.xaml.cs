@@ -57,6 +57,7 @@ public partial class MainWindow : Window
             NetworkList.ItemsSource = _networkDevices;
             InitEngine();
             SetupTray();
+            StartLockWatcher();
             _ready = true;
             ShowPage("Dashboard");
         };
@@ -124,6 +125,9 @@ public partial class MainWindow : Window
                 : "Aucune clé détectée. Définissez ANTHROPIC_API_KEY pour activer l'assistant IA.";
             if (AppVersionText is not null)
                 AppVersionText.Text = $"Version installée : {CurrentAppVersion}";
+            if (TamperStatus is not null)
+                TamperStatus.Text = TamperEnabled ? "Protection par mot de passe activée." : "Aucun mot de passe défini.";
+            LoadLockSettings();
             OnRefreshQuarantine(this, new RoutedEventArgs());
         }
         else if (page == PageSystem)
@@ -832,11 +836,207 @@ public partial class MainWindow : Window
         }
         else
         {
+            // Protection anti-altération : exige le mot de passe pour désactiver.
+            if (!RequireTamperAuth("Désactiver la surveillance en temps réel"))
+            {
+                RealtimeSwitch.IsChecked = true; // on annule la désactivation
+                return;
+            }
             _monitor?.Dispose();
             _monitor = null;
             ScanStatusText.Text = "Surveillance temps réel désactivée.";
             Log("Temps réel désactivé.");
         }
+    }
+
+    // -------------------------------------------- protection anti-altération ---
+
+    private string? _tamperHash;
+    private bool _tamperLoaded;
+
+    private bool TamperEnabled
+    {
+        get
+        {
+            if (!_tamperLoaded)
+            {
+                _tamperLoaded = true;
+                _tamperHash = SecretVault.Load("tamper").GetValueOrDefault("pwd");
+            }
+            return !string.IsNullOrEmpty(_tamperHash);
+        }
+    }
+
+    /// <summary>Demande le mot de passe de protection ; true si absent ou correct.</summary>
+    private bool RequireTamperAuth(string action)
+    {
+        if (!TamperEnabled) return true;
+
+        string message = $"{action} — saisissez le mot de passe de protection.";
+        for (int attempt = 0; attempt < 5; attempt++)
+        {
+            var prompt = new PromptWindow("Protection par mot de passe", message, "Déverrouiller") { Owner = this };
+            if (prompt.ShowDialog() != true)
+                return false;
+            if (SecretHash.Verify(prompt.Value, _tamperHash!))
+                return true;
+            message = "Mot de passe incorrect. Réessayez.";
+        }
+        return false;
+    }
+
+    private void OnSetTamperPassword(object sender, RoutedEventArgs e)
+    {
+        // Changer un mot de passe existant exige d'abord l'ancien.
+        if (TamperEnabled && !RequireTamperAuth("Modifier le mot de passe de protection"))
+            return;
+
+        string pwd = TamperPwdInput.Password;
+        if (pwd.Length < 4)
+        {
+            TamperStatus.Text = "Le mot de passe doit faire au moins 4 caractères.";
+            return;
+        }
+
+        _tamperHash = SecretHash.Hash(pwd);
+        SecretVault.Save("tamper", new Dictionary<string, string> { ["pwd"] = _tamperHash });
+        TamperPwdInput.Clear();
+        TamperStatus.Text = "Protection par mot de passe activée.";
+        Log("Protection anti-altération activée.");
+    }
+
+    private void OnClearTamperPassword(object sender, RoutedEventArgs e)
+    {
+        if (!TamperEnabled)
+        {
+            TamperStatus.Text = "Aucun mot de passe défini.";
+            return;
+        }
+        if (!RequireTamperAuth("Retirer le mot de passe de protection"))
+            return;
+
+        _tamperHash = null;
+        SecretVault.Delete("tamper");
+        TamperStatus.Text = "Protection par mot de passe retirée.";
+        Log("Protection anti-altération retirée.");
+    }
+
+    // ---------------------------------------------- verrou de session (PIN) ---
+
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+    private struct LastInputInfo { public uint cbSize; public uint dwTime; }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool GetLastInputInfo(ref LastInputInfo plii);
+
+    private DispatcherTimer? _lockTimer;
+    private string? _lockPinHash;
+    private int _lockDelayMs = 5 * 60 * 1000;
+    private bool _lockShowing;
+    private bool _lockSettingsLoaded;
+
+    private void StartLockWatcher()
+    {
+        var cfg = SecretVault.Load("lock");
+        _lockPinHash = cfg.GetValueOrDefault("pin");
+        if (cfg.TryGetValue("delay", out var d) && int.TryParse(d, out int min) && min > 0)
+            _lockDelayMs = min * 60 * 1000;
+        if (string.IsNullOrEmpty(_lockPinHash)) return;
+
+        _lockTimer ??= new DispatcherTimer { Interval = TimeSpan.FromSeconds(15) };
+        _lockTimer.Tick -= OnLockTick;
+        _lockTimer.Tick += OnLockTick;
+        _lockTimer.Start();
+    }
+
+    private void OnLockTick(object? sender, EventArgs e)
+    {
+        if (_lockShowing || string.IsNullOrEmpty(_lockPinHash)) return;
+        if (IdleMilliseconds() >= _lockDelayMs)
+            ShowLockScreen();
+    }
+
+    private static uint IdleMilliseconds()
+    {
+        var info = new LastInputInfo { cbSize = (uint)System.Runtime.InteropServices.Marshal.SizeOf<LastInputInfo>() };
+        if (!GetLastInputInfo(ref info)) return 0;
+        return (uint)Environment.TickCount - info.dwTime;
+    }
+
+    private void ShowLockScreen()
+    {
+        if (_lockShowing || string.IsNullOrEmpty(_lockPinHash)) return;
+        _lockShowing = true;
+        try
+        {
+            ShowFromTray();
+            var lockScreen = new LockScreen(_lockPinHash) { Owner = this };
+            lockScreen.ShowDialog();
+        }
+        catch { /* en cas d'échec d'affichage, on ne bloque pas l'utilisateur */ }
+        finally { _lockShowing = false; }
+    }
+
+    private void LoadLockSettings()
+    {
+        if (_lockSettingsLoaded) return;
+        _lockSettingsLoaded = true;
+        var cfg = SecretVault.Load("lock");
+        if (cfg.TryGetValue("delay", out var d)) LockDelayInput.Text = d;
+        LockStatus.Text = string.IsNullOrEmpty(cfg.GetValueOrDefault("pin"))
+            ? "Verrou désactivé." : "Verrou actif.";
+    }
+
+    private void OnEnableLock(object sender, RoutedEventArgs e)
+    {
+        string pin = LockPinInput.Password;
+        if (pin.Length < 4)
+        {
+            LockStatus.Text = "Le PIN doit faire au moins 4 chiffres/caractères.";
+            return;
+        }
+        int min = int.TryParse(LockDelayInput.Text.Trim(), out int m) && m > 0 ? m : 5;
+        _lockPinHash = SecretHash.Hash(pin);
+        _lockDelayMs = min * 60 * 1000;
+        SecretVault.Save("lock", new Dictionary<string, string>
+        {
+            ["pin"] = _lockPinHash,
+            ["delay"] = min.ToString()
+        });
+        LockPinInput.Clear();
+        LockStatus.Text = $"Verrou actif — après {min} min d'inactivité.";
+        Log($"Verrou de session activé ({min} min).");
+        StartLockWatcher();
+    }
+
+    private void OnDisableLock(object sender, RoutedEventArgs e)
+    {
+        // Désactiver le verrou exige le PIN (ou le mot de passe anti-altération).
+        if (!string.IsNullOrEmpty(_lockPinHash))
+        {
+            var prompt = new PromptWindow("Verrou de session",
+                "Saisissez le PIN pour désactiver le verrou.", "Désactiver") { Owner = this };
+            if (prompt.ShowDialog() != true || !SecretHash.Verify(prompt.Value, _lockPinHash))
+            {
+                LockStatus.Text = "PIN incorrect — verrou conservé.";
+                return;
+            }
+        }
+        _lockPinHash = null;
+        _lockTimer?.Stop();
+        SecretVault.Delete("lock");
+        LockStatus.Text = "Verrou désactivé.";
+        Log("Verrou de session désactivé.");
+    }
+
+    private void OnLockNow(object sender, RoutedEventArgs e)
+    {
+        if (string.IsNullOrEmpty(_lockPinHash))
+        {
+            LockStatus.Text = "Définissez d'abord un PIN, puis « Activer ».";
+            return;
+        }
+        ShowLockScreen();
     }
 
     private void OnRealtimeThreat(FileScanResult result)
@@ -1612,7 +1812,13 @@ public partial class MainWindow : Window
             menu.Items.Add("Ouvrir IATECH-SHIELD", null, (_, _) => ShowFromTray());
             menu.Items.Add("Analyse rapide", null, (_, _) => { ShowFromTray(); OnQuickScan(this, new RoutedEventArgs()); });
             menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
-            menu.Items.Add("Quitter", null, (_, _) => { _reallyExit = true; Close(); });
+            menu.Items.Add("Quitter", null, (_, _) =>
+            {
+                ShowFromTray();
+                if (!RequireTamperAuth("Quitter IATECH-SHIELD")) return;
+                _reallyExit = true;
+                Close();
+            });
             _tray.ContextMenuStrip = menu;
             _tray.DoubleClick += (_, _) => ShowFromTray();
         }
