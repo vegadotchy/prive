@@ -1,0 +1,14 @@
+[
+  {
+    "name": "EICAR-Test-File",
+    "severity": "high",
+    "type": "sha256",
+    "value": "275A021BBFB6489E54D471899F7DB9D1663FC695EC2FE2A2C4538AABF651FD0F"
+  },
+  {
+    "name": "Demo-Suspicious-Marker",
+    "severity": "low",
+    "type": "textPattern",
+    "value": "IATECH_SHIELD_DEMO_MALWARE_MARKER"
+  }
+]

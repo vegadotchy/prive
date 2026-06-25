@@ -1,0 +1,10 @@
+# Build .NET
+bin/
+obj/
+*.user
+
+# Quarantaine locale (ne jamais committer)
+**/quarantine/
+
+# Sortie de l'installateur Inno Setup
+installer/Output/
