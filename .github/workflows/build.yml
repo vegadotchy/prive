@@ -1,0 +1,50 @@
+name: Build IATECH-SHIELD PRO (.exe)
+
+# Compile l'exécutable autonome et l'installateur .exe sur une machine Windows
+# fournie par GitHub. Le résultat est téléchargeable dans l'onglet "Actions".
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch: {}   # permet de lancer le build à la main depuis l'onglet Actions
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Installer .NET SDK 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Publier l'exécutable autonome (win-x64)
+        run: >
+          dotnet publish src/IatechShield/IatechShield.csproj
+          -c Release -r win-x64 --self-contained true
+          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+
+      - name: Installer Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Construire l'installateur .exe
+        run: >
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" installer\iatech-shield.iss
+
+      # 1) L'application seule (sans installateur) — utilisable telle quelle.
+      - name: Publier l'application (artefact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: iatech-shield-app-win-x64
+          path: src/IatechShield/bin/Release/net8.0/win-x64/publish/
+
+      # 2) L'installateur .exe à télécharger et lancer.
+      - name: Publier l'installateur (artefact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: IatechShield-Setup
+          path: installer/Output/*.exe
