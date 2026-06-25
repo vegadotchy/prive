@@ -98,6 +98,7 @@ public partial class MainWindow : Window
         PageVpn.Visibility = Visibility.Collapsed;
         PageVault.Visibility = Visibility.Collapsed;
         PageCentre.Visibility = Visibility.Collapsed;
+        PageIntegrity.Visibility = Visibility.Collapsed;
         PageCopilot.Visibility = Visibility.Collapsed;
         PageDevice.Visibility = Visibility.Collapsed;
         PageSystem.Visibility = Visibility.Collapsed;
@@ -115,6 +116,7 @@ public partial class MainWindow : Window
             "VPN" => PageVpn,
             "Coffre-fort" => PageVault,
             "Centre" => PageCentre,
+            "Intégrité" => PageIntegrity,
             "Copilote" => PageCopilot,
             "Appareil" => PageDevice,
             "Système" => PageSystem,
@@ -171,6 +173,7 @@ public partial class MainWindow : Window
         ["Radar"]      = Color.FromRgb(0x06, 0xB6, 0xD4), // cyan radar
         ["Coffre-fort"] = Color.FromRgb(0xFB, 0xBF, 0x24), // or
         ["Centre"]     = Color.FromRgb(0xEF, 0x44, 0x44), // rouge sécurité
+        ["Intégrité"]  = Color.FromRgb(0x34, 0xD3, 0x99), // vert santé
         ["Copilote"]   = Color.FromRgb(0x8B, 0x5C, 0xF6), // violet IA
         ["Appareil"]   = Color.FromRgb(0xEC, 0x48, 0x99), // rose
         ["Système"]    = Color.FromRgb(0x60, 0xA5, 0xFA), // bleu clair
@@ -630,6 +633,37 @@ public partial class MainWindow : Window
         finally
         {
             ScoreRefreshButton.IsEnabled = true;
+        }
+    }
+
+    private async void OnRefreshIntegrity(object sender, RoutedEventArgs e)
+    {
+        IntegrityRefreshButton.IsEnabled = false;
+        IntegrityStatus.Text = "Mesure en cours…";
+        try
+        {
+            var sec = await SecurityScore.EvaluateAsync(_monitor is not null, TamperEnabled);
+            var report = await IntegrityDashboard.EvaluateAsync(sec.Score);
+
+            IntegrityOverall.Text = report.Overall.ToString();
+            IntegrityOverall.Foreground = new SolidColorBrush(ScoreColor(report.Overall));
+            IntegrityList.ItemsSource = report.Pillars.Select(p => new PillarItem
+            {
+                Name = p.Name,
+                Display = p.Available ? p.Score.ToString() : "N/A",
+                Detail = p.Detail,
+                Color = new SolidColorBrush(p.Available ? ScoreColor(p.Score) : Color.FromRgb(0x64, 0x74, 0x8B))
+            }).ToList();
+            IntegrityStatus.Text = $"Santé globale : {report.Overall}/100.";
+            Log($"Tableau d'intégrité : {report.Overall}/100.");
+        }
+        catch (Exception ex)
+        {
+            IntegrityStatus.Text = $"Erreur : {ex.Message}";
+        }
+        finally
+        {
+            IntegrityRefreshButton.IsEnabled = true;
         }
     }
 
@@ -2516,6 +2550,15 @@ public sealed class ChatMessage
     public string Text { get; init; } = "";
     public Brush Bubble { get; init; } = Brushes.Transparent;
     public HorizontalAlignment Align { get; init; } = HorizontalAlignment.Left;
+}
+
+/// <summary>Une carte de pilier du tableau d'intégrité.</summary>
+public sealed class PillarItem
+{
+    public string Name { get; init; } = "";
+    public string Display { get; init; } = "";
+    public string Detail { get; init; } = "";
+    public Brush Color { get; init; } = Brushes.Gray;
 }
 
 /// <summary>Ligne d'un critère du score de sécurité.</summary>
