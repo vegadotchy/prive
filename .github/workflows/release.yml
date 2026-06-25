@@ -1,0 +1,72 @@
+name: Release IATECH-SHIELD PRO
+
+# Publie une Release GitHub avec l'installateur .exe et l'application autonome.
+# Déclenchement : à la création d'un tag de version (ex: v0.1.0), ou manuellement.
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write   # nécessaire pour créer la Release et y joindre des fichiers
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Installer .NET SDK 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Publier l'interface graphique (WPF, win-x64)
+        run: >
+          dotnet publish src/IatechShield.Gui/IatechShield.Gui.csproj
+          -c Release -r win-x64 --self-contained true
+          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+          -o dist
+
+      - name: Publier la CLI (win-x64)
+        run: >
+          dotnet publish src/IatechShield/IatechShield.csproj
+          -c Release -r win-x64 --self-contained true
+          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+          -o dist
+
+      - name: Installer Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Construire l'installateur .exe
+        run: >
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" installer\iatech-shield.iss
+
+      - name: Compresser l'application autonome
+        run: Compress-Archive -Path dist\* -DestinationPath IatechShield-App-win-x64.zip -Force
+
+      - name: Publier la Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: IATECH-SHIELD PRO ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          body: |
+            ## IATECH-SHIELD PRO — antivirus Windows
+
+            **Téléchargements :**
+            - `IatechShield-Setup-*.exe` — installateur Windows (recommandé)
+            - `IatechShield-App-win-x64.zip` — application autonome (sans installation)
+
+            > ⚠️ L'application demande les droits administrateur (UAC) au lancement.
+            > Windows SmartScreen peut afficher « éditeur inconnu » (exe non signé) :
+            > cliquez sur « Informations complémentaires » → « Exécuter quand même ».
+          files: |
+            installer/Output/*.exe
+            IatechShield-App-win-x64.zip
