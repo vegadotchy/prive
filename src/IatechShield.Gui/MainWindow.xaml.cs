@@ -266,18 +266,127 @@ public partial class MainWindow : Window
 
     private readonly VpnManager _vpn = new();
     private bool _vpnLoaded;
+    private bool _vpnProfilesLoading;
+    private bool _vpnConnected;
+
+    private const string VpnProfilesKey = "vpn_profiles";
 
     private void LoadVpnSettings()
     {
         if (_vpnLoaded) return;
         _vpnLoaded = true;
-        var s = SecretVault.Load("vpn");
+        RefreshVpnProfileBox(null);
+        ApplyProfileMap(SecretVault.Load("vpn")); // dernier profil utilisé
+        UpdatePskVisibility();
+    }
+
+    private void ApplyProfileMap(IReadOnlyDictionary<string, string> s)
+    {
         if (s.TryGetValue("server", out var srv)) VpnServer.Text = srv;
         if (s.TryGetValue("user", out var usr)) VpnUser.Text = usr;
         if (s.TryGetValue("password", out var pwd)) VpnPassword.Password = pwd;
         if (s.TryGetValue("psk", out var psk)) VpnPsk.Password = psk;
-        if (s.TryGetValue("type", out var t) && int.TryParse(t, out int ti) && ti < VpnType.Items.Count)
+        if (s.TryGetValue("type", out var t) && int.TryParse(t, out int ti) && ti >= 0 && ti < VpnType.Items.Count)
             VpnType.SelectedIndex = ti;
+    }
+
+    private Dictionary<string, string> CurrentProfileMap() => new()
+    {
+        ["server"] = VpnServer.Text.Trim(),
+        ["user"] = VpnUser.Text.Trim(),
+        ["password"] = VpnPassword.Password,
+        ["psk"] = VpnPsk.Password,
+        ["type"] = VpnType.SelectedIndex.ToString()
+    };
+
+    // --- Profils nommés (plusieurs serveurs VPN) ---
+
+    private static Dictionary<string, Dictionary<string, string>> LoadVpnProfiles()
+    {
+        var raw = SecretVault.Load(VpnProfilesKey);
+        var result = new Dictionary<string, Dictionary<string, string>>();
+        foreach (var (name, json) in raw)
+        {
+            try
+            {
+                var map = JsonSerializer.Deserialize<Dictionary<string, string>>(json);
+                if (map is not null) result[name] = map;
+            }
+            catch { /* entrée corrompue ignorée */ }
+        }
+        return result;
+    }
+
+    private static void SaveVpnProfiles(Dictionary<string, Dictionary<string, string>> profiles)
+    {
+        var raw = new Dictionary<string, string>();
+        foreach (var (name, map) in profiles)
+            raw[name] = JsonSerializer.Serialize(map);
+        SecretVault.Save(VpnProfilesKey, raw);
+    }
+
+    private void RefreshVpnProfileBox(string? select)
+    {
+        _vpnProfilesLoading = true;
+        string current = select ?? (VpnProfileBox.Text ?? "");
+        VpnProfileBox.Items.Clear();
+        foreach (var name in LoadVpnProfiles().Keys.OrderBy(n => n))
+            VpnProfileBox.Items.Add(name);
+        VpnProfileBox.Text = current;
+        _vpnProfilesLoading = false;
+    }
+
+    private void OnVpnProfileSelected(object sender, SelectionChangedEventArgs e)
+    {
+        if (_vpnProfilesLoading || VpnProfileBox.SelectedItem is not string name)
+            return;
+        var profiles = LoadVpnProfiles();
+        if (profiles.TryGetValue(name, out var map))
+        {
+            ApplyProfileMap(map);
+            UpdatePskVisibility();
+            VpnLog.Text = $"Profil « {name} » chargé.";
+        }
+    }
+
+    private void OnVpnSaveProfile(object sender, RoutedEventArgs e)
+    {
+        string name = (VpnProfileBox.Text ?? "").Trim();
+        if (name.Length == 0)
+        {
+            VpnLog.Text = "Donnez un nom au profil avant d'enregistrer.";
+            return;
+        }
+        var profiles = LoadVpnProfiles();
+        profiles[name] = CurrentProfileMap();
+        SaveVpnProfiles(profiles);
+        RefreshVpnProfileBox(name);
+        VpnLog.Text = $"Profil « {name} » enregistré.";
+    }
+
+    private void OnVpnDeleteProfile(object sender, RoutedEventArgs e)
+    {
+        string name = (VpnProfileBox.Text ?? "").Trim();
+        var profiles = LoadVpnProfiles();
+        if (name.Length == 0 || !profiles.Remove(name))
+        {
+            VpnLog.Text = "Aucun profil de ce nom à supprimer.";
+            return;
+        }
+        SaveVpnProfiles(profiles);
+        VpnProfileBox.Text = "";
+        RefreshVpnProfileBox(null);
+        VpnLog.Text = $"Profil « {name} » supprimé.";
+    }
+
+    private void OnVpnTypeChanged(object sender, SelectionChangedEventArgs e) => UpdatePskVisibility();
+
+    private void UpdatePskVisibility()
+    {
+        // La clé pré-partagée ne concerne que L2TP/IPSec (et le mode Automatique).
+        if (VpnPskPanel is null) return;
+        int idx = VpnType.SelectedIndex;
+        VpnPskPanel.Visibility = (idx == 0 || idx == 3) ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private VpnProfile CurrentVpnProfile() => new()
@@ -297,6 +406,7 @@ public partial class MainWindow : Window
 
     private void SetVpnUi(bool connected)
     {
+        _vpnConnected = connected;
         VpnDot.Fill = new SolidColorBrush(connected
             ? Color.FromRgb(0x10, 0xB9, 0x81) : Color.FromRgb(0x64, 0x74, 0x8B));
         VpnStatus.Text = connected ? "Connecté" : "Déconnecté";
@@ -359,14 +469,8 @@ public partial class MainWindow : Window
 
     private void SaveVpnSettings(VpnProfile p)
     {
-        SecretVault.Save("vpn", new Dictionary<string, string>
-        {
-            ["server"] = p.Server,
-            ["user"] = p.Username,
-            ["password"] = p.Password,
-            ["psk"] = p.PreSharedKey,
-            ["type"] = VpnType.SelectedIndex.ToString()
-        });
+        // Mémorise le dernier profil utilisé (rechargé au prochain démarrage).
+        SecretVault.Save("vpn", CurrentProfileMap());
     }
 
     // ----------------------------------------------- réputation VirusTotal ---
@@ -1849,6 +1953,13 @@ public partial class MainWindow : Window
             Hide();
             Notify("IATECH-SHIELD PRO", "La protection continue en arrière-plan. Clic droit sur l'icône pour quitter.");
             return;
+        }
+
+        // Coupe le VPN à la fermeture réelle de l'application.
+        if (_vpnConnected)
+        {
+            try { _vpn.DisconnectAsync().GetAwaiter().GetResult(); }
+            catch { /* déconnexion best-effort */ }
         }
 
         _monitor?.Dispose();

@@ -861,6 +861,24 @@
 
                                 <Border Style="{StaticResource Card}">
                                     <StackPanel>
+                                        <!-- Profils enregistrés -->
+                                        <Grid Margin="0,0,0,12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="Profil VPN (sélectionner ou nommer pour enregistrer)" Foreground="{StaticResource TextMutedBrush}" FontSize="10"/>
+                                                <ComboBox x:Name="VpnProfileBox" IsEditable="True" Margin="0,3,0,0"
+                                                          SelectionChanged="OnVpnProfileSelected"/>
+                                            </StackPanel>
+                                            <Button x:Name="VpnSaveProfileButton" Grid.Column="1" Style="{StaticResource GhostButton}"
+                                                    Content="Enregistrer" Click="OnVpnSaveProfile" Margin="8,16,0,0" VerticalAlignment="Top"/>
+                                            <Button x:Name="VpnDeleteProfileButton" Grid.Column="2" Style="{StaticResource GhostButton}"
+                                                    Content="Supprimer" Click="OnVpnDeleteProfile" Margin="8,16,0,0" VerticalAlignment="Top"/>
+                                        </Grid>
+
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*"/>
@@ -888,7 +906,8 @@
                                             </StackPanel>
                                             <StackPanel Grid.Column="2">
                                                 <TextBlock Text="Type" Foreground="{StaticResource TextMutedBrush}" FontSize="10"/>
-                                                <ComboBox x:Name="VpnType" Margin="0,3,0,0" SelectedIndex="0">
+                                                <ComboBox x:Name="VpnType" Margin="0,3,0,0" SelectedIndex="0"
+                                                          SelectionChanged="OnVpnTypeChanged">
                                                     <ComboBoxItem Content="L2TP/IPSec"/>
                                                     <ComboBoxItem Content="SSTP"/>
                                                     <ComboBoxItem Content="PPTP"/>
