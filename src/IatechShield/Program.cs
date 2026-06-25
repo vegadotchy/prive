@@ -27,6 +27,8 @@ internal static class Program
             {
                 "scan"       => CmdScan(rest),
                 "watch"      => CmdWatch(rest),
+                "trust"      => CmdTrust(rest),
+                "guard"      => CmdGuard(rest),
                 "quarantine" => CmdQuarantine(rest),
                 "version"    => CmdVersion(),
                 _            => Unknown(command)
@@ -154,6 +156,94 @@ internal static class Program
         return 0;
     }
 
+    // -------------------------------------------------------- score de confiance -
+
+    private static int CmdTrust(string[] args)
+    {
+        if (args.Length == 0)
+        {
+            Console.Error.WriteLine("Usage : iatech-shield trust <fichier.exe>");
+            return 2;
+        }
+
+        string file = args[0];
+        if (!File.Exists(file))
+        {
+            Console.Error.WriteLine($"Fichier introuvable : {file}");
+            return 2;
+        }
+
+        var score = new AppTrustScorer().Evaluate(file);
+
+        PrintBanner();
+        Console.WriteLine($"Fichier  : {score.Path}");
+        Console.WriteLine($"Éditeur  : {score.Publisher ?? "inconnu"}");
+        Console.WriteLine($"Signature: {(score.SignatureValid ? "valide" : "non valide / absente")}");
+        Console.WriteLine($"Score    : {score.Score}/100  [{Band(score.Band)}]");
+        Console.WriteLine("Détails  :");
+        foreach (string r in score.Reasons)
+            Console.WriteLine($"   - {r}");
+        return score.Band == TrustBand.Dangerous ? 1 : 0;
+    }
+
+    private static string Band(TrustBand b) => b switch
+    {
+        TrustBand.Trusted => "FIABLE",
+        TrustBand.Watch => "À SURVEILLER",
+        _ => "DANGEREUX"
+    };
+
+    // ------------------------------------------------------ anti-ransomware ----
+
+    private static int CmdGuard(string[] args)
+    {
+        string[] folders = args.Length > 0 ? args : DefaultSensitiveFolders();
+        var guard = new RansomwareGuard(folders);
+        var culler = new ProcessCuller();
+
+        PrintBanner();
+        Console.WriteLine("Bouclier anti-ransomware actif sur :");
+        foreach (string f in folders)
+            Console.WriteLine($"   - {f}");
+        Console.WriteLine("Appuyez sur Ctrl+C pour arrêter.");
+        Console.WriteLine(new string('-', 60));
+
+        guard.Alert += alert =>
+        {
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] ALERTE RANSOMWARE : {alert.Reason}");
+            var culprit = culler.FindTopWriter();
+            if (culprit is not null)
+            {
+                bool killed = culler.Kill(culprit.Pid);
+                Console.WriteLine($"   Processus suspect : {culprit.Name} (PID {culprit.Pid}) — " +
+                                  (killed ? "ARRÊTÉ" : "impossible à arrêter"));
+            }
+            else
+            {
+                Console.WriteLine("   Aucun processus écrivain dominant identifié.");
+            }
+            guard.Rearm();
+        };
+
+        guard.Start();
+
+        var done = new ManualResetEventSlim(false);
+        Console.CancelKeyPress += (_, e) => { e.Cancel = true; done.Set(); };
+        done.Wait();
+
+        guard.RemoveCanaries();
+        guard.Dispose();
+        Console.WriteLine("Bouclier arrêté.");
+        return 0;
+    }
+
+    private static string[] DefaultSensitiveFolders() => new[]
+    {
+        Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+        Environment.GetFolderPath(Environment.SpecialFolder.MyPictures),
+        Environment.GetFolderPath(Environment.SpecialFolder.Desktop)
+    };
+
     // ---------------------------------------------------------- quarantine ---
 
     private static int CmdQuarantine(string[] args)
@@ -246,6 +336,8 @@ internal static class Program
             Commandes :
               scan <chemin> [--quarantine]    Analyse un fichier ou un dossier (récursif).
               watch <dossier> [--quarantine]  Surveillance temps réel d'un dossier.
+              trust <fichier.exe>             Calcule le score de confiance d'un programme.
+              guard [dossiers...]             Bouclier anti-ransomware (canaris + arrêt).
               quarantine list                 Liste les fichiers en quarantaine.
               quarantine restore <id>         Restaure un fichier (faux positif).
               quarantine delete <id>          Supprime définitivement un fichier.

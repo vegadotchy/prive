@@ -216,6 +216,13 @@
                                            FontSize="12" VerticalAlignment="Center"/>
                                 <ToggleButton Style="{StaticResource Switch}" HorizontalAlignment="Right"/>
                             </Grid>
+                            <Grid Margin="0,10,0,0">
+                                <TextBlock Text="Bouclier Anti-Ransomware" Foreground="{StaticResource TextPrimaryBrush}"
+                                           FontSize="12" VerticalAlignment="Center"/>
+                                <ToggleButton x:Name="RansomwareSwitch" Style="{StaticResource Switch}"
+                                              HorizontalAlignment="Right" IsChecked="False"
+                                              Checked="OnRansomwareToggled" Unchecked="OnRansomwareToggled"/>
+                            </Grid>
                         </StackPanel>
                     </Border>
                 </Grid>

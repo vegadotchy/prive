@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 using Microsoft.Win32;
 using IatechShield.Engine;
@@ -15,6 +16,8 @@ public partial class MainWindow : Window
     private Scanner? _scanner;
     private Quarantine? _quarantine;
     private RealtimeMonitor? _monitor;
+    private RansomwareGuard? _ransomGuard;
+    private readonly ProcessCuller _culler = new();
 
     private int _threatCount;
     private bool _scanning;
@@ -23,6 +26,17 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         Loaded += (_, _) => InitEngine();
+    }
+
+    // Branche l'écoute des événements matériels (clés USB) une fois la fenêtre prête.
+    protected override void OnSourceInitialized(EventArgs e)
+    {
+        base.OnSourceInitialized(e);
+        if (PresentationSource.FromVisual(this) is HwndSource source)
+        {
+            _knownDrives = new HashSet<string>(GetReadyRemovableDrives(), StringComparer.OrdinalIgnoreCase);
+            source.AddHook(WndProc);
+        }
     }
 
     // --------------------------------------------------------------- moteur ---
@@ -168,6 +182,111 @@ public partial class MainWindow : Window
         });
     }
 
+    // -------------------------------------------------------- anti-ransomware -
+
+    private void OnRansomwareToggled(object sender, RoutedEventArgs e)
+    {
+        if (RansomwareSwitch.IsChecked == true)
+        {
+            string[] folders =
+            {
+                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                Environment.GetFolderPath(Environment.SpecialFolder.MyPictures),
+                Environment.GetFolderPath(Environment.SpecialFolder.Desktop)
+            };
+            try
+            {
+                _ransomGuard = new RansomwareGuard(folders);
+                _ransomGuard.Alert += OnRansomwareAlert;
+                _ransomGuard.Start();
+                ScanStatusText.Text = "Bouclier anti-ransomware actif (Documents, Images, Bureau).";
+            }
+            catch (Exception ex)
+            {
+                ScanStatusText.Text = $"Impossible d'activer le bouclier : {ex.Message}";
+                RansomwareSwitch.IsChecked = false;
+            }
+        }
+        else
+        {
+            _ransomGuard?.RemoveCanaries();
+            _ransomGuard?.Dispose();
+            _ransomGuard = null;
+            ScanStatusText.Text = "Bouclier anti-ransomware désactivé.";
+        }
+    }
+
+    private void OnRansomwareAlert(RansomwareAlert alert)
+    {
+        Dispatcher.Invoke(() =>
+        {
+            // Réaction : on cible et arrête le processus le plus actif en écriture.
+            var culprit = _culler.FindTopWriter();
+            string action = "aucun processus dominant identifié";
+            if (culprit is not null && _culler.Kill(culprit.Pid))
+                action = $"processus {culprit.Name} (PID {culprit.Pid}) arrêté";
+
+            RegisterThreat();
+            UpdateThreatUi();
+            ScanStatusText.Text = $"⚠ RANSOMWARE : {alert.Reason} — {action}.";
+            _ransomGuard?.Rearm();
+        });
+    }
+
+    // -------------------------------------------------------------- USB --------
+
+    private const int WM_DEVICECHANGE = 0x0219;
+    private const int DBT_DEVICEARRIVAL = 0x8000;
+    private HashSet<string> _knownDrives = new(StringComparer.OrdinalIgnoreCase);
+
+    private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        if (msg == WM_DEVICECHANGE && wParam.ToInt32() == DBT_DEVICEARRIVAL)
+        {
+            // Un périphérique vient d'être branché : on cherche le nouveau lecteur.
+            foreach (string drive in GetReadyRemovableDrives())
+            {
+                if (_knownDrives.Add(drive))
+                    AutoScanDrive(drive);
+            }
+        }
+        return IntPtr.Zero;
+    }
+
+    private static IEnumerable<string> GetReadyRemovableDrives()
+    {
+        foreach (var d in DriveInfo.GetDrives())
+        {
+            bool ok = false;
+            try { ok = d.IsReady && d.DriveType == DriveType.Removable; } catch { }
+            if (ok) yield return d.RootDirectory.FullName;
+        }
+    }
+
+    private async void AutoScanDrive(string drive)
+    {
+        if (_scanner is null)
+            return;
+
+        ScanStatusText.Text = $"Clé USB détectée ({drive}) — analyse automatique…";
+        var service = new ScanService(_scanner, _quarantine);
+        try
+        {
+            var report = await Task.Run(() => service.Scan(drive));
+            if (report.Threats.Count > 0)
+            {
+                _threatCount += report.Threats.Count;
+                UpdateThreatUi();
+            }
+            ScanStatusText.Text =
+                $"USB {drive} : {report.FilesScanned} fichiers, {report.Threats.Count} menace(s).";
+        }
+        catch (Exception ex)
+        {
+            ScanStatusText.Text = $"Analyse USB échouée : {ex.Message}";
+        }
+    }
+
     // ------------------------------------------------------------- affichage --
 
     private void ResetThreats()
@@ -211,6 +330,8 @@ public partial class MainWindow : Window
     private void OnClose(object sender, RoutedEventArgs e)
     {
         _monitor?.Dispose();
+        _ransomGuard?.RemoveCanaries();
+        _ransomGuard?.Dispose();
         Close();
     }
 }

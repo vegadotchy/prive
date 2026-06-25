@@ -15,9 +15,15 @@ Antivirus pédagogique et fonctionnel pour **Windows**, écrit en **C# / .NET 8*
 | Scan par signatures | ✅ | Hash SHA-256, motifs hexadécimaux et motifs texte. |
 | Quarantaine | ✅ | Isole et neutralise les fichiers détectés (réversible). |
 | Surveillance temps réel | ✅ | Analyse automatique des fichiers créés/modifiés. |
+| **Score de confiance des apps** | ✅ | Note /100 (signature Authenticode, éditeur, emplacement). |
+| **Bouclier anti-ransomware** | ✅ | Canaris + détection de modifications massives + arrêt du processus. |
+| **Auto-scan des clés USB** | ✅ | Analyse automatique à l'insertion d'un périphérique amovible. |
 | Installateur `.exe` | ✅ | Script Inno Setup (`installer/iatech-shield.iss`). |
-| Mise à jour des signatures | ⏳ | À venir (récupération depuis une source distante). |
-| Analyse heuristique | ⏳ | À venir. |
+| Détection d'anomalie / ML local | ⏳ | À venir (voir `ARCHITECTURE.md`). |
+| Module noyau (mémoire, anti-exploit) | 🔬 | Recherche — nécessite un pilote signé (voir `ARCHITECTURE.md`). |
+
+La vision complète « EDR piloté par IA » et la faisabilité de chaque couche sont
+détaillées dans **[`ARCHITECTURE.md`](ARCHITECTURE.md)**.
 
 Le projet fournit **deux exécutables** :
 - `iatech-shield-gui.exe` — l'**interface graphique** (le tableau de bord).
@@ -77,6 +83,13 @@ iatech-shield scan C:\Users\Moi\Downloads --quarantine
 
 # Surveillance temps réel d'un dossier
 iatech-shield watch C:\Users\Moi\Downloads -q
+
+# Calculer le score de confiance d'un programme
+iatech-shield trust "C:\Program Files\App\app.exe"
+
+# Bouclier anti-ransomware (dossiers sensibles par défaut si non précisés)
+iatech-shield guard
+iatech-shield guard C:\Donnees\Important
 
 # Gérer la quarantaine
 iatech-shield quarantine list
