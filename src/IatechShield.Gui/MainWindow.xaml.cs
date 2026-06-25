@@ -99,6 +99,7 @@ public partial class MainWindow : Window
         PageVault.Visibility = Visibility.Collapsed;
         PageCentre.Visibility = Visibility.Collapsed;
         PageIntegrity.Visibility = Visibility.Collapsed;
+        PageTwin.Visibility = Visibility.Collapsed;
         PageCopilot.Visibility = Visibility.Collapsed;
         PageDevice.Visibility = Visibility.Collapsed;
         PageSystem.Visibility = Visibility.Collapsed;
@@ -117,6 +118,7 @@ public partial class MainWindow : Window
             "Coffre-fort" => PageVault,
             "Centre" => PageCentre,
             "Intégrité" => PageIntegrity,
+            "Jumeau" => PageTwin,
             "Copilote" => PageCopilot,
             "Appareil" => PageDevice,
             "Système" => PageSystem,
@@ -174,6 +176,7 @@ public partial class MainWindow : Window
         ["Coffre-fort"] = Color.FromRgb(0xFB, 0xBF, 0x24), // or
         ["Centre"]     = Color.FromRgb(0xEF, 0x44, 0x44), // rouge sécurité
         ["Intégrité"]  = Color.FromRgb(0x34, 0xD3, 0x99), // vert santé
+        ["Jumeau"]     = Color.FromRgb(0x38, 0xBD, 0xF8), // bleu clair jumeau
         ["Copilote"]   = Color.FromRgb(0x8B, 0x5C, 0xF6), // violet IA
         ["Appareil"]   = Color.FromRgb(0xEC, 0x48, 0x99), // rose
         ["Système"]    = Color.FromRgb(0x60, 0xA5, 0xFA), // bleu clair
@@ -666,6 +669,83 @@ public partial class MainWindow : Window
             IntegrityRefreshButton.IsEnabled = true;
         }
     }
+
+    // -------------------------------------------- jumeau numérique / ADN ---
+
+    private readonly ObservableCollection<DiffItem> _twin = new();
+    private bool _twinBound;
+
+    private async void OnTwinCapture(object sender, RoutedEventArgs e)
+    {
+        TwinCaptureButton.IsEnabled = false;
+        TwinStatus.Text = "Capture de l'empreinte de référence…";
+        try
+        {
+            var items = await SystemFingerprint.CaptureAsync();
+            SystemFingerprint.SaveBaseline(items);
+            TwinStatus.Text = $"Empreinte de référence enregistrée ({items.Count} éléments).";
+            Log($"Jumeau numérique : empreinte de référence capturée ({items.Count} éléments).");
+        }
+        catch (Exception ex) { TwinStatus.Text = $"Erreur : {ex.Message}"; }
+        finally { TwinCaptureButton.IsEnabled = true; }
+    }
+
+    private async void OnTwinCompare(object sender, RoutedEventArgs e)
+    {
+        if (!_twinBound) { TwinList.ItemsSource = _twin; _twinBound = true; }
+        if (!SystemFingerprint.HasBaseline)
+        {
+            TwinStatus.Text = "Capturez d'abord une empreinte de référence.";
+            return;
+        }
+
+        TwinCompareButton.IsEnabled = false;
+        _twin.Clear();
+        TwinStatus.Text = "Comparaison en cours…";
+        try
+        {
+            var baseline = SystemFingerprint.LoadBaseline();
+            var current = await SystemFingerprint.CaptureAsync();
+            var diffs = SystemFingerprint.Compare(baseline, current);
+
+            bool sensitive = false;
+            foreach (var d in diffs)
+            {
+                bool risky = d.Category is "FILE" or "DRIVER" or "SERVICE" or "STARTUP";
+                if (risky) sensitive = true;
+                _twin.Add(new DiffItem
+                {
+                    Kind = d.Kind,
+                    Category = CategoryLabel(d.Category),
+                    Key = d.Key,
+                    Change = d.Kind == "Modifié" ? $"{d.Before}  →  {d.After}" : (d.After.Length > 0 ? d.After : d.Before),
+                    Color = new SolidColorBrush(
+                        d.Kind == "Supprimé" ? Color.FromRgb(0xEF, 0x44, 0x44)
+                        : d.Kind == "Ajouté" ? Color.FromRgb(0xF5, 0x9E, 0x0B)
+                        : Color.FromRgb(0x38, 0xBD, 0xF8))
+                });
+            }
+
+            TwinStatus.Text = diffs.Count == 0
+                ? "Aucune modification — le système est identique à l'empreinte de référence."
+                : $"{diffs.Count} modification(s) détectée(s).";
+            Log($"Jumeau numérique : {diffs.Count} modification(s).");
+
+            if (sensitive)
+            {
+                Notify("⚠ Jumeau numérique", "Des éléments sensibles (services/pilotes/démarrage/hosts) ont changé.");
+                CopilotAlert("Le jumeau numérique a détecté des modifications sur des éléments sensibles (services, pilotes, démarrage ou fichier hosts). Cela peut indiquer une infection ou une altération — vérifiez la liste dans l'onglet Jumeau.");
+            }
+        }
+        catch (Exception ex) { TwinStatus.Text = $"Erreur : {ex.Message}"; }
+        finally { TwinCompareButton.IsEnabled = true; }
+    }
+
+    private static string CategoryLabel(string cat) => cat switch
+    {
+        "APP" => "Logiciel", "SERVICE" => "Service", "DRIVER" => "Pilote",
+        "STARTUP" => "Démarrage", "TASK" => "Tâche", "FILE" => "Fichier", _ => cat
+    };
 
     private static Color ScoreColor(int score) => score switch
     {
@@ -2550,6 +2630,16 @@ public sealed class ChatMessage
     public string Text { get; init; } = "";
     public Brush Bubble { get; init; } = Brushes.Transparent;
     public HorizontalAlignment Align { get; init; } = HorizontalAlignment.Left;
+}
+
+/// <summary>Une différence du jumeau numérique.</summary>
+public sealed class DiffItem
+{
+    public string Kind { get; init; } = "";
+    public string Category { get; init; } = "";
+    public string Key { get; init; } = "";
+    public string Change { get; init; } = "";
+    public Brush Color { get; init; } = Brushes.Gray;
 }
 
 /// <summary>Une carte de pilier du tableau d'intégrité.</summary>
