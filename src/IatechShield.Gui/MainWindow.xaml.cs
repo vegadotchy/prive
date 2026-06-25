@@ -1,9 +1,11 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
+using System.Media;
 using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -36,6 +38,8 @@ public partial class MainWindow : Window
     private bool _scanning;
     private readonly StringBuilder _log = new();
     private readonly ObservableCollection<ThreatItem> _threats = new();
+    private readonly ObservableCollection<NetworkDeviceItem> _networkDevices = new();
+    private readonly DeviceNameStore _deviceNames = new();
 
     public MainWindow()
     {
@@ -43,6 +47,7 @@ public partial class MainWindow : Window
         Loaded += (_, _) =>
         {
             ScanResultsList.ItemsSource = _threats;
+            NetworkList.ItemsSource = _networkDevices;
             InitEngine();
             _ready = true;
             ShowPage("Dashboard");
@@ -334,6 +339,7 @@ public partial class MainWindow : Window
         var service = new ScanService(_scanner!, quarantine: null);
         int files = 0, threats = 0;
         Log($"Analyse démarrée ({targets.Count} cible(s)).");
+        SoundFx.ScanStart();
 
         try
         {
@@ -356,6 +362,7 @@ public partial class MainWindow : Window
                                 RegisterThreat();
                                 UpdateThreatUi();
                                 Log($"MENACE : {name} — {path}");
+                                SoundFx.Threat();
                             });
                         }
                         if (files % 50 == 0)
@@ -368,6 +375,7 @@ public partial class MainWindow : Window
             _threatCount = _threats.Count;
             UpdateThreatUi();
             Log($"Analyse terminée : {files} fichiers, {threats} menace(s).");
+            SoundFx.ScanDone();
         }
         catch (Exception ex)
         {
@@ -493,6 +501,7 @@ public partial class MainWindow : Window
             UpdateThreatUi();
             ScanStatusText.Text = $"Menace bloquée : {Path.GetFileName(result.Path)}";
             Log($"Temps réel — menace bloquée : {result.Path}");
+            SoundFx.Threat();
         });
     }
 
@@ -545,6 +554,7 @@ public partial class MainWindow : Window
             UpdateThreatUi();
             ScanStatusText.Text = $"⚠ RANSOMWARE : {alert.Reason} — {action}.";
             Log($"RANSOMWARE : {alert.Reason} — {action}.");
+            SoundFx.Danger();
             _ransomGuard?.Rearm();
         });
     }
@@ -904,7 +914,7 @@ public partial class MainWindow : Window
     private async void OnNetworkScan(object sender, RoutedEventArgs e)
     {
         NetScanButton.IsEnabled = false;
-        NetworkList.Items.Clear();
+        _networkDevices.Clear();
         NetStatus.Text = "Analyse du réseau en cours…";
         Log("Analyse du réseau démarrée.");
         try
@@ -912,7 +922,14 @@ public partial class MainWindow : Window
             var scanner = new NetworkScanner();
             var devices = await scanner.ScanAsync(s => Dispatcher.Invoke(() => NetStatus.Text = s));
             foreach (var d in devices)
-                NetworkList.Items.Add($"{d.Ip,-16}{Truncate(d.Name, 38),-40}{d.Mac}");
+            {
+                string key = d.Mac is not ("—" or "") ? d.Mac : d.Ip;
+                string custom = _deviceNames.Get(key) ?? d.Name;
+                _networkDevices.Add(new NetworkDeviceItem
+                {
+                    Ip = d.Ip, Mac = d.Mac, DiscoveredName = d.Name, CustomName = custom
+                });
+            }
             NetStatus.Text = $"{devices.Count} appareil(s) détecté(s).";
             Log($"Réseau : {devices.Count} appareil(s) détecté(s).");
         }
@@ -926,7 +943,18 @@ public partial class MainWindow : Window
         }
     }
 
-    private static string Truncate(string s, int max) => s.Length <= max ? s : s[..(max - 1)] + "…";
+    // Enregistre le nom personnalisé d'un appareil réseau (persistant entre les scans).
+    private void OnRenameDevice(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement fe || fe.DataContext is not NetworkDeviceItem item)
+            return;
+        string name = (item.CustomName ?? "").Trim();
+        if (name.Length == 0)
+            return;
+        _deviceNames.Set(item.Key, name);
+        NetStatus.Text = $"Appareil renommé : {item.Ip} → {name}";
+        Log($"Appareil réseau renommé : {item.Key} → {name}");
+    }
 
     // ------------------------------------------------------------ analyse URL --
 
@@ -983,4 +1011,62 @@ public sealed class ThreatItem
     public string Path { get; init; } = "";
     public string Sha { get; init; } = "";
     public string SelectedAction { get; set; } = "Mettre en quarantaine";
+}
+
+/// <summary>Un appareil réseau, avec un nom personnalisable.</summary>
+public sealed class NetworkDeviceItem
+{
+    public string Ip { get; init; } = "";
+    public string Mac { get; init; } = "";
+    public string DiscoveredName { get; init; } = "";
+    public string CustomName { get; set; } = "";
+    public string Key => Mac is not ("—" or "") ? Mac : Ip;
+}
+
+/// <summary>Mémorise les noms personnalisés des appareils réseau (fichier JSON local).</summary>
+public sealed class DeviceNameStore
+{
+    private readonly string _path;
+    private Dictionary<string, string> _map;
+
+    public DeviceNameStore()
+    {
+        string dir = System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "IatechShield");
+        System.IO.Directory.CreateDirectory(dir);
+        _path = System.IO.Path.Combine(dir, "device-names.json");
+        _map = Load();
+    }
+
+    public string? Get(string key) => _map.TryGetValue(key, out var v) ? v : null;
+
+    public void Set(string key, string name)
+    {
+        _map[key] = name;
+        try { System.IO.File.WriteAllText(_path, JsonSerializer.Serialize(_map)); } catch { }
+    }
+
+    private Dictionary<string, string> Load()
+    {
+        try
+        {
+            if (System.IO.File.Exists(_path))
+                return JsonSerializer.Deserialize<Dictionary<string, string>>(System.IO.File.ReadAllText(_path))
+                       ?? new();
+        }
+        catch { }
+        return new();
+    }
+}
+
+/// <summary>Effets sonores via les sons système Windows (aucun fichier audio requis).</summary>
+internal static class SoundFx
+{
+    public static void ScanStart() => Safe(() => SystemSounds.Asterisk.Play());
+    public static void ScanDone() => Safe(() => SystemSounds.Asterisk.Play());
+    public static void Threat() => Safe(() => SystemSounds.Exclamation.Play());
+    public static void Danger() => Safe(() => SystemSounds.Hand.Play());
+
+    private static void Safe(Action a) { try { a(); } catch { } }
 }

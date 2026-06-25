@@ -531,18 +531,54 @@
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="*"/>
                                 </Grid.RowDefinitions>
-                                <Grid Grid.Row="0" Margin="0,0,0,8">
+                                <Grid Grid.Row="0" Margin="4,0,4,8">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="160"/>
+                                        <ColumnDefinition Width="150"/>
                                         <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="200"/>
+                                        <ColumnDefinition Width="150"/>
+                                        <ColumnDefinition Width="100"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="Adresse IP" Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold" FontSize="12"/>
-                                    <TextBlock Grid.Column="1" Text="Nom de l'appareil" Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold" FontSize="12"/>
+                                    <TextBlock Grid.Column="1" Text="Nom (modifiable)" Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold" FontSize="12"/>
                                     <TextBlock Grid.Column="2" Text="Adresse MAC" Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold" FontSize="12"/>
                                 </Grid>
-                                <ListBox Grid.Row="1" x:Name="NetworkList" Background="#0A1726" BorderThickness="0"
-                                         Foreground="{StaticResource TextPrimaryBrush}" FontFamily="Consolas" FontSize="12"/>
+                                <ListBox Grid.Row="1" x:Name="NetworkList" Background="Transparent" BorderThickness="0"
+                                         Foreground="{StaticResource TextPrimaryBrush}" FontSize="12"
+                                         HorizontalContentAlignment="Stretch"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                    <ListBox.ItemContainerStyle>
+                                        <Style TargetType="ListBoxItem">
+                                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                            <Setter Property="Background" Value="Transparent"/>
+                                            <Setter Property="Padding" Value="0"/>
+                                        </Style>
+                                    </ListBox.ItemContainerStyle>
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="#22FFFFFF" CornerRadius="8" Padding="10" Margin="0,3"
+                                                    BorderBrush="#3344E0FF" BorderThickness="1">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="150"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="150"/>
+                                                        <ColumnDefinition Width="100"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="{Binding Ip}" VerticalAlignment="Center"
+                                                               Foreground="{StaticResource AccentBrush}" FontFamily="Consolas"/>
+                                                    <TextBox Grid.Column="1" Text="{Binding CustomName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                             Margin="6,0" VerticalContentAlignment="Center"
+                                                             Background="#0A1726" Foreground="{StaticResource TextPrimaryBrush}"
+                                                             BorderBrush="{StaticResource PanelStrokeBrush}" Padding="6,4"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Mac}" VerticalAlignment="Center"
+                                                               Foreground="{StaticResource TextMutedBrush}" FontFamily="Consolas" FontSize="11"/>
+                                                    <Button Grid.Column="3" Content="Renommer" Style="{StaticResource GhostButton}"
+                                                            Height="30" Click="OnRenameDevice" VerticalAlignment="Center"/>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
                             </Grid>
                         </Border>
                     </Grid>
