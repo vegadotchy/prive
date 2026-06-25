@@ -1226,6 +1226,59 @@
                                         <TextBlock x:Name="ClipboardStatus" Text="En attente d'une copie d'adresse crypto…" Foreground="{StaticResource TextMutedBrush}" FontSize="11" Margin="0,8,0,0" TextWrapping="Wrap"/>
                                     </StackPanel>
                                 </Border>
+
+                                <!-- Protection webcam & micro -->
+                                <Border Style="{StaticResource Card}" Margin="0,12,0,0">
+                                    <StackPanel>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="📷 Protection webcam &amp; micro" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="14"/>
+                                                <TextBlock Text="Liste les applications qui utilisent (ou ont utilisé) votre caméra et votre microphone." Foreground="{StaticResource TextMutedBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                            </StackPanel>
+                                            <Button x:Name="MediaScanButton" Grid.Column="1" Style="{StaticResource GhostButton}" Content="Vérifier" Click="OnScanMedia" VerticalAlignment="Center"/>
+                                        </Grid>
+                                        <ItemsControl x:Name="MediaList" Margin="0,8,0,0">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Grid Margin="0,2">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="90"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Grid.Column="0" Text="{Binding Device}" Foreground="{StaticResource AccentBrush}" FontSize="11"/>
+                                                        <TextBlock Grid.Column="1" Text="{Binding App}" Foreground="{StaticResource TextPrimaryBrush}" FontSize="11" TextTrimming="CharacterEllipsis"/>
+                                                        <TextBlock Grid.Column="2" Text="{Binding Status}" Foreground="{Binding Color}" FontSize="10" FontWeight="SemiBold"/>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <TextBlock x:Name="MediaStatus" Text="" Foreground="{StaticResource TextMutedBrush}" FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Mode Gamer -->
+                                <Border Style="{StaticResource Card}" Margin="0,12,0,0">
+                                    <StackPanel>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="🎮 Mode Gamer" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="14"/>
+                                                <TextBlock Text="Suspend les notifications et allège l'analyse, sans jamais désactiver la protection." Foreground="{StaticResource TextMutedBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                            </StackPanel>
+                                            <CheckBox x:Name="GamerModeSwitch" Grid.Column="1" Content="Activé"
+                                                      Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" Click="OnToggleGamerMode"/>
+                                        </Grid>
+                                        <TextBlock x:Name="GamerStatus" Text="Désactivé." Foreground="{StaticResource TextMutedBrush}" FontSize="11" Margin="0,8,0,0"/>
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
                         </ScrollViewer>
                     </Grid>

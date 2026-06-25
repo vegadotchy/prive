@@ -944,6 +944,62 @@ public partial class MainWindow : Window
         catch { /* persistance best-effort */ }
     }
 
+    // --------------------------------------- webcam/micro + mode gamer ---
+
+    private readonly ObservableCollection<MediaItem> _media = new();
+    private bool _mediaBound;
+    private bool _gamerMode;
+
+    private async void OnScanMedia(object sender, RoutedEventArgs e)
+    {
+        if (!_mediaBound) { MediaList.ItemsSource = _media; _mediaBound = true; }
+        MediaScanButton.IsEnabled = false;
+        _media.Clear();
+        MediaStatus.Text = "Analyse des accès caméra/micro…";
+        try
+        {
+            var accesses = await MediaAccessMonitor.ScanAsync();
+            int inUse = 0;
+            foreach (var a in accesses)
+            {
+                if (a.InUse) inUse++;
+                _media.Add(new MediaItem
+                {
+                    Device = a.Device,
+                    App = a.App,
+                    Status = a.InUse ? "EN COURS" : "déjà utilisé",
+                    Color = new SolidColorBrush(a.InUse ? Color.FromRgb(0xEF, 0x44, 0x44) : Color.FromRgb(0x64, 0x74, 0x8B))
+                });
+            }
+            MediaStatus.Text = accesses.Count == 0
+                ? "Aucun accès caméra/micro enregistré."
+                : $"{accesses.Count} application(s) — {inUse} en cours d'utilisation.";
+            if (inUse > 0)
+            {
+                Notify("📷 Webcam/micro", $"{inUse} application(s) utilisent actuellement votre caméra/micro.");
+                CopilotAlert($"{inUse} application(s) utilisent actuellement votre webcam ou votre micro. Vérifiez l'onglet Centre si ce n'est pas attendu.");
+            }
+        }
+        catch (Exception ex) { MediaStatus.Text = $"Erreur : {ex.Message}"; }
+        finally { MediaScanButton.IsEnabled = true; }
+    }
+
+    private void OnToggleGamerMode(object sender, RoutedEventArgs e)
+    {
+        _gamerMode = GamerModeSwitch.IsChecked == true;
+        try
+        {
+            using var proc = Process.GetCurrentProcess();
+            proc.PriorityClass = _gamerMode ? ProcessPriorityClass.BelowNormal : ProcessPriorityClass.Normal;
+        }
+        catch { /* priorité best-effort */ }
+
+        GamerStatus.Text = _gamerMode
+            ? "Activé : notifications suspendues, analyse allégée. Protection toujours active."
+            : "Désactivé.";
+        Log($"Mode Gamer {(_gamerMode ? "activé" : "désactivé")}.");
+    }
+
     // ------------------------------------------------------- copilote IA ---
 
     private readonly ObservableCollection<ChatMessage> _chat = new();
@@ -2541,6 +2597,7 @@ public partial class MainWindow : Window
     /// <summary>Notification système (bulle dans la barre des tâches).</summary>
     private void Notify(string title, string message)
     {
+        if (_gamerMode) return; // notifications suspendues en mode Gamer
         try { _tray?.ShowBalloonTip(4000, title, message, System.Windows.Forms.ToolTipIcon.Warning); }
         catch { }
     }
@@ -2630,6 +2687,15 @@ public sealed class ChatMessage
     public string Text { get; init; } = "";
     public Brush Bubble { get; init; } = Brushes.Transparent;
     public HorizontalAlignment Align { get; init; } = HorizontalAlignment.Left;
+}
+
+/// <summary>Un accès webcam/micro affiché.</summary>
+public sealed class MediaItem
+{
+    public string Device { get; init; } = "";
+    public string App { get; init; } = "";
+    public string Status { get; init; } = "";
+    public Brush Color { get; init; } = Brushes.Gray;
 }
 
 /// <summary>Une différence du jumeau numérique.</summary>
