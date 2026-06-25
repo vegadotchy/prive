@@ -6,7 +6,7 @@
 ; ============================================================================
 
 #define MyAppName "IATECH-SHIELD PRO"
-#define MyAppVersion "0.4.1"
+#define MyAppVersion "0.5.0"
 #define MyAppPublisher "IATECH"
 #define MyGuiExe "iatech-shield-gui.exe"
 #define MyCliExe "iatech-shield.exe"
@@ -27,10 +27,15 @@ WizardStyle=modern
 PrivilegesRequired=admin
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
+; Habillage « bouclier » de l'assistant + dialogue de choix de langue.
+WizardImageFile=wizard-large.bmp
+WizardSmallImageFile=wizard-small.bmp
+ShowLanguageDialog=yes
 
 [Languages]
 Name: "french"; MessagesFile: "compiler:Languages\French.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"
+Name: "arabic"; MessagesFile: "compiler:Languages\Arabic.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "Créer un raccourci sur le Bureau"; GroupDescription: "Raccourcis :"
@@ -54,6 +59,27 @@ Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environmen
 Filename: "{app}\{#MyGuiExe}"; Description: "Lancer {#MyAppName}"; Flags: postinstall skipifsilent nowait runascurrentuser
 
 [Code]
+var
+  ProgressPercent: TNewStaticText;
+
+procedure InitializeWizard;
+begin
+  { Étiquette de pourcentage sous la barre de progression. }
+  ProgressPercent := TNewStaticText.Create(WizardForm);
+  ProgressPercent.Parent := WizardForm.InstallingPage;
+  ProgressPercent.AutoSize := True;
+  ProgressPercent.Left := WizardForm.ProgressGauge.Left;
+  ProgressPercent.Top := WizardForm.ProgressGauge.Top + WizardForm.ProgressGauge.Height + ScaleY(8);
+  ProgressPercent.Font.Style := [fsBold];
+  ProgressPercent.Caption := '0 %';
+end;
+
+procedure CurInstallProgressChanged(CurProgress, MaxProgress: Integer);
+begin
+  if (ProgressPercent <> nil) and (MaxProgress > 0) then
+    ProgressPercent.Caption := IntToStr(Round(CurProgress * 100.0 / MaxProgress)) + ' %';
+end;
+
 function NeedsAddPath(Param: string): Boolean;
 var
   OrigPath: string;
