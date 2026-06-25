@@ -47,6 +47,8 @@
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE950;" Content="Appareil" Checked="OnNav"/>
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
+                                     Tag="&#xE77B;" Content="Système" Checked="OnNav"/>
+                        <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE713;" Content="Settings" Checked="OnNav"/>
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE7C3;" Content="Logs" Checked="OnNav"/>
@@ -347,10 +349,54 @@
                     <!-- ================== PAGE : FIREWALL ================== -->
                     <Grid x:Name="PageFirewall" Visibility="Collapsed">
                         <StackPanel>
-                            <TextBlock Text="Pare-feu" Style="{StaticResource PageTitle}"/>
-                            <TextBlock Text="Surveillance des connexions réseau."
+                            <TextBlock Text="Pare-feu et protection du réseau" Style="{StaticResource PageTitle}"/>
+                            <TextBlock Text="Personnes et systèmes pouvant accéder à vos réseaux."
                                        Foreground="{StaticResource TextMutedBrush}" FontSize="12" Margin="0,0,0,14"/>
+
+                            <!-- Profils du pare-feu -->
                             <Border Style="{StaticResource Card}">
+                                <StackPanel>
+                                    <Grid>
+                                        <TextBlock Text="Profils du pare-feu Windows" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="13"/>
+                                        <Button x:Name="FwRefreshButton" Style="{StaticResource GhostButton}" HorizontalAlignment="Right"
+                                                Content="Rafraîchir l'état" Click="OnFwRefresh"/>
+                                    </Grid>
+
+                                    <Grid Margin="0,12,0,0">
+                                        <StackPanel>
+                                            <TextBlock Text="Réseau avec domaine" Foreground="{StaticResource TextPrimaryBrush}" FontSize="12"/>
+                                            <TextBlock x:Name="FwDomainStatus" Text="—" Foreground="{StaticResource TextMutedBrush}" FontSize="10"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                            <Button Content="Activer" Tag="Domain True" Style="{StaticResource GhostButton}" Height="30" Click="OnFwAction" Margin="0,0,8,0"/>
+                                            <Button Content="Désactiver" Tag="Domain False" Style="{StaticResource GhostButton}" Height="30" Click="OnFwAction"/>
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <Grid Margin="0,10,0,0">
+                                        <StackPanel>
+                                            <TextBlock Text="Réseau privé" Foreground="{StaticResource TextPrimaryBrush}" FontSize="12"/>
+                                            <TextBlock x:Name="FwPrivateStatus" Text="—" Foreground="{StaticResource TextMutedBrush}" FontSize="10"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                            <Button Content="Activer" Tag="Private True" Style="{StaticResource GhostButton}" Height="30" Click="OnFwAction" Margin="0,0,8,0"/>
+                                            <Button Content="Désactiver" Tag="Private False" Style="{StaticResource GhostButton}" Height="30" Click="OnFwAction"/>
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <Grid Margin="0,10,0,0">
+                                        <StackPanel>
+                                            <TextBlock Text="Réseau public" Foreground="{StaticResource TextPrimaryBrush}" FontSize="12"/>
+                                            <TextBlock x:Name="FwPublicStatus" Text="—" Foreground="{StaticResource TextMutedBrush}" FontSize="10"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                            <Button Content="Activer" Tag="Public True" Style="{StaticResource GhostButton}" Height="30" Click="OnFwAction" Margin="0,0,8,0"/>
+                                            <Button Content="Désactiver" Tag="Public False" Style="{StaticResource GhostButton}" Height="30" Click="OnFwAction"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource Card}" Margin="0,12,0,0">
                                 <StackPanel>
                                     <Grid Margin="0,4">
                                         <StackPanel>
@@ -646,6 +692,55 @@
                                 </ListBox>
                             </Grid>
                         </Border>
+                    </Grid>
+
+                    <!-- =================== PAGE : SYSTÈME =================== -->
+                    <Grid x:Name="PageSystem" Visibility="Collapsed">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel>
+                                <TextBlock Text="Compte, famille &amp; performances" Style="{StaticResource PageTitle}"/>
+
+                                <!-- Protection du compte -->
+                                <Border Style="{StaticResource Card}" Margin="0,8,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="👤 Protection du compte" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="13"/>
+                                        <TextBlock x:Name="AccountUserText" Text="" Foreground="{StaticResource TextMutedBrush}" FontSize="11" Margin="0,6,0,8"/>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Button Style="{StaticResource GhostButton}" Content="Options de connexion (Windows Hello)"
+                                                    Tag="ms-settings:signinoptions" Click="OnOpenSetting" Margin="0,0,10,0"/>
+                                            <Button Style="{StaticResource GhostButton}" Content="Verrouillage dynamique"
+                                                    Tag="ms-settings:lockscreen" Click="OnOpenSetting"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Contrôle parental -->
+                                <Border Style="{StaticResource Card}" Margin="0,12,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="👪 Contrôle parental" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="13"/>
+                                        <TextBlock Text="Temps d'écran, filtrage de contenu et rapports d'activité (Microsoft Family)."
+                                                   Foreground="{StaticResource TextMutedBrush}" FontSize="11" Margin="0,6,0,8"/>
+                                        <Button Style="{StaticResource GhostButton}" HorizontalAlignment="Left"
+                                                Content="Ouvrir le contrôle parental" Tag="https://family.microsoft.com" Click="OnOpenSetting"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Performances & intégrité -->
+                                <Border Style="{StaticResource Card}" Margin="0,12,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="💚 Performances &amp; intégrité" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="13"/>
+                                        <TextBlock x:Name="PerfDiskText" Text="" Foreground="{StaticResource TextMutedBrush}" FontSize="11" Margin="0,6,0,2"/>
+                                        <TextBlock x:Name="PerfRamText" Text="" Foreground="{StaticResource TextMutedBrush}" FontSize="11" Margin="0,0,0,8"/>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Button Style="{StaticResource GhostButton}" Content="Windows Update"
+                                                    Tag="ms-settings:windowsupdate" Click="OnOpenSetting" Margin="0,0,10,0"/>
+                                            <Button x:Name="PerfRefreshButton" Style="{StaticResource GhostButton}"
+                                                    Content="Actualiser" Click="OnRefreshPerf"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
                     </Grid>
 
                     <!-- =================== PAGE : APPAREIL ================== -->

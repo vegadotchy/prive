@@ -89,6 +89,7 @@ public partial class MainWindow : Window
         PageTools.Visibility = Visibility.Collapsed;
         PageNetwork.Visibility = Visibility.Collapsed;
         PageDevice.Visibility = Visibility.Collapsed;
+        PageSystem.Visibility = Visibility.Collapsed;
         PageSettings.Visibility = Visibility.Collapsed;
         PageLogs.Visibility = Visibility.Collapsed;
 
@@ -100,6 +101,7 @@ public partial class MainWindow : Window
             "Outils" => PageTools,
             "Réseau" => PageNetwork,
             "Appareil" => PageDevice,
+            "Système" => PageSystem,
             "Settings" => PageSettings,
             "Logs" => PageLogs,
             _ => PageDashboard
@@ -112,6 +114,11 @@ public partial class MainWindow : Window
                 ? "Clé ANTHROPIC_API_KEY détectée — assistant IA actif."
                 : "Aucune clé détectée. Définissez ANTHROPIC_API_KEY pour activer l'assistant IA.";
             OnRefreshQuarantine(this, new RoutedEventArgs());
+        }
+        else if (page == PageSystem)
+        {
+            AccountUserText.Text = $"Connecté en tant que : {Environment.UserName}";
+            OnRefreshPerf(this, new RoutedEventArgs());
         }
     }
 
@@ -590,6 +597,35 @@ public partial class MainWindow : Window
         catch (Exception ex) { Log($"Ouverture du pare-feu impossible : {ex.Message}"); }
     }
 
+    private async void OnFwRefresh(object sender, RoutedEventArgs e)
+    {
+        FwDomainStatus.Text = FwPrivateStatus.Text = FwPublicStatus.Text = "Vérification…";
+        FwDomainStatus.Text = Fmt(await RunPs("(Get-NetFirewallProfile -Name Domain).Enabled"));
+        FwPrivateStatus.Text = Fmt(await RunPs("(Get-NetFirewallProfile -Name Private).Enabled"));
+        FwPublicStatus.Text = Fmt(await RunPs("(Get-NetFirewallProfile -Name Public).Enabled"));
+        Log("État des profils du pare-feu rafraîchi.");
+
+        static string Fmt(string v) => v.Trim() == "True" ? "Le pare-feu est activé ✓" : "Le pare-feu est désactivé";
+    }
+
+    private async void OnFwAction(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement fe || fe.Tag is not string tag) return;
+        var parts = tag.Split(' ');
+        if (parts.Length != 2) return;
+        string profile = parts[0], state = parts[1];
+        try
+        {
+            await RunPs($"Set-NetFirewallProfile -Name {profile} -Enabled {state}");
+            Log($"Pare-feu {profile} → {(state == "True" ? "activé" : "désactivé")}.");
+            OnFwRefresh(sender, e);
+        }
+        catch (Exception ex)
+        {
+            Log($"Modification du pare-feu impossible : {ex.Message}");
+        }
+    }
+
     private void OnListConnections(object sender, RoutedEventArgs e)
     {
         ConnectionsList.Items.Clear();
@@ -992,6 +1028,38 @@ public partial class MainWindow : Window
         UrlVerdictText.Text = $"{verdict.BandLabel}  —  {verdict.Score}/100";
         UrlReasonsText.Text = string.Join("\n", verdict.Reasons.Select(r => "• " + r));
         Log($"URL analysée : {url} → {verdict.BandLabel} ({verdict.Score}/100)");
+    }
+
+    // ---------------------------------------------------------- page Système --
+
+    private void OnOpenSetting(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement fe && fe.Tag is string target)
+            OpenShell(target);
+    }
+
+    private async void OnRefreshPerf(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var c = new DriveInfo("C");
+            if (c.IsReady)
+            {
+                double freeGb = c.TotalFreeSpace / 1024d / 1024 / 1024;
+                double totalGb = c.TotalSize / 1024d / 1024 / 1024;
+                PerfDiskText.Text = $"Disque C: {freeGb:0} Go libres sur {totalGb:0} Go.";
+            }
+        }
+        catch { PerfDiskText.Text = "Disque : information indisponible."; }
+
+        try
+        {
+            string free = await RunPs("[math]::Round((Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory/1MB,1)");
+            string total = await RunPs("[math]::Round((Get-CimInstance Win32_OperatingSystem).TotalVisibleMemorySize/1MB,1)");
+            if (free.Length > 0 && total.Length > 0)
+                PerfRamText.Text = $"Mémoire : {free} Go libres sur {total} Go.";
+        }
+        catch { PerfRamText.Text = "Mémoire : information indisponible."; }
     }
 
     // ----------------------------------------------------- sécurité appareil --
