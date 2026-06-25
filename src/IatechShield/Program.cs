@@ -64,7 +64,7 @@ internal static class Program
 
         int scanned = 0, threats = 0, errors = 0;
 
-        foreach (string file in EnumerateFiles(target))
+        foreach (string file in ScanService.EnumerateFiles(target))
         {
             var result = scanner.ScanFile(file);
             scanned++;
@@ -204,27 +204,6 @@ internal static class Program
     }
 
     // --------------------------------------------------------------- utils ---
-
-    private static IEnumerable<string> EnumerateFiles(string target)
-    {
-        if (File.Exists(target))
-        {
-            yield return target;
-            yield break;
-        }
-
-        if (!Directory.Exists(target))
-            throw new FileNotFoundException($"Cible introuvable : {target}");
-
-        var options = new EnumerationOptions
-        {
-            RecurseSubdirectories = true,
-            IgnoreInaccessible = true,
-            AttributesToSkip = FileAttributes.ReparsePoint // évite les boucles de liens
-        };
-        foreach (string file in Directory.EnumerateFiles(target, "*", options))
-            yield return file;
-    }
 
     private static SignatureDatabase LoadDatabase()
     {

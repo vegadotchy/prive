@@ -11,6 +11,7 @@ Antivirus pédagogique et fonctionnel pour **Windows**, écrit en **C# / .NET 8*
 
 | Fonction | État | Description |
 |----------|------|-------------|
+| Interface graphique (WPF) | ✅ | Tableau de bord néon : bouclier « PROTÉGÉ », scan, temps réel. |
 | Scan par signatures | ✅ | Hash SHA-256, motifs hexadécimaux et motifs texte. |
 | Quarantaine | ✅ | Isole et neutralise les fichiers détectés (réversible). |
 | Surveillance temps réel | ✅ | Analyse automatique des fichiers créés/modifiés. |
@@ -18,47 +19,52 @@ Antivirus pédagogique et fonctionnel pour **Windows**, écrit en **C# / .NET 8*
 | Mise à jour des signatures | ⏳ | À venir (récupération depuis une source distante). |
 | Analyse heuristique | ⏳ | À venir. |
 
+Le projet fournit **deux exécutables** :
+- `iatech-shield-gui.exe` — l'**interface graphique** (le tableau de bord).
+- `iatech-shield.exe` — la **ligne de commande** (automatisation, scripts).
+
 ## Compilation
 
 Prérequis : [.NET SDK 8](https://dotnet.microsoft.com/download).
 
 ```bash
-cd src/IatechShield
-dotnet build -c Release
+dotnet build -c Release src/IatechShield.Gui     # interface graphique (+ moteur)
+dotnet build -c Release src/IatechShield          # ligne de commande (+ moteur)
 ```
 
-L'exécutable est produit dans `bin/Release/net8.0/iatech-shield.exe`.
+Pour lancer l'interface graphique en développement :
+
+```bash
+dotnet run --project src/IatechShield.Gui
+```
 
 ## Produire un `.exe` installable
 
-Le projet se distribue comme un **installateur Windows `.exe`** unique. Deux étapes :
+Le projet se distribue comme un **installateur Windows `.exe`** unique qui contient
+l'interface graphique **et** la CLI.
 
-### 1. Publier un exécutable autonome (sans .NET requis sur la machine cible)
+### Méthode automatique (recommandée)
+
+Installez [Inno Setup](https://jrsoftware.org/isdl.php) (gratuit), puis depuis la
+racine du dépôt :
 
 ```bash
-cd src/IatechShield
-dotnet publish -c Release -r win-x64 --self-contained true ^
-  -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+build-installer.bat
 ```
 
-Résultat : `bin/Release/net8.0/win-x64/publish/iatech-shield.exe` (+ `signatures.json`).
+Ce script publie l'interface graphique + la CLI dans `dist/`, puis génère
+l'installateur dans `installer/Output/IatechShield-Setup-0.1.0.exe`.
 
-### 2. Construire l'installateur avec Inno Setup
+### Sans rien installer : via GitHub Actions
 
-1. Installez [Inno Setup](https://jrsoftware.org/isdl.php) (gratuit).
-2. Ouvrez `installer/iatech-shield.iss` dans Inno Setup, ou en ligne de commande :
+À chaque `push`, GitHub compile automatiquement l'installateur sur une machine
+Windows. Allez dans l'onglet **Actions** du dépôt, ouvrez le dernier build, et
+téléchargez l'artefact **`IatechShield-Setup`** (ou **`iatech-shield-app-win-x64`**
+pour l'application sans installateur).
 
-   ```bash
-   iscc installer\iatech-shield.iss
-   ```
-
-3. L'installateur est généré dans `installer/Output/IatechShield-Setup-0.1.0.exe`.
-
-Cet `.exe` installe le programme dans `Program Files`, l'ajoute au `PATH`, et crée
-une entrée dans « Ajouter/Supprimer des programmes » pour la désinstallation.
-
-> 💡 Le script `build-installer.bat` à la racine enchaîne automatiquement les
-> étapes 1 et 2.
+L'installateur place le programme dans `Program Files`, crée des raccourcis
+(Bureau + menu Démarrer), ajoute la CLI au `PATH`, et s'inscrit dans
+« Ajouter/Supprimer des programmes » pour la désinstallation.
 
 ## Utilisation
 
@@ -95,18 +101,25 @@ contenant `IATECH_SHIELD_DEMO_MALWARE_MARKER`.
 
 ```
 prive/
-├── src/IatechShield/
-│   ├── Program.cs              # Interface en ligne de commande
-│   ├── signatures.json         # Base de signatures (modifiable)
-│   └── Engine/
-│       ├── Signature.cs        # Modèle d'une signature
-│       ├── SignatureDatabase.cs# Chargement de la base JSON
-│       ├── Scanner.cs          # Moteur de détection (hash + motifs)
-│       ├── Quarantine.cs       # Isolation / restauration des fichiers
-│       └── RealtimeMonitor.cs  # Surveillance temps réel (FileSystemWatcher)
+├── src/
+│   ├── IatechShield.Core/          # Moteur partagé (bibliothèque)
+│   │   ├── signatures.json         # Base de signatures (modifiable)
+│   │   └── Engine/
+│   │       ├── Signature.cs        # Modèle d'une signature
+│   │       ├── SignatureDatabase.cs# Chargement de la base JSON
+│   │       ├── Scanner.cs          # Moteur de détection (hash + motifs)
+│   │       ├── ScanService.cs      # Orchestration d'un scan de dossier
+│   │       ├── Quarantine.cs       # Isolation / restauration des fichiers
+│   │       └── RealtimeMonitor.cs  # Surveillance temps réel (FileSystemWatcher)
+│   ├── IatechShield/               # Application en ligne de commande
+│   │   └── Program.cs
+│   └── IatechShield.Gui/           # Interface graphique (WPF)
+│       ├── App.xaml                # Thème néon (couleurs, styles)
+│       ├── MainWindow.xaml         # Tableau de bord
+│       └── MainWindow.xaml.cs      # Logique branchée au moteur
 ├── installer/
-│   └── iatech-shield.iss       # Script d'installateur Inno Setup
-└── build-installer.bat         # Publie + construit le .exe d'installation
+│   └── iatech-shield.iss           # Script d'installateur Inno Setup
+└── build-installer.bat             # Publie + construit le .exe d'installation
 ```
 
 ## Ajouter vos propres signatures

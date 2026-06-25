@@ -8,3 +8,6 @@ obj/
 
 # Sortie de l'installateur Inno Setup
 installer/Output/
+
+# Dossier de publication intermédiaire
+dist/
