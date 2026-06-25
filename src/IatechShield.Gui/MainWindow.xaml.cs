@@ -18,6 +18,7 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using Microsoft.Win32;
 using IatechShield.Engine;
+using IatechShield.Update;
 using IatechShield.Licensing;
 using IatechShield.Ai;
 using IatechShield.Tools;
@@ -118,6 +119,8 @@ public partial class MainWindow : Window
             ApiKeyStatusText.Text = AiAssistant.IsConfigured
                 ? "Clé ANTHROPIC_API_KEY détectée — assistant IA actif."
                 : "Aucune clé détectée. Définissez ANTHROPIC_API_KEY pour activer l'assistant IA.";
+            if (AppVersionText is not null)
+                AppVersionText.Text = $"Version installée : {CurrentAppVersion}";
             OnRefreshQuarantine(this, new RoutedEventArgs());
         }
         else if (page == PageSystem)
@@ -166,6 +169,85 @@ public partial class MainWindow : Window
             new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(260)) { EasingFunction = new QuadraticEase() });
         translate.BeginAnimation(TranslateTransform.YProperty,
             new DoubleAnimation(12, 0, TimeSpan.FromMilliseconds(260)) { EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut } });
+    }
+
+    // ----------------------------------------------- mise à jour de l'app ---
+
+    private ReleaseInfo? _pendingUpdate;
+
+    private static Version CurrentAppVersion =>
+        System.Reflection.Assembly.GetExecutingAssembly().GetName().Version ?? new Version(0, 1, 0);
+
+    private async void OnCheckUpdate(object sender, RoutedEventArgs e)
+    {
+        if (CheckUpdateButton is null) return;
+        CheckUpdateButton.IsEnabled = false;
+        InstallUpdateButton.Visibility = Visibility.Collapsed;
+        AppUpdateStatus.Text = "Recherche d'une mise à jour…";
+
+        try
+        {
+            var check = await AppUpdater.CheckAsync(CurrentAppVersion);
+            if (check.Error is not null && check.Latest is null)
+            {
+                AppUpdateStatus.Text = $"Impossible de vérifier : {check.Error}";
+            }
+            else if (check.UpdateAvailable && check.Latest is not null)
+            {
+                _pendingUpdate = check.Latest;
+                AppUpdateStatus.Text = $"Nouvelle version disponible : {check.Latest.Name} (vous avez {CurrentAppVersion}).";
+                InstallUpdateButton.Visibility = check.Latest.InstallerUrl is not null
+                    ? Visibility.Visible : Visibility.Collapsed;
+                Notify("Mise à jour disponible", $"IATECH-SHIELD {check.Latest.Tag} est disponible.");
+            }
+            else
+            {
+                AppUpdateStatus.Text = $"Vous avez déjà la dernière version ({CurrentAppVersion}).";
+            }
+        }
+        catch (Exception ex)
+        {
+            AppUpdateStatus.Text = $"Erreur : {ex.Message}";
+        }
+        finally
+        {
+            CheckUpdateButton.IsEnabled = true;
+        }
+    }
+
+    private async void OnInstallUpdate(object sender, RoutedEventArgs e)
+    {
+        if (_pendingUpdate?.InstallerUrl is null) return;
+
+        InstallUpdateButton.IsEnabled = false;
+        CheckUpdateButton.IsEnabled = false;
+        AppUpdateProgress.Visibility = Visibility.Visible;
+        AppUpdateProgress.Value = 0;
+        AppUpdateStatus.Text = "Téléchargement de l'installateur…";
+
+        try
+        {
+            string fileName = $"IatechShield-Setup-{_pendingUpdate.Tag}.exe";
+            var progress = new Progress<int>(p => AppUpdateProgress.Value = p);
+            string path = await AppUpdater.DownloadAsync(_pendingUpdate.InstallerUrl, fileName, progress);
+
+            AppUpdateStatus.Text = "Téléchargement terminé. Lancement de l'installateur…";
+            Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+
+            // L'installateur prend le relais : on quitte proprement l'application.
+            _reallyExit = true;
+            Close();
+        }
+        catch (Exception ex)
+        {
+            AppUpdateStatus.Text = $"Échec du téléchargement : {ex.Message}";
+            InstallUpdateButton.IsEnabled = true;
+            CheckUpdateButton.IsEnabled = true;
+        }
+        finally
+        {
+            AppUpdateProgress.Visibility = Visibility.Collapsed;
+        }
     }
 
     // --------------------------------------------------------------- moteur ---

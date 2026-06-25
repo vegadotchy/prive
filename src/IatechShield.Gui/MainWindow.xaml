@@ -494,6 +494,24 @@
                                 </StackPanel>
                             </Border>
 
+                            <!-- Mise à jour de l'application -->
+                            <Border Style="{StaticResource Card}" Margin="0,12,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="Mise à jour de l'application" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="13"/>
+                                    <TextBlock x:Name="AppVersionText" Text="Version installée : —" Foreground="{StaticResource TextMutedBrush}" FontSize="10" Margin="0,4,0,8"/>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Button x:Name="CheckUpdateButton" Style="{StaticResource GhostButton}"
+                                                Content="Rechercher une mise à jour" Click="OnCheckUpdate"/>
+                                        <Button x:Name="InstallUpdateButton" Style="{StaticResource PrimaryButton}" Margin="10,0,0,0"
+                                                Content="Télécharger et installer" Click="OnInstallUpdate" Visibility="Collapsed"/>
+                                    </StackPanel>
+                                    <TextBlock x:Name="AppUpdateStatus" Text="" Foreground="{StaticResource AccentBrush}" FontSize="11" Margin="0,8,0,0" TextWrapping="Wrap"/>
+                                    <ProgressBar x:Name="AppUpdateProgress" Height="6" Margin="0,8,0,0" Minimum="0" Maximum="100"
+                                                 Visibility="Collapsed" Foreground="{StaticResource AccentBrush}"
+                                                 Background="#1A2740" BorderThickness="0"/>
+                                </StackPanel>
+                            </Border>
+
                             <!-- Gestionnaire de quarantaine -->
                             <Border Style="{StaticResource Card}" Margin="0,12,0,0">
                                 <StackPanel>
