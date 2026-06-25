@@ -94,6 +94,7 @@ public partial class MainWindow : Window
         PageTools.Visibility = Visibility.Collapsed;
         PageNetwork.Visibility = Visibility.Collapsed;
         PageVpn.Visibility = Visibility.Collapsed;
+        PageVault.Visibility = Visibility.Collapsed;
         PageDevice.Visibility = Visibility.Collapsed;
         PageSystem.Visibility = Visibility.Collapsed;
         PageSettings.Visibility = Visibility.Collapsed;
@@ -107,6 +108,7 @@ public partial class MainWindow : Window
             "Outils" => PageTools,
             "Réseau" => PageNetwork,
             "VPN" => PageVpn,
+            "Coffre-fort" => PageVault,
             "Appareil" => PageDevice,
             "Système" => PageSystem,
             "Settings" => PageSettings,
@@ -139,6 +141,10 @@ public partial class MainWindow : Window
         {
             LoadVpnSettings();
         }
+        else if (page == PageVault)
+        {
+            LoadVault();
+        }
     }
 
     // Couleur d'accent propre à chaque onglet.
@@ -151,6 +157,7 @@ public partial class MainWindow : Window
         ["Outils"]     = Color.FromRgb(0xA7, 0x8B, 0xFA), // violet
         ["Réseau"]     = Color.FromRgb(0x2D, 0xD4, 0xBF), // turquoise
         ["VPN"]        = Color.FromRgb(0x10, 0xB9, 0x81), // vert émeraude
+        ["Coffre-fort"] = Color.FromRgb(0xFB, 0xBF, 0x24), // or
         ["Appareil"]   = Color.FromRgb(0xEC, 0x48, 0x99), // rose
         ["Système"]    = Color.FromRgb(0x60, 0xA5, 0xFA), // bleu clair
         ["Settings"]   = Color.FromRgb(0x94, 0xA3, 0xB8), // gris-bleu
@@ -471,6 +478,109 @@ public partial class MainWindow : Window
     {
         // Mémorise le dernier profil utilisé (rechargé au prochain démarrage).
         SecretVault.Save("vpn", CurrentProfileMap());
+    }
+
+    // ------------------------------------------------------------ coffre-fort ---
+
+    private readonly ObservableCollection<VaultItem> _vault = new();
+    private bool _vaultLoaded;
+
+    private sealed record VaultDto(string Id, string Title, string Username, string Password, string Url, string Notes);
+
+    private void LoadVault()
+    {
+        if (_vaultLoaded) return;
+        _vaultLoaded = true;
+        VaultList.ItemsSource = _vault;
+
+        var raw = SecretVault.Load("vault").GetValueOrDefault("data");
+        if (string.IsNullOrEmpty(raw)) return;
+        try
+        {
+            var dtos = JsonSerializer.Deserialize<List<VaultDto>>(raw) ?? new();
+            foreach (var d in dtos)
+                _vault.Add(new VaultItem { Id = d.Id, Title = d.Title, Username = d.Username, Password = d.Password, Url = d.Url, Notes = d.Notes });
+        }
+        catch { /* coffre illisible : on repart à vide sans écraser */ }
+    }
+
+    private void SaveVault()
+    {
+        var dtos = _vault.Select(v => new VaultDto(v.Id, v.Title, v.Username, v.Password, v.Url, v.Notes)).ToList();
+        SecretVault.Save("vault", new Dictionary<string, string> { ["data"] = JsonSerializer.Serialize(dtos) });
+    }
+
+    private void OnVaultAdd(object sender, RoutedEventArgs e)
+    {
+        string title = VaultTitle.Text.Trim();
+        if (title.Length == 0)
+        {
+            VaultStatus.Text = "Donnez au moins un titre.";
+            return;
+        }
+        _vault.Insert(0, new VaultItem
+        {
+            Title = title,
+            Username = VaultUser.Text.Trim(),
+            Password = VaultPassword.Text,
+            Url = VaultUrl.Text.Trim(),
+            Notes = VaultNotes.Text.Trim()
+        });
+        SaveVault();
+        VaultTitle.Clear(); VaultUser.Clear(); VaultPassword.Clear(); VaultUrl.Clear(); VaultNotes.Clear();
+        VaultStatus.Text = "Entrée ajoutée et chiffrée.";
+    }
+
+    private void OnVaultGenerate(object sender, RoutedEventArgs e)
+    {
+        const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%&*?";
+        var bytes = System.Security.Cryptography.RandomNumberGenerator.GetBytes(18);
+        var sb = new StringBuilder(bytes.Length);
+        foreach (byte b in bytes) sb.Append(chars[b % chars.Length]);
+        VaultPassword.Text = sb.ToString();
+        VaultStatus.Text = "Mot de passe fort généré.";
+    }
+
+    private void OnVaultReveal(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: VaultItem item })
+            item.Revealed = !item.Revealed;
+    }
+
+    private void OnVaultCopyUser(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: VaultItem item })
+            CopyToClipboard(item.Username, "Identifiant copié.");
+    }
+
+    private void OnVaultCopyPassword(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: VaultItem item })
+            CopyToClipboard(item.Password, "Mot de passe copié (efface le presse-papiers après usage).");
+    }
+
+    private void OnVaultDelete(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: VaultItem item })
+        {
+            _vault.Remove(item);
+            SaveVault();
+            VaultStatus.Text = "Entrée supprimée.";
+        }
+    }
+
+    private void CopyToClipboard(string text, string okMessage)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(text)) { VaultStatus.Text = "Rien à copier."; return; }
+            System.Windows.Clipboard.SetText(text);
+            VaultStatus.Text = okMessage;
+        }
+        catch (Exception ex)
+        {
+            VaultStatus.Text = $"Copie impossible : {ex.Message}";
+        }
     }
 
     // ----------------------------------------------- réputation VirusTotal ---
@@ -1977,6 +2087,35 @@ public sealed class ThreatItem
     public string Path { get; init; } = "";
     public string Sha { get; init; } = "";
     public string SelectedAction { get; set; } = "Mettre en quarantaine";
+}
+
+/// <summary>Une entrée du coffre-fort (mot de passe). Masqué par défaut.</summary>
+public sealed class VaultItem : System.ComponentModel.INotifyPropertyChanged
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString("N");
+    public string Title { get; set; } = "";
+    public string Username { get; set; } = "";
+    public string Password { get; set; } = "";
+    public string Url { get; set; } = "";
+    public string Notes { get; set; } = "";
+
+    private bool _revealed;
+    public bool Revealed
+    {
+        get => _revealed;
+        set { _revealed = value; OnChanged(nameof(Revealed)); OnChanged(nameof(DisplayPassword)); }
+    }
+
+    public string DisplayPassword => _revealed
+        ? Password
+        : (string.IsNullOrEmpty(Password) ? "" : new string('•', Math.Min(12, Math.Max(6, Password.Length))));
+
+    public System.Windows.Visibility UrlVisibility =>
+        string.IsNullOrWhiteSpace(Url) ? System.Windows.Visibility.Collapsed : System.Windows.Visibility.Visible;
+
+    public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+    private void OnChanged(string name) =>
+        PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(name));
 }
 
 /// <summary>Un appareil réseau, avec un nom personnalisable.</summary>
