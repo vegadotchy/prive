@@ -70,6 +70,7 @@ public partial class MainWindow : Window
         {
             _knownDrives = new HashSet<string>(GetReadyRemovableDrives(), StringComparer.OrdinalIgnoreCase);
             source.AddHook(WndProc);
+            try { AddClipboardFormatListener(source.Handle); } catch { /* presse-papiers indisponible */ }
         }
     }
 
@@ -95,6 +96,7 @@ public partial class MainWindow : Window
         PageNetwork.Visibility = Visibility.Collapsed;
         PageVpn.Visibility = Visibility.Collapsed;
         PageVault.Visibility = Visibility.Collapsed;
+        PageCentre.Visibility = Visibility.Collapsed;
         PageDevice.Visibility = Visibility.Collapsed;
         PageSystem.Visibility = Visibility.Collapsed;
         PageSettings.Visibility = Visibility.Collapsed;
@@ -109,6 +111,7 @@ public partial class MainWindow : Window
             "Réseau" => PageNetwork,
             "VPN" => PageVpn,
             "Coffre-fort" => PageVault,
+            "Centre" => PageCentre,
             "Appareil" => PageDevice,
             "Système" => PageSystem,
             "Settings" => PageSettings,
@@ -158,6 +161,7 @@ public partial class MainWindow : Window
         ["Réseau"]     = Color.FromRgb(0x2D, 0xD4, 0xBF), // turquoise
         ["VPN"]        = Color.FromRgb(0x10, 0xB9, 0x81), // vert émeraude
         ["Coffre-fort"] = Color.FromRgb(0xFB, 0xBF, 0x24), // or
+        ["Centre"]     = Color.FromRgb(0xEF, 0x44, 0x44), // rouge sécurité
         ["Appareil"]   = Color.FromRgb(0xEC, 0x48, 0x99), // rose
         ["Système"]    = Color.FromRgb(0x60, 0xA5, 0xFA), // bleu clair
         ["Settings"]   = Color.FromRgb(0x94, 0xA3, 0xB8), // gris-bleu
@@ -581,6 +585,145 @@ public partial class MainWindow : Window
         {
             VaultStatus.Text = $"Copie impossible : {ex.Message}";
         }
+    }
+
+    // ----------------------------------------------- centre de sécurité ---
+
+    private async void OnComputeScore(object sender, RoutedEventArgs e)
+    {
+        ScoreRefreshButton.IsEnabled = false;
+        ScoreValue.Text = "…";
+        ScoreGrade.Text = "Analyse en cours…";
+        try
+        {
+            bool realtimeOn = _monitor is not null;
+            var result = await SecurityScore.EvaluateAsync(realtimeOn, TamperEnabled);
+            ScoreValue.Text = result.Score.ToString();
+            ScoreGrade.Text = result.Grade;
+            ScoreValue.Foreground = new SolidColorBrush(ScoreColor(result.Score));
+
+            ScoreList.ItemsSource = result.Checks.Select(c => new ScoreRow
+            {
+                Name = c.Name,
+                Icon = c.Passed ? "✓" : "✗",
+                Color = new SolidColorBrush(c.Passed ? Color.FromRgb(0x34, 0xD3, 0x99) : Color.FromRgb(0xEF, 0x44, 0x44)),
+                Advice = c.Passed ? "" : c.Recommendation,
+                AdviceVisibility = c.Passed ? Visibility.Collapsed : Visibility.Visible
+            }).ToList();
+
+            Log($"Score de sécurité : {result.Score}/100 ({result.Grade}).");
+        }
+        catch (Exception ex)
+        {
+            ScoreGrade.Text = $"Erreur : {ex.Message}";
+        }
+        finally
+        {
+            ScoreRefreshButton.IsEnabled = true;
+        }
+    }
+
+    private static Color ScoreColor(int score) => score switch
+    {
+        >= 75 => Color.FromRgb(0x34, 0xD3, 0x99),
+        >= 50 => Color.FromRgb(0xF5, 0x9E, 0x0B),
+        _ => Color.FromRgb(0xEF, 0x44, 0x44)
+    };
+
+    private async void OnPanicEngage(object sender, RoutedEventArgs e)
+    {
+        var confirm = new PromptWindow("Mode Panic",
+            "Cela va couper Internet, bloquer l'USB, arrêter les processus suspects et verrouiller la session. Tapez OUI pour confirmer.",
+            "Activer") { Owner = this };
+        if (confirm.ShowDialog() != true || !string.Equals(confirm.Value.Trim(), "OUI", StringComparison.OrdinalIgnoreCase))
+        {
+            PanicStatus.Text = "Mode Panic annulé.";
+            return;
+        }
+
+        PanicButton.IsEnabled = false;
+        PanicStatus.Text = "Activation du mode Panic…";
+        Log("Mode Panic activé.");
+        Notify("🚨 Mode Panic", "Réseau coupé, USB bloqué, session verrouillée.");
+        try
+        {
+            string report = await PanicMode.EngageAsync();
+            PanicStatus.Text = "Mode Panic ACTIF.\n" + report;
+            Log("Mode Panic : " + report.Replace("\n", " "));
+        }
+        catch (Exception ex)
+        {
+            PanicStatus.Text = $"Erreur : {ex.Message}";
+        }
+        finally
+        {
+            PanicButton.IsEnabled = true;
+        }
+    }
+
+    private async void OnPanicDisengage(object sender, RoutedEventArgs e)
+    {
+        PanicOffButton.IsEnabled = false;
+        PanicStatus.Text = "Rétablissement…";
+        try
+        {
+            string report = await PanicMode.DisengageAsync();
+            PanicStatus.Text = "Mode Panic désactivé.\n" + report;
+            Log("Mode Panic désactivé.");
+        }
+        catch (Exception ex)
+        {
+            PanicStatus.Text = $"Erreur : {ex.Message}";
+        }
+        finally
+        {
+            PanicOffButton.IsEnabled = true;
+        }
+    }
+
+    // --- Surveillance du presse-papiers (anti-hijack crypto) ---
+
+    private bool _clipboardGuardOn = true;
+    private string? _lastCryptoAddress;
+    private CryptoKind _lastCryptoKind;
+
+    private void OnToggleClipboardGuard(object sender, RoutedEventArgs e)
+    {
+        _clipboardGuardOn = ClipboardGuardSwitch.IsChecked == true;
+        ClipboardStatus.Text = _clipboardGuardOn
+            ? "Surveillance active — en attente d'une copie d'adresse crypto…"
+            : "Surveillance désactivée.";
+    }
+
+    private void OnClipboardChanged()
+    {
+        if (!_clipboardGuardOn) return;
+        string text;
+        try { text = System.Windows.Clipboard.GetText(); }
+        catch { return; }
+
+        var kind = ClipboardGuard.Classify(text);
+        if (kind == CryptoKind.None) return;
+        string addr = text.Trim();
+
+        // Remplacement rapide d'une adresse par une AUTRE = signe d'un hijacker.
+        if (_lastCryptoAddress is not null && _lastCryptoKind == kind && _lastCryptoAddress != addr)
+        {
+            string msg = $"⚠ Adresse {ClipboardGuard.Label(kind)} dans le presse-papiers REMPLACÉE par une autre — possible malware voleur de crypto !";
+            ClipboardStatus.Text = msg + $"\nAvant : {_lastCryptoAddress}\nAprès : {addr}";
+            ClipboardStatus.Foreground = new SolidColorBrush(Color.FromRgb(0xEF, 0x44, 0x44));
+            SoundFx.Threat();
+            Notify("⚠ Presse-papiers compromis", "Une adresse crypto copiée a été modifiée. Vérifiez avant d'envoyer des fonds !");
+            Log("ALERTE presse-papiers : adresse crypto remplacée.");
+        }
+        else
+        {
+            ClipboardStatus.Text = $"Adresse {ClipboardGuard.Label(kind)} copiée — surveillée.";
+            ClipboardStatus.Foreground = (Brush)FindResource("AccentBrush");
+        }
+
+        _lastCryptoAddress = addr;
+        _lastCryptoKind = kind;
     }
 
     // ----------------------------------------------- réputation VirusTotal ---
@@ -1465,7 +1608,11 @@ public partial class MainWindow : Window
 
     private const int WM_DEVICECHANGE = 0x0219;
     private const int DBT_DEVICEARRIVAL = 0x8000;
+    private const int WM_CLIPBOARDUPDATE = 0x031D;
     private HashSet<string> _knownDrives = new(StringComparer.OrdinalIgnoreCase);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
+    private static extern bool AddClipboardFormatListener(IntPtr hwnd);
 
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
@@ -1473,6 +1620,8 @@ public partial class MainWindow : Window
             foreach (string drive in GetReadyRemovableDrives())
                 if (_knownDrives.Add(drive))
                     AutoScanDrive(drive);
+        else if (msg == WM_CLIPBOARDUPDATE)
+            OnClipboardChanged();
         return IntPtr.Zero;
     }
 
@@ -2116,6 +2265,16 @@ public sealed class VaultItem : System.ComponentModel.INotifyPropertyChanged
     public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
     private void OnChanged(string name) =>
         PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(name));
+}
+
+/// <summary>Ligne d'un critère du score de sécurité.</summary>
+public sealed class ScoreRow
+{
+    public string Name { get; init; } = "";
+    public string Icon { get; init; } = "";
+    public Brush Color { get; init; } = Brushes.Gray;
+    public string Advice { get; init; } = "";
+    public Visibility AdviceVisibility { get; init; } = Visibility.Collapsed;
 }
 
 /// <summary>Un appareil réseau, avec un nom personnalisable.</summary>

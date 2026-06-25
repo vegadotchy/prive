@@ -51,6 +51,8 @@
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE72E;" Content="Coffre-fort" Checked="OnNav"/>
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
+                                     Tag="&#xEA18;" Content="Centre" Checked="OnNav"/>
+                        <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE950;" Content="Appareil" Checked="OnNav"/>
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE77B;" Content="Système" Checked="OnNav"/>
@@ -1067,6 +1069,91 @@
                                 </ListBox.ItemTemplate>
                             </ListBox>
                         </Border>
+                    </Grid>
+
+                    <!-- ============ PAGE : CENTRE DE SÉCURITÉ ============ -->
+                    <Grid x:Name="PageCentre" Visibility="Collapsed">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel>
+                                <TextBlock Text="Centre de sécurité" Style="{StaticResource PageTitle}"/>
+
+                                <!-- Score de sécurité -->
+                                <Border Style="{StaticResource Card}" Margin="0,8,0,0">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0" Width="150" VerticalAlignment="Center">
+                                            <TextBlock x:Name="ScoreValue" Text="—" Foreground="{StaticResource AccentBrush}"
+                                                       FontSize="56" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="sur 100" Foreground="{StaticResource TextMutedBrush}" FontSize="11" HorizontalAlignment="Center"/>
+                                            <TextBlock x:Name="ScoreGrade" Text="" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold"
+                                                       FontSize="13" HorizontalAlignment="Center" Margin="0,4,0,8"/>
+                                            <Button x:Name="ScoreRefreshButton" Style="{StaticResource GhostButton}" Content="Évaluer"
+                                                    Click="OnComputeScore" HorizontalAlignment="Center"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Margin="16,0,0,0">
+                                            <TextBlock Text="Score de sécurité du PC" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="14"/>
+                                            <TextBlock Text="Note globale et recommandations personnalisées." Foreground="{StaticResource TextMutedBrush}" FontSize="11" Margin="0,2,0,8"/>
+                                            <ItemsControl x:Name="ScoreList">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Grid Margin="0,3">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Grid.Column="0" Text="{Binding Icon}" Foreground="{Binding Color}" FontWeight="Bold" Width="22"/>
+                                                            <StackPanel Grid.Column="1">
+                                                                <TextBlock Text="{Binding Name}" Foreground="{StaticResource TextPrimaryBrush}" FontSize="12"/>
+                                                                <TextBlock Text="{Binding Advice}" Foreground="{StaticResource TextMutedBrush}" FontSize="10"
+                                                                           TextWrapping="Wrap" Visibility="{Binding AdviceVisibility}"/>
+                                                            </StackPanel>
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Mode Panic -->
+                                <Border Style="{StaticResource Card}" Margin="0,12,0,0" BorderBrush="#E5484D" BorderThickness="1">
+                                    <StackPanel>
+                                        <TextBlock Text="🚨 Mode Panic" Foreground="#FF6B6B" FontWeight="SemiBold" FontSize="14"/>
+                                        <TextBlock Text="En cas d'urgence : coupe Internet, bloque les périphériques USB, arrête les processus suspects (lancés depuis les dossiers temporaires/Téléchargements) et verrouille la session. Réversible."
+                                                   Foreground="{StaticResource TextMutedBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,10"/>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Button x:Name="PanicButton" Content="ACTIVER LE MODE PANIC" Click="OnPanicEngage"
+                                                    Background="#E5484D" Foreground="White" BorderThickness="0" Padding="16,9" Cursor="Hand" FontWeight="Bold"/>
+                                            <Button x:Name="PanicOffButton" Style="{StaticResource GhostButton}" Content="Rétablir (réseau + USB)"
+                                                    Click="OnPanicDisengage" Margin="10,0,0,0"/>
+                                        </StackPanel>
+                                        <TextBlock x:Name="PanicStatus" Text="" Foreground="{StaticResource AccentBrush}" FontSize="11" Margin="0,10,0,0" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Surveillance du presse-papiers -->
+                                <Border Style="{StaticResource Card}" Margin="0,12,0,0">
+                                    <StackPanel>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="📋 Surveillance du presse-papiers (anti-arnaque crypto)" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="14"/>
+                                                <TextBlock Text="Détecte les malwares qui remplacent une adresse de cryptomonnaie copiée par celle d'un pirate." Foreground="{StaticResource TextMutedBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                            </StackPanel>
+                                            <CheckBox x:Name="ClipboardGuardSwitch" Grid.Column="1" Content="Activé" IsChecked="True"
+                                                      Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" Click="OnToggleClipboardGuard"/>
+                                        </Grid>
+                                        <TextBlock x:Name="ClipboardStatus" Text="En attente d'une copie d'adresse crypto…" Foreground="{StaticResource TextMutedBrush}" FontSize="11" Margin="0,8,0,0" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
                     </Grid>
 
                     <!-- =================== PAGE : APPAREIL ================== -->
