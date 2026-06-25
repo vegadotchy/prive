@@ -15,6 +15,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using Microsoft.Win32;
 using IatechShield.Engine;
 using IatechShield.Licensing;
@@ -109,6 +110,9 @@ public partial class MainWindow : Window
         };
         page.Visibility = Visibility.Visible;
 
+        ApplyTabAccent(name);
+        AnimatePageIn(page);
+
         if (page == PageSettings)
         {
             ApiKeyStatusText.Text = AiAssistant.IsConfigured
@@ -121,6 +125,47 @@ public partial class MainWindow : Window
             AccountUserText.Text = $"Connecté en tant que : {Environment.UserName}";
             OnRefreshPerf(this, new RoutedEventArgs());
         }
+    }
+
+    // Couleur d'accent propre à chaque onglet.
+    private static readonly Dictionary<string, Color> TabAccents = new()
+    {
+        ["Dashboard"]  = Color.FromRgb(0x22, 0xD3, 0xE8), // cyan
+        ["Protection"] = Color.FromRgb(0x34, 0xD3, 0x99), // vert
+        ["Scan"]       = Color.FromRgb(0x3B, 0x82, 0xF6), // bleu
+        ["Firewall"]   = Color.FromRgb(0xF5, 0x9E, 0x0B), // ambre
+        ["Outils"]     = Color.FromRgb(0xA7, 0x8B, 0xFA), // violet
+        ["Réseau"]     = Color.FromRgb(0x2D, 0xD4, 0xBF), // turquoise
+        ["Appareil"]   = Color.FromRgb(0xEC, 0x48, 0x99), // rose
+        ["Système"]    = Color.FromRgb(0x60, 0xA5, 0xFA), // bleu clair
+        ["Settings"]   = Color.FromRgb(0x94, 0xA3, 0xB8), // gris-bleu
+        ["Logs"]       = Color.FromRgb(0x64, 0x74, 0x8B), // ardoise
+    };
+
+    private void ApplyTabAccent(string name)
+    {
+        if (AccentStrip is null) return;
+        Color target = TabAccents.TryGetValue(name, out var c) ? c : TabAccents["Dashboard"];
+
+        var brush = AccentStrip.Background as SolidColorBrush;
+        if (brush is null || brush.IsFrozen)
+        {
+            brush = new SolidColorBrush((AccentStrip.Background as SolidColorBrush)?.Color ?? target);
+            AccentStrip.Background = brush;
+        }
+        brush.BeginAnimation(SolidColorBrush.ColorProperty,
+            new ColorAnimation(target, TimeSpan.FromMilliseconds(280)) { EasingFunction = new QuadraticEase() });
+    }
+
+    private static void AnimatePageIn(UIElement page)
+    {
+        var translate = new TranslateTransform();
+        page.RenderTransform = translate;
+
+        page.BeginAnimation(UIElement.OpacityProperty,
+            new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(260)) { EasingFunction = new QuadraticEase() });
+        translate.BeginAnimation(TranslateTransform.YProperty,
+            new DoubleAnimation(12, 0, TimeSpan.FromMilliseconds(260)) { EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut } });
     }
 
     // --------------------------------------------------------------- moteur ---

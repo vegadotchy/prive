@@ -102,6 +102,11 @@
                 <!-- ========================= PAGES ========================= -->
                 <Grid Grid.Row="1" Margin="0,12,0,0">
 
+                    <!-- Bande d'accent colorée par onglet (animée) -->
+                    <Border x:Name="AccentStrip" Height="3" VerticalAlignment="Top" CornerRadius="2"
+                            Background="{StaticResource AccentBrush}" Panel.ZIndex="10"
+                            HorizontalAlignment="Stretch" Margin="0,-9,0,0"/>
+
                     <!-- ================= PAGE : DASHBOARD ================= -->
                     <Grid x:Name="PageDashboard">
                         <Grid.RowDefinitions>
