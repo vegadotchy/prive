@@ -1,0 +1,97 @@
+<Window x:Class="IatechShield.Gui.LicenseWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Activation — IATECH-SHIELD PRO" Height="520" Width="560"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        FontFamily="Segoe UI">
+
+    <Border CornerRadius="16" Background="{StaticResource WindowBackground}"
+            BorderBrush="{StaticResource PanelStrokeBrush}" BorderThickness="1">
+        <Grid Margin="26">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Titre -->
+            <Grid Grid.Row="0" MouseLeftButtonDown="OnDrag" Background="Transparent">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="Activer " FontSize="20" FontWeight="Bold"
+                               Foreground="{StaticResource TextPrimaryBrush}"/>
+                    <TextBlock Text="IATECH-SHIELD PRO" FontSize="20" FontWeight="Bold"
+                               Foreground="{StaticResource AccentBrush}"/>
+                </StackPanel>
+                <Button Content="&#xE711;" Click="OnClose" Style="{x:Null}" HorizontalAlignment="Right"
+                        FontFamily="Segoe MDL2 Assets" FontSize="11" Width="30" Height="26"
+                        Foreground="{StaticResource TextMutedBrush}" Background="Transparent"
+                        BorderThickness="0" Cursor="Hand"/>
+            </Grid>
+
+            <TextBlock x:Name="TrialInfoText" Grid.Row="1" Margin="0,10,0,0"
+                       Foreground="{StaticResource TextMutedBrush}" FontSize="12" TextWrapping="Wrap"/>
+
+            <!-- Formules tarifaires -->
+            <Grid Grid.Row="2" Margin="0,18,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <Border Grid.Column="0" Style="{StaticResource Card}" Margin="0,0,6,0">
+                    <StackPanel>
+                        <TextBlock Text="Mensuel" Foreground="{StaticResource TextPrimaryBrush}"
+                                   FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                        <TextBlock Text="5 €" Foreground="{StaticResource AccentBrush}" FontSize="26"
+                                   FontWeight="Bold" HorizontalAlignment="Center" Margin="0,6,0,0"/>
+                        <TextBlock Text="par mois" Foreground="{StaticResource TextMutedBrush}"
+                                   FontSize="10" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Column="1" Style="{StaticResource Card}" Margin="6,0,6,0">
+                    <StackPanel>
+                        <TextBlock Text="Annuel" Foreground="{StaticResource TextPrimaryBrush}"
+                                   FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                        <TextBlock Text="50 €" Foreground="{StaticResource AccentBrush}" FontSize="26"
+                                   FontWeight="Bold" HorizontalAlignment="Center" Margin="0,6,0,0"/>
+                        <TextBlock Text="par an" Foreground="{StaticResource TextMutedBrush}"
+                                   FontSize="10" HorizontalAlignment="Center"/>
+                        <TextBlock Text="2 mois offerts" Foreground="{StaticResource GreenBrush}"
+                                   FontSize="10" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Column="2" Style="{StaticResource Card}" Margin="6,0,0,0"
+                        BorderBrush="{StaticResource AccentBrush}">
+                    <StackPanel>
+                        <TextBlock Text="À vie" Foreground="{StaticResource TextPrimaryBrush}"
+                                   FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                        <TextBlock Text="249,99 €" Foreground="{StaticResource AccentBrush}" FontSize="22"
+                                   FontWeight="Bold" HorizontalAlignment="Center" Margin="0,6,0,0"/>
+                        <TextBlock Text="paiement unique" Foreground="{StaticResource TextMutedBrush}"
+                                   FontSize="10" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- Saisie de la clé -->
+            <StackPanel Grid.Row="4" Margin="0,18,0,0">
+                <TextBlock Text="Saisissez votre clé de licence :" Foreground="{StaticResource TextPrimaryBrush}"
+                           FontSize="12" Margin="0,0,0,6"/>
+                <TextBox x:Name="KeyInput" FontFamily="Consolas" FontSize="12" Height="60"
+                         TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"
+                         Background="#0A1726" Foreground="{StaticResource TextPrimaryBrush}"
+                         BorderBrush="{StaticResource PanelStrokeBrush}" Padding="8"/>
+                <TextBlock x:Name="ResultText" Foreground="{StaticResource TextMutedBrush}"
+                           FontSize="11" Margin="0,8,0,0" TextWrapping="Wrap"/>
+                <Button Content="ACTIVER LA LICENCE" Style="{StaticResource PrimaryButton}"
+                        Margin="0,10,0,0" Click="OnActivate"/>
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

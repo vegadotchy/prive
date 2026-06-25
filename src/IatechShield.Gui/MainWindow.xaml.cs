@@ -7,6 +7,7 @@ using System.Windows.Interop;
 using System.Windows.Media;
 using Microsoft.Win32;
 using IatechShield.Engine;
+using IatechShield.Licensing;
 
 namespace IatechShield.Gui;
 
@@ -18,6 +19,8 @@ public partial class MainWindow : Window
     private RealtimeMonitor? _monitor;
     private RansomwareGuard? _ransomGuard;
     private readonly ProcessCuller _culler = new();
+    private readonly LicenseManager _license = new();
+    private bool _activated = true;
 
     private int _threatCount;
     private bool _scanning;
@@ -58,6 +61,65 @@ public partial class MainWindow : Window
             ScanStatusText.Text = $"Erreur moteur : {ex.Message}";
             ScanButton.IsEnabled = false;
         }
+
+        RefreshLicense();
+    }
+
+    // -------------------------------------------------------------- licence ---
+
+    private void RefreshLicense()
+    {
+        var status = _license.GetStatus(DateTimeOffset.UtcNow);
+        _activated = status.IsActivated;
+
+        var green = (Brush)FindResource("GreenBrush");
+        var accent = (Brush)FindResource("AccentBrush");
+        var alert = new SolidColorBrush(Color.FromRgb(0xFF, 0x5C, 0x5C));
+
+        switch (status.State)
+        {
+            case LicenseState.Licensed:
+                LicenseStatusText.Text = status.License!.IsLifetime
+                    ? "Licence à vie" : $"Licence {status.License.TierLabel}";
+                LicenseStatusText.Foreground = green;
+                LicenseBadge.BorderBrush = green;
+                ActivateButton.Visibility = Visibility.Collapsed;
+                break;
+            case LicenseState.TrialActive:
+                LicenseStatusText.Text = $"Essai — {status.TrialDaysRemaining} j";
+                LicenseStatusText.Foreground = accent;
+                LicenseBadge.BorderBrush = accent;
+                ActivateButton.Visibility = Visibility.Visible;
+                break;
+            default: // TrialExpired / Unlicensed
+                LicenseStatusText.Text = "Essai expiré";
+                LicenseStatusText.Foreground = alert;
+                LicenseBadge.BorderBrush = alert;
+                ActivateButton.Visibility = Visibility.Visible;
+                break;
+        }
+
+        // À la fin de l'essai sans licence, on bloque les fonctions de protection.
+        ScanButton.IsEnabled = _activated && _scanner is not null;
+        if (!_activated)
+            ScanStatusText.Text = "Période d'essai terminée — activez une licence pour continuer.";
+    }
+
+    private void OnOpenLicense(object sender, RoutedEventArgs e)
+    {
+        var status = _license.GetStatus(DateTimeOffset.UtcNow);
+        var dialog = new LicenseWindow(_license, status) { Owner = this };
+        dialog.ShowDialog();
+        if (dialog.Activated)
+            RefreshLicense();
+    }
+
+    private bool EnsureActivated()
+    {
+        if (_activated)
+            return true;
+        OnOpenLicense(this, new RoutedEventArgs());
+        return _activated;
     }
 
     private static string DefaultQuarantineDir()
@@ -80,6 +142,8 @@ public partial class MainWindow : Window
     private async void OnQuickScan(object sender, RoutedEventArgs e)
     {
         if (_scanning || _scanner is null)
+            return;
+        if (!EnsureActivated())
             return;
 
         var dialog = new OpenFolderDialog

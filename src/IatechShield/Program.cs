@@ -29,6 +29,7 @@ internal static class Program
                 "watch"      => CmdWatch(rest),
                 "trust"      => CmdTrust(rest),
                 "guard"      => CmdGuard(rest),
+                "license"    => CmdLicense(rest),
                 "quarantine" => CmdQuarantine(rest),
                 "version"    => CmdVersion(),
                 _            => Unknown(command)
@@ -244,6 +245,39 @@ internal static class Program
         Environment.GetFolderPath(Environment.SpecialFolder.Desktop)
     };
 
+    // -------------------------------------------------------------- licence ---
+
+    private static int CmdLicense(string[] args)
+    {
+        var manager = new IatechShield.Licensing.LicenseManager();
+        string sub = args.Length > 0 ? args[0].ToLowerInvariant() : "status";
+        var now = DateTimeOffset.UtcNow;
+
+        switch (sub)
+        {
+            case "status":
+                var st = manager.GetStatus(now);
+                PrintBanner();
+                Console.WriteLine($"État : {st.Message}");
+                return st.IsActivated ? 0 : 1;
+
+            case "activate":
+                if (args.Length < 2) { Console.Error.WriteLine("Usage : license activate <clé>"); return 2; }
+                var check = manager.Activate(args[1], now);
+                Console.WriteLine(check.Message);
+                return check.Valid ? 0 : 1;
+
+            case "deactivate":
+                manager.Deactivate();
+                Console.WriteLine("Licence désactivée (retour en mode essai).");
+                return 0;
+
+            default:
+                Console.Error.WriteLine("Sous-commandes : status | activate <clé> | deactivate");
+                return 2;
+        }
+    }
+
     // ---------------------------------------------------------- quarantine ---
 
     private static int CmdQuarantine(string[] args)
@@ -338,6 +372,7 @@ internal static class Program
               watch <dossier> [--quarantine]  Surveillance temps réel d'un dossier.
               trust <fichier.exe>             Calcule le score de confiance d'un programme.
               guard [dossiers...]             Bouclier anti-ransomware (canaris + arrêt).
+              license status|activate <clé>   Gère la licence / l'activation.
               quarantine list                 Liste les fichiers en quarantaine.
               quarantine restore <id>         Restaure un fichier (faux positif).
               quarantine delete <id>          Supprime définitivement un fichier.

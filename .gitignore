@@ -11,3 +11,8 @@ installer/Output/
 
 # Dossier de publication intermédiaire
 dist/
+
+# Clés privées de licence — NE JAMAIS COMMITTER
+keys/
+*.private.pem
+private.pem

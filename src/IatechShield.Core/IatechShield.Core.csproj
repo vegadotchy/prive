@@ -12,6 +12,8 @@
     <None Update="signatures.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <!-- Clé publique de licence : embarquée dans l'assembly (lue par LicenseVerifier). -->
+    <EmbeddedResource Include="Licensing\public_key.pem" />
   </ItemGroup>
 
 </Project>

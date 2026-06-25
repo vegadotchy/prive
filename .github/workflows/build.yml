@@ -37,6 +37,13 @@ jobs:
           -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
           -o dist
 
+      - name: Publier le générateur de licences (outil éditeur)
+        run: >
+          dotnet publish src/IatechShield.KeyGen/IatechShield.KeyGen.csproj
+          -c Release -r win-x64 --self-contained true
+          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+          -o keygen
+
       - name: Installer Inno Setup
         run: choco install innosetup --no-progress -y
 
@@ -57,3 +64,10 @@ jobs:
         with:
           name: IatechShield-Setup
           path: installer/Output/*.exe
+
+      # 3) Générateur de licences — réservé à l'éditeur, NE PAS distribuer aux clients.
+      - name: Publier le générateur de licences (artefact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: iatech-keygen-EDITEUR-PRIVE
+          path: keygen/

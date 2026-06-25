@@ -135,6 +135,42 @@ prive/
 └── build-installer.bat             # Publie + construit le .exe d'installation
 ```
 
+## Licences (essai 15 jours + activation)
+
+L'application fonctionne **15 jours gratuitement**, puis demande une licence.
+
+| Formule | Prix |
+|---------|------|
+| Mensuel | **5 €/mois** |
+| Annuel | **50 €/an** (2 mois offerts) |
+| À vie | **249,99 €** (paiement unique) |
+
+La sécurité repose sur une **signature cryptographique (ECDSA P-256)** :
+- l'application embarque uniquement la **clé publique** et vérifie les licences ;
+- **vous** (l'éditeur) détenez la **clé privée**, dans le générateur `iatech-keygen`.
+  Sans cette clé privée, personne ne peut forger de licence valide.
+
+### Générer des clés (outil éditeur `iatech-keygen`)
+
+```bash
+# 1. (une seule fois) créer votre paire de clés
+iatech-keygen init
+#    -> keys/private.pem  (SECRÈTE, ne jamais partager ni committer)
+#    -> keys/public_key.pem
+#    Copiez public_key.pem dans src/IatechShield.Core/Licensing/ puis recompilez.
+
+# 2. émettre des licences
+iatech-keygen issue --tier monthly
+iatech-keygen issue --tier yearly
+iatech-keygen issue --tier lifetime
+```
+
+Le client colle la clé obtenue dans **Activer** (interface) ou via
+`iatech-shield license activate <clé>`.
+
+> ⚠️ La clé privée (`keys/`) est exclue du dépôt par `.gitignore`. Conservez-la
+> hors ligne : quiconque la possède peut générer des licences.
+
 ## Ajouter vos propres signatures
 
 Éditez `signatures.json`. Trois types sont supportés :

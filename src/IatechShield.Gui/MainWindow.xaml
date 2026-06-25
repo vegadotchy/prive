@@ -64,6 +64,15 @@
                                    VerticalAlignment="Bottom" Margin="6,0,0,3"/>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <Border x:Name="LicenseBadge" Background="#0E2A3F" CornerRadius="8" Padding="10,4"
+                                BorderBrush="{StaticResource AccentBrush}" BorderThickness="1"
+                                VerticalAlignment="Center" Margin="0,0,8,0">
+                            <TextBlock x:Name="LicenseStatusText" Text="Essai" FontSize="11"
+                                       Foreground="{StaticResource AccentBrush}"/>
+                        </Border>
+                        <Button x:Name="ActivateButton" Content="Activer" Click="OnOpenLicense" Style="{x:Null}"
+                                FontSize="11" Height="26" Padding="10,0" Cursor="Hand" Margin="0,0,8,0"
+                                Foreground="White" Background="#1577C9" BorderThickness="0"/>
                         <Button Content="&#xE738;" Click="OnMinimize" Style="{x:Null}"
                                 FontFamily="Segoe MDL2 Assets" FontSize="11" Width="30" Height="26"
                                 Foreground="{StaticResource TextMutedBrush}" Background="Transparent"
