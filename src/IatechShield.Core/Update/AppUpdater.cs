@@ -71,7 +71,8 @@ public static class AppUpdater
         string notes = root.TryGetProperty("body", out var b) ? b.GetString() ?? "" : "";
         string htmlUrl = root.TryGetProperty("html_url", out var h) ? h.GetString() ?? "" : "";
 
-        string? installer = null, zip = null;
+        var exeAssets = new List<(string Name, string Url)>();
+        string? zip = null;
         if (root.TryGetProperty("assets", out var assets) && assets.ValueKind == JsonValueKind.Array)
         {
             foreach (var asset in assets.EnumerateArray())
@@ -79,12 +80,45 @@ public static class AppUpdater
                 string an = asset.TryGetProperty("name", out var anv) ? anv.GetString() ?? "" : "";
                 string adl = asset.TryGetProperty("browser_download_url", out var adv) ? adv.GetString() ?? "" : "";
                 if (adl.Length == 0) continue;
-                if (an.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) installer = adl;
+                if (an.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) exeAssets.Add((an, adl));
                 else if (an.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)) zip = adl;
             }
         }
 
+        string? installer = PickInstaller(exeAssets, tag);
         return new ReleaseInfo(tag, ParseTag(tag), name, notes, installer, zip, htmlUrl);
+    }
+
+    /// <summary>
+    /// Choisit l'installateur le plus pertinent : en priorité celui dont le nom
+    /// contient la version du tag (évite de retomber sur un asset périmé), sinon
+    /// celui dont la version intégrée est la plus élevée.
+    /// </summary>
+    private static string? PickInstaller(List<(string Name, string Url)> exeAssets, string tag)
+    {
+        if (exeAssets.Count == 0) return null;
+        if (exeAssets.Count == 1) return exeAssets[0].Url;
+
+        string ver = ParseTag(tag).ToString();
+        string verShort = string.Join('.', ParseTag(tag).ToString().Split('.').Take(3));
+
+        var exact = exeAssets.FirstOrDefault(a =>
+            a.Name.Contains(ver, StringComparison.OrdinalIgnoreCase) ||
+            a.Name.Contains(verShort, StringComparison.OrdinalIgnoreCase));
+        if (exact.Url is not null) return exact.Url;
+
+        // Sinon : la version la plus élevée détectée dans le nom de fichier.
+        return exeAssets
+            .OrderByDescending(a => ExtractVersion(a.Name))
+            .First().Url;
+    }
+
+    private static Version ExtractVersion(string name)
+    {
+        string stem = name.Contains('.') ? name[..name.LastIndexOf('.')] : name;
+        var token = stem.Split('-', '_', ' ')
+            .FirstOrDefault(t => t.TrimStart('v', 'V').Length > 0 && char.IsDigit(t.TrimStart('v', 'V')[0]));
+        return token is not null ? ParseTag(token) : new Version(0, 0, 0);
     }
 
     /// <summary>Convertit un tag « v0.2.1 » en <see cref="Version"/> (0.2.1).</summary>
