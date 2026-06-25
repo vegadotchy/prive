@@ -47,6 +47,8 @@
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE968;" Content="Réseau" Checked="OnNav"/>
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
+                                     Tag="&#xE9D9;" Content="Radar" Checked="OnNav"/>
+                        <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE8CE;" Content="VPN" Checked="OnNav"/>
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE72E;" Content="Coffre-fort" Checked="OnNav"/>
@@ -859,6 +861,68 @@
                                 </Border>
                             </StackPanel>
                         </ScrollViewer>
+                    </Grid>
+
+                    <!-- =============== PAGE : RADAR RÉSEAU =============== -->
+                    <Grid x:Name="PageRadar" Visibility="Collapsed">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <TextBlock Grid.Row="0" Text="Radar du réseau local" Style="{StaticResource PageTitle}"/>
+                        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,8,0,8">
+                            <Button x:Name="RadarButton" Style="{StaticResource PrimaryButton}" Width="200"
+                                    Content="LANCER LE RADAR" Click="OnRadarScan"/>
+                            <TextBlock x:Name="RadarStatus" Text="Détecte appareils, ports ouverts, caméras IP, NAS et objets connectés vulnérables."
+                                       Foreground="{StaticResource TextMutedBrush}" FontSize="11" VerticalAlignment="Center" Margin="14,0,0,0" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <Border Grid.Row="2" Style="{StaticResource Card}">
+                            <ListBox x:Name="RadarList" Background="Transparent" BorderThickness="0"
+                                     Foreground="{StaticResource TextPrimaryBrush}" FontSize="12"
+                                     HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                <ListBox.ItemContainerStyle>
+                                    <Style TargetType="ListBoxItem">
+                                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                        <Setter Property="Background" Value="Transparent"/>
+                                        <Setter Property="Padding" Value="0"/>
+                                    </Style>
+                                </ListBox.ItemContainerStyle>
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#22FFFFFF" CornerRadius="8" Padding="12" Margin="0,3"
+                                                BorderBrush="{Binding BorderBrush}" BorderThickness="1">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="150"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0">
+                                                    <TextBlock Text="{Binding Ip}" Foreground="{StaticResource AccentBrush}" FontFamily="Consolas" FontWeight="SemiBold"/>
+                                                    <TextBlock Text="{Binding TypeLabel}" Foreground="{StaticResource TextPrimaryBrush}" FontSize="11" Margin="0,2,0,0"/>
+                                                    <TextBlock Text="{Binding Mac}" Foreground="{StaticResource TextMutedBrush}" FontSize="9" Margin="0,1,0,0"/>
+                                                    <Border Background="#F59E0B" CornerRadius="4" Padding="5,1" Margin="0,4,0,0" HorizontalAlignment="Left"
+                                                            Visibility="{Binding NewVisibility}">
+                                                        <TextBlock Text="NOUVEAU" Foreground="#0A1726" FontSize="9" FontWeight="Bold"/>
+                                                    </Border>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                                                    <TextBlock Text="{Binding NameLine}" Foreground="{StaticResource TextPrimaryBrush}" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Text="{Binding PortsLine}" Foreground="{StaticResource TextMutedBrush}" FontSize="10" Margin="0,3,0,0" TextWrapping="Wrap"/>
+                                                    <ItemsControl ItemsSource="{Binding Risks}" Margin="0,4,0,0">
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <TextBlock Text="{Binding}" Foreground="#FF6B6B" FontSize="10" TextWrapping="Wrap" Margin="0,1"/>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Border>
                     </Grid>
 
                     <!-- ===================== PAGE : VPN ==================== -->

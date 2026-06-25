@@ -94,6 +94,7 @@ public partial class MainWindow : Window
         PageFirewall.Visibility = Visibility.Collapsed;
         PageTools.Visibility = Visibility.Collapsed;
         PageNetwork.Visibility = Visibility.Collapsed;
+        PageRadar.Visibility = Visibility.Collapsed;
         PageVpn.Visibility = Visibility.Collapsed;
         PageVault.Visibility = Visibility.Collapsed;
         PageCentre.Visibility = Visibility.Collapsed;
@@ -110,6 +111,7 @@ public partial class MainWindow : Window
             "Firewall" => PageFirewall,
             "Outils" => PageTools,
             "Réseau" => PageNetwork,
+            "Radar" => PageRadar,
             "VPN" => PageVpn,
             "Coffre-fort" => PageVault,
             "Centre" => PageCentre,
@@ -166,6 +168,7 @@ public partial class MainWindow : Window
         ["Outils"]     = Color.FromRgb(0xA7, 0x8B, 0xFA), // violet
         ["Réseau"]     = Color.FromRgb(0x2D, 0xD4, 0xBF), // turquoise
         ["VPN"]        = Color.FromRgb(0x10, 0xB9, 0x81), // vert émeraude
+        ["Radar"]      = Color.FromRgb(0x06, 0xB6, 0xD4), // cyan radar
         ["Coffre-fort"] = Color.FromRgb(0xFB, 0xBF, 0x24), // or
         ["Centre"]     = Color.FromRgb(0xEF, 0x44, 0x44), // rouge sécurité
         ["Copilote"]   = Color.FromRgb(0x8B, 0x5C, 0xF6), // violet IA
@@ -731,6 +734,100 @@ public partial class MainWindow : Window
 
         _lastCryptoAddress = addr;
         _lastCryptoKind = kind;
+    }
+
+    // ------------------------------------------------ radar réseau local ---
+
+    private readonly ObservableCollection<RadarItem> _radar = new();
+    private bool _radarBound;
+
+    private static string RadarKnownPath => System.IO.Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "IatechShield", "radar-known.json");
+
+    private async void OnRadarScan(object sender, RoutedEventArgs e)
+    {
+        if (!_radarBound) { RadarList.ItemsSource = _radar; _radarBound = true; }
+
+        RadarButton.IsEnabled = false;
+        _radar.Clear();
+        RadarStatus.Text = "Radar en cours…";
+        try
+        {
+            var known = LoadRadarKnown();
+            var radar = new LanRadar();
+            var devices = await radar.ScanAsync(s => Dispatcher.Invoke(() => RadarStatus.Text = s));
+
+            int newCount = 0, riskCount = 0;
+            foreach (var d in devices)
+            {
+                string key = d.Mac is not ("—" or "") ? d.Mac : d.Ip;
+                bool isNew = known.Count > 0 && !known.Contains(key);
+                if (isNew) newCount++;
+                if (d.Risks.Count > 0) riskCount++;
+
+                _radar.Add(new RadarItem
+                {
+                    Ip = d.Ip,
+                    Mac = d.Mac,
+                    TypeLabel = LanRadar.TypeLabel(d.Type),
+                    NameLine = d.Name,
+                    PortsLine = d.OpenPorts.Count == 0
+                        ? "Aucun port courant ouvert"
+                        : "Ports : " + string.Join(", ", d.OpenPorts.Select(p => $"{p.Number} ({p.Service})")),
+                    Risks = d.Risks.ToList(),
+                    IsNew = isNew,
+                    NewVisibility = isNew ? Visibility.Visible : Visibility.Collapsed,
+                    BorderBrush = new SolidColorBrush(
+                        d.Risks.Count > 0 ? Color.FromRgb(0xEF, 0x44, 0x44)
+                        : isNew ? Color.FromRgb(0xF5, 0x9E, 0x0B)
+                        : Color.FromArgb(0x33, 0x44, 0xE0, 0xFF))
+                });
+            }
+
+            SaveRadarKnown(devices.Select(d => d.Mac is not ("—" or "") ? d.Mac : d.Ip));
+
+            RadarStatus.Text = $"{devices.Count} appareil(s) — {newCount} nouveau(x), {riskCount} à risque.";
+            Log($"Radar réseau : {devices.Count} appareils, {newCount} nouveaux, {riskCount} à risque.");
+            if (newCount > 0 || riskCount > 0)
+            {
+                Notify("Radar réseau", $"{newCount} nouvel(s) appareil(s), {riskCount} à risque détecté(s).");
+                if (riskCount > 0)
+                    CopilotAlert($"Le radar réseau a trouvé {riskCount} appareil(s) présentant des risques (ports exposés). Consultez l'onglet Radar.");
+            }
+        }
+        catch (Exception ex)
+        {
+            RadarStatus.Text = $"Échec : {ex.Message}";
+        }
+        finally
+        {
+            RadarButton.IsEnabled = true;
+        }
+    }
+
+    private static HashSet<string> LoadRadarKnown()
+    {
+        try
+        {
+            if (File.Exists(RadarKnownPath))
+                return JsonSerializer.Deserialize<HashSet<string>>(File.ReadAllText(RadarKnownPath))
+                       ?? new(StringComparer.OrdinalIgnoreCase);
+        }
+        catch { }
+        return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static void SaveRadarKnown(IEnumerable<string> keys)
+    {
+        try
+        {
+            var known = LoadRadarKnown();
+            foreach (var k in keys) known.Add(k);
+            System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(RadarKnownPath)!);
+            File.WriteAllText(RadarKnownPath, JsonSerializer.Serialize(known));
+        }
+        catch { /* persistance best-effort */ }
     }
 
     // ------------------------------------------------------- copilote IA ---
@@ -2396,6 +2493,20 @@ public sealed class VaultItem : System.ComponentModel.INotifyPropertyChanged
     public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
     private void OnChanged(string name) =>
         PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(name));
+}
+
+/// <summary>Un appareil affiché par le radar réseau.</summary>
+public sealed class RadarItem
+{
+    public string Ip { get; init; } = "";
+    public string Mac { get; init; } = "";
+    public string TypeLabel { get; init; } = "";
+    public string NameLine { get; init; } = "";
+    public string PortsLine { get; init; } = "";
+    public List<string> Risks { get; init; } = new();
+    public bool IsNew { get; init; }
+    public Visibility NewVisibility { get; init; } = Visibility.Collapsed;
+    public Brush BorderBrush { get; init; } = Brushes.Gray;
 }
 
 /// <summary>Un message dans la conversation du copilote IA.</summary>
