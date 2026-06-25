@@ -36,7 +36,7 @@ jobs:
           elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
             echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
           else
-            echo "tag=v0.4.0" >> "$GITHUB_OUTPUT"
+            echo "tag=v0.4.1" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Récupérer le code
@@ -82,7 +82,10 @@ jobs:
           body: |
             ## IATECH-SHIELD PRO — antivirus Windows
 
-            ### Nouveautés 0.4.0
+            ### Nouveautés 0.4.1
+            - 🔒 **VPN** amélioré : **profils multiples** (enregistrer/charger/supprimer), champ « clé secrète » masqué selon le type, **déconnexion auto** à la fermeture
+
+            ### 0.4.0
             - 🔒 **VPN** intégré (client Windows L2TP/IPSec, SSTP, PPTP) — compatible serveur VPN **Synology**
             - 🛡️ **Protection par mot de passe** (anti-altération) : requis pour quitter ou désactiver le temps réel
             - 📺 **Verrou de session** : écran plein écran au logo + **code PIN** après inactivité
