@@ -36,7 +36,7 @@ jobs:
           elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
             echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
           else
-            echo "tag=v0.6.0" >> "$GITHUB_OUTPUT"
+            echo "tag=v0.7.0" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Récupérer le code
@@ -82,7 +82,15 @@ jobs:
           body: |
             ## IATECH-SHIELD PRO — antivirus Windows
 
-            ### Nouveautés 0.6.0
+            ### Nouveautés 0.7.0
+            - 📡 **Radar du réseau local** : appareils, ports, type (routeur/caméra IP/NAS/imprimante/objet connecté), vulnérabilités, alerte « nouveau »
+            - 💚 **Tableau de bord d'intégrité** : Sécurité, Performances, Confidentialité, Vulnérabilités, Température, Santé SSD, Batterie
+            - 🧬 **Jumeau numérique & ADN des logiciels** : empreinte complète du système + détection de toute modification anormale
+            - 📷 **Protection webcam/micro** · 🎮 **Mode Gamer** (notifications suspendues, analyse allégée)
+            - 🕵️ **Centre d'investigation** : chronologie forensique des incidents + **export de rapport**
+            - ✨ **Écran de démarrage doré** « POWERED BY IATECHFUTUR »
+
+            ### 0.6.0
             - 🛡️ **Centre de sécurité** : **score /100** + recommandations, **Mode Panic** (coupe réseau/USB, arrête processus suspects, verrouille), **surveillance du presse-papiers** (anti-vol crypto)
             - 🤖 **Copilote cybersécurité (IA)** : conversation, **relecture des menaces** en langage clair, **détection d'arnaques** (phishing), **analyse prédictive** d'un fichier, alertes proactives *(nécessite ANTHROPIC_API_KEY)*
 
