@@ -21,6 +21,12 @@ public sealed class Scanner
     // Au-delà de cette taille on ne fait que le hash (pas de recherche de motif en mémoire).
     private const long MaxPatternScanBytes = 64L * 1024 * 1024; // 64 Mo
 
+    /// <summary>
+    /// Active la détection heuristique (sans signature) lorsqu'aucune signature
+    /// connue ne correspond. Désactivable pour ne garder que les signatures.
+    /// </summary>
+    public bool HeuristicsEnabled { get; set; } = true;
+
     public Scanner(SignatureDatabase db) => _db = db;
 
     /// <summary>Analyse un fichier et renvoie le résultat.</summary>
@@ -61,6 +67,23 @@ public sealed class Scanner
 
                     if (needle is { Length: > 0 } && IndexOf(content, needle) >= 0)
                         return FileScanResult.Threat(path, sig);
+                }
+            }
+
+            // 3) Heuristique (sans signature) : entropie + cohérence de l'en-tête PE.
+            if (HeuristicsEnabled)
+            {
+                var h = HeuristicAnalyzer.Analyze(path);
+                if (h.Suspicious)
+                {
+                    var heuristicSig = new Signature
+                    {
+                        Name = $"Heuristique : {h.Reason}",
+                        Severity = "medium",
+                        Type = SignatureType.TextPattern,
+                        Value = ""
+                    };
+                    return FileScanResult.Threat(path, heuristicSig);
                 }
             }
 

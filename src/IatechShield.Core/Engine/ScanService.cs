@@ -69,6 +69,67 @@ public sealed class ScanService
         return report;
     }
 
+    /// <summary>
+    /// Analyse une liste de fichiers en parallèle (plusieurs cœurs CPU).
+    /// La liste étant connue à l'avance, la progression est déterminée (pourcentage).
+    /// </summary>
+    /// <param name="files">Fichiers à analyser (déjà énumérés).</param>
+    /// <param name="onProgress">Rappel thread-safe : (résultat, nbAnalysésJusqu'ici).</param>
+    /// <param name="maxDegreeOfParallelism">0 ou négatif = laisser le runtime décider.</param>
+    /// <param name="cancel">Jeton d'annulation.</param>
+    public ScanReport ScanFilesParallel(
+        IReadOnlyList<string> files,
+        Action<FileScanResult, int>? onProgress = null,
+        int maxDegreeOfParallelism = 0,
+        CancellationToken cancel = default)
+    {
+        var report = new ScanReport();
+        int scanned = 0;
+        var sync = new object();
+
+        var options = new ParallelOptions
+        {
+            CancellationToken = cancel,
+            MaxDegreeOfParallelism = maxDegreeOfParallelism > 0
+                ? maxDegreeOfParallelism
+                : Math.Max(1, Environment.ProcessorCount - 1)
+        };
+
+        Parallel.ForEach(files, options, file =>
+        {
+            cancel.ThrowIfCancellationRequested();
+
+            var result = _scanner.ScanFile(file);
+            int n = Interlocked.Increment(ref scanned);
+
+            lock (sync)
+            {
+                report.FilesScanned++;
+                if (result.Error is not null)
+                {
+                    report.Errors++;
+                }
+                else if (result.IsThreat)
+                {
+                    report.Threats.Add(result);
+                    if (_quarantine is not null)
+                    {
+                        try
+                        {
+                            string sha = Scanner.ComputeSha256(file);
+                            _quarantine.Add(file, result.Match!.Name, sha);
+                        }
+                        catch { /* fichier verrouillé : détection conservée */ }
+                    }
+                }
+            }
+
+            onProgress?.Invoke(result, n);
+        });
+
+        return report;
+    }
+
     /// <summary>Énumère récursivement les fichiers d'une cible (fichier unique ou dossier).</summary>
     public static IEnumerable<string> EnumerateFiles(string target)
     {

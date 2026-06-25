@@ -351,52 +351,80 @@ public partial class MainWindow : Window
         ScanButton.IsEnabled = false;
         if (FullScanButton is not null) FullScanButton.IsEnabled = false;
         ResetThreats();
+        SetProgress(0, indeterminate: true, visible: true);
 
         // Pas de quarantaine automatique : on liste les menaces et l'utilisateur choisit l'action.
         var service = new ScanService(_scanner!, quarantine: null);
-        int files = 0, threats = 0;
+        int threats = 0;
         Log($"Analyse démarrée ({targets.Count} cible(s)).");
         SoundFx.ScanStart();
 
         try
         {
-            await Task.Run(() =>
+            // 1) Inventaire des fichiers (permet une progression déterminée).
+            report("Préparation : inventaire des fichiers…");
+            var allFiles = await Task.Run(() =>
             {
+                var list = new List<string>();
                 foreach (string target in targets)
                 {
-                    service.Scan(target, result =>
-                    {
-                        files++;
-                        if (result.IsThreat)
-                        {
-                            threats++;
-                            string sha = SafeSha(result.Path);
-                            string name = result.Match!.Name;
-                            string path = result.Path;
-                            Dispatcher.Invoke(() =>
-                            {
-                                _threats.Add(new ThreatItem { Name = name, Path = path, Sha = sha });
-                                RegisterThreat();
-                                UpdateThreatUi();
-                                Log($"MENACE : {name} — {path}");
-                                SoundFx.Threat();
-                                Notify("Menace détectée", $"{name}\n{path}");
-                            });
-                        }
-                        if (files % 50 == 0)
-                            Dispatcher.Invoke(() => report($"Analyse… {files} fichiers, {threats} menace(s)"));
-                    });
+                    try { list.AddRange(ScanService.EnumerateFiles(target)); }
+                    catch { /* cible inaccessible : ignorée */ }
                 }
+                return list;
             });
 
-            report($"Terminé : {files} fichiers analysés, {threats} menace(s).");
+            int total = allFiles.Count;
+            Log($"{total} fichier(s) à analyser sur {Environment.ProcessorCount} cœur(s).");
+            SetProgress(0, indeterminate: total == 0, visible: true);
+
+            // 2) Analyse parallèle (multi-cœurs) avec progression.
+            int lastPercent = -1;
+            await Task.Run(() =>
+            {
+                service.ScanFilesParallel(allFiles, (result, scanned) =>
+                {
+                    if (result.IsThreat)
+                    {
+                        Interlocked.Increment(ref threats);
+                        string sha = SafeSha(result.Path);
+                        string name = result.Match!.Name;
+                        string path = result.Path;
+                        Dispatcher.Invoke(() =>
+                        {
+                            _threats.Add(new ThreatItem { Name = name, Path = path, Sha = sha });
+                            RegisterThreat();
+                            UpdateThreatUi();
+                            Log($"MENACE : {name} — {path}");
+                            SoundFx.Threat();
+                            Notify("Menace détectée", $"{name}\n{path}");
+                        });
+                    }
+
+                    int percent = total > 0 ? (int)(scanned * 100L / total) : 0;
+                    if (percent != lastPercent || scanned % 50 == 0)
+                    {
+                        lastPercent = percent;
+                        int snapThreats = Volatile.Read(ref threats);
+                        Dispatcher.Invoke(() =>
+                        {
+                            SetProgress(percent, indeterminate: total == 0, visible: true);
+                            report($"Analyse… {scanned}/{total} fichiers ({percent}%), {snapThreats} menace(s)");
+                        });
+                    }
+                });
+            });
+
+            SetProgress(100, indeterminate: false, visible: false);
+            report($"Terminé : {total} fichiers analysés, {threats} menace(s).");
             _threatCount = _threats.Count;
             UpdateThreatUi();
-            Log($"Analyse terminée : {files} fichiers, {threats} menace(s).");
+            Log($"Analyse terminée : {total} fichiers, {threats} menace(s).");
             SoundFx.ScanDone();
         }
         catch (Exception ex)
         {
+            SetProgress(0, indeterminate: false, visible: false);
             report($"Échec : {ex.Message}");
             Log($"Échec de l'analyse : {ex.Message}");
         }
@@ -404,6 +432,18 @@ public partial class MainWindow : Window
         {
             _scanning = false;
             RefreshLicense();
+        }
+    }
+
+    /// <summary>Met à jour les deux barres de progression du scan (rapide + complet).</summary>
+    private void SetProgress(int percent, bool indeterminate, bool visible)
+    {
+        foreach (var bar in new[] { ScanProgress, FullScanProgress })
+        {
+            if (bar is null) continue;
+            bar.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+            bar.IsIndeterminate = indeterminate;
+            if (!indeterminate) bar.Value = percent;
         }
     }
 
