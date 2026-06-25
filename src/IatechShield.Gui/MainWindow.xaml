@@ -712,8 +712,8 @@
                                         <TextBlock Text="Verrouille la session (mot de passe Windows requis pour rouvrir)."
                                                    Foreground="{StaticResource TextMutedBrush}" FontSize="11" Margin="0,4,0,8"/>
                                         <StackPanel Orientation="Horizontal">
-                                            <Button x:Name="LockNowButton" Style="{StaticResource GhostButton}"
-                                                    Content="Verrouiller maintenant" Click="OnLockNow" Margin="0,0,10,0"/>
+                                            <Button x:Name="SessionLockButton" Style="{StaticResource GhostButton}"
+                                                    Content="Verrouiller maintenant" Click="OnSessionLockNow" Margin="0,0,10,0"/>
                                         </StackPanel>
                                         <Grid Margin="0,12,0,0">
                                             <StackPanel>

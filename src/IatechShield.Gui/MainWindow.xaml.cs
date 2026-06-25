@@ -1029,7 +1029,7 @@ public partial class MainWindow : Window
         Log("Verrou de session désactivé.");
     }
 
-    private void OnLockNow(object sender, RoutedEventArgs e)
+    private void OnSessionLockNow(object sender, RoutedEventArgs e)
     {
         if (string.IsNullOrEmpty(_lockPinHash))
         {
