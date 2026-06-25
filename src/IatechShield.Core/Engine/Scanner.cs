@@ -27,6 +27,9 @@ public sealed class Scanner
     /// </summary>
     public bool HeuristicsEnabled { get; set; } = true;
 
+    /// <summary>Moteur de règles « façon YARA » (optionnel). Null = désactivé.</summary>
+    public YaraEngine? Yara { get; set; }
+
     public Scanner(SignatureDatabase db) => _db = db;
 
     /// <summary>Analyse un fichier et renvoie le résultat.</summary>
@@ -50,23 +53,43 @@ public sealed class Scanner
                 }
             }
 
-            // 2) Signatures par motif (octets / texte) : on lit le contenu si le fichier
-            //    n'est pas trop volumineux.
+            // 2) Signatures par motif (octets / texte) + règles YARA : on lit le contenu
+            //    une seule fois si le fichier n'est pas trop volumineux.
             bool hasPatternSig = _db.Signatures.Any(s => s.Type is SignatureType.HexPattern or SignatureType.TextPattern);
-            if (hasPatternSig && info.Length <= MaxPatternScanBytes)
+            if ((hasPatternSig || Yara is not null) && info.Length <= MaxPatternScanBytes)
             {
                 byte[] content = File.ReadAllBytes(path);
-                foreach (var sig in _db.Signatures)
-                {
-                    byte[]? needle = sig.Type switch
-                    {
-                        SignatureType.HexPattern => TryParseHex(sig.Value),
-                        SignatureType.TextPattern => Encoding.UTF8.GetBytes(sig.Value),
-                        _ => null
-                    };
 
-                    if (needle is { Length: > 0 } && IndexOf(content, needle) >= 0)
-                        return FileScanResult.Threat(path, sig);
+                if (hasPatternSig)
+                {
+                    foreach (var sig in _db.Signatures)
+                    {
+                        byte[]? needle = sig.Type switch
+                        {
+                            SignatureType.HexPattern => TryParseHex(sig.Value),
+                            SignatureType.TextPattern => Encoding.UTF8.GetBytes(sig.Value),
+                            _ => null
+                        };
+
+                        if (needle is { Length: > 0 } && IndexOf(content, needle) >= 0)
+                            return FileScanResult.Threat(path, sig);
+                    }
+                }
+
+                if (Yara is not null)
+                {
+                    var rule = Yara.Match(content);
+                    if (rule is not null)
+                    {
+                        var yaraSig = new Signature
+                        {
+                            Name = $"YARA : {rule.Name}",
+                            Severity = rule.Severity,
+                            Type = SignatureType.TextPattern,
+                            Value = ""
+                        };
+                        return FileScanResult.Threat(path, yaraSig);
+                    }
                 }
             }
 

@@ -18,6 +18,7 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using Microsoft.Win32;
 using IatechShield.Engine;
+using IatechShield.Reputation;
 using IatechShield.Update;
 using IatechShield.Licensing;
 using IatechShield.Ai;
@@ -250,6 +251,58 @@ public partial class MainWindow : Window
         }
     }
 
+    // ----------------------------------------------- réputation VirusTotal ---
+
+    private async void OnVirusTotalCheck(object sender, RoutedEventArgs e)
+    {
+        string key = VtApiKeyInput.Password;
+        if (string.IsNullOrWhiteSpace(key))
+            key = VirusTotalClient.KeyFromEnvironment ?? "";
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            VtStatus.Text = "Renseignez une clé API VirusTotal (ou la variable VIRUSTOTAL_API_KEY).";
+            return;
+        }
+
+        var dlg = new OpenFileDialog { Title = "Fichier à vérifier sur VirusTotal" };
+        if (dlg.ShowDialog(this) != true)
+            return;
+
+        VtCheckFileButton.IsEnabled = false;
+        VtStatus.Text = "Calcul du hash et interrogation de VirusTotal…";
+        try
+        {
+            string path = dlg.FileName;
+            string sha = await Task.Run(() => Scanner.ComputeSha256(path));
+            var client = new VirusTotalClient(key.Trim());
+            var report = await client.LookupAsync(sha);
+
+            if (!report.Found)
+            {
+                VtStatus.Text = $"{Path.GetFileName(path)} : inconnu de VirusTotal (jamais analysé).";
+            }
+            else if (report.IsMalicious)
+            {
+                string label = report.PopularName is { Length: > 0 } ? $" — {report.PopularName}" : "";
+                VtStatus.Text = $"⚠ {Path.GetFileName(path)} : {report.Summary}{label}.";
+                Notify("VirusTotal — menace", $"{Path.GetFileName(path)} : {report.Summary}");
+                Log($"VirusTotal : {Path.GetFileName(path)} — {report.Summary}{label}");
+            }
+            else
+            {
+                VtStatus.Text = $"✓ {Path.GetFileName(path)} : aucun moteur ne le signale ({report.TotalEngines} moteurs).";
+            }
+        }
+        catch (Exception ex)
+        {
+            VtStatus.Text = $"Échec : {ex.Message}";
+        }
+        finally
+        {
+            VtCheckFileButton.IsEnabled = true;
+        }
+    }
+
     // --------------------------------------------------------------- moteur ---
 
     private void InitEngine()
@@ -258,7 +311,7 @@ public partial class MainWindow : Window
         {
             string dbPath = Path.Combine(AppContext.BaseDirectory, "signatures.json");
             _db = SignatureDatabase.LoadFromFile(dbPath);
-            _scanner = new Scanner(_db);
+            _scanner = new Scanner(_db) { Yara = YaraEngine.BuiltIn() };
             _quarantine = new Quarantine(DefaultQuarantineDir());
 
             SignatureCountText.Text = $"{_db.Signatures.Count} signatures chargées";
