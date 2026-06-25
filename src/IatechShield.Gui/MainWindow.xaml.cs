@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Net.NetworkInformation;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -13,6 +14,7 @@ using Microsoft.Win32;
 using IatechShield.Engine;
 using IatechShield.Licensing;
 using IatechShield.Ai;
+using IatechShield.Tools;
 
 namespace IatechShield.Gui;
 
@@ -72,6 +74,8 @@ public partial class MainWindow : Window
         PageProtection.Visibility = Visibility.Collapsed;
         PageScan.Visibility = Visibility.Collapsed;
         PageFirewall.Visibility = Visibility.Collapsed;
+        PageTools.Visibility = Visibility.Collapsed;
+        PageNetwork.Visibility = Visibility.Collapsed;
         PageSettings.Visibility = Visibility.Collapsed;
         PageLogs.Visibility = Visibility.Collapsed;
 
@@ -80,6 +84,8 @@ public partial class MainWindow : Window
             "Protection" => PageProtection,
             "Scan" => PageScan,
             "Firewall" => PageFirewall,
+            "Outils" => PageTools,
+            "Réseau" => PageNetwork,
             "Settings" => PageSettings,
             "Logs" => PageLogs,
             _ => PageDashboard
@@ -695,6 +701,205 @@ public partial class MainWindow : Window
         ReactorPulseText.Text = safe
             ? "Pulsations du cœur-réacteur : STABLES"
             : "Pulsations du cœur-réacteur : INSTABLES";
+
+        // Le cœur-réacteur passe au rouge en cas de danger, cyan sinon.
+        var accentColor = Color.FromRgb(0x22, 0xD3, 0xE8);
+        var dangerColor = Color.FromRgb(0xFF, 0x4D, 0x4D);
+        Color c = safe ? accentColor : dangerColor;
+        var brush = new SolidColorBrush(c);
+
+        HeartPath.Stroke = brush;
+        CoreDot.Fill = brush;
+        MainRing.Stroke = brush;
+        HeartGlow.Color = c;
+        CoreDotGlow.Color = c;
+        MainRingGlow.Color = c;
+    }
+
+    // ------------------------------------------------- chiffrement de dossier --
+
+    private async void OnEncryptFolder(object sender, RoutedEventArgs e)
+    {
+        string password = CryptoPassword.Password;
+        if (string.IsNullOrEmpty(password))
+        {
+            CryptoStatus.Text = "Saisissez d'abord un mot de passe.";
+            return;
+        }
+
+        var dlg = new OpenFolderDialog { Title = "Dossier à chiffrer" };
+        if (dlg.ShowDialog(this) != true)
+            return;
+
+        bool deleteOriginal = MessageBox.Show(this,
+            "Supprimer le dossier d'origine après chiffrement ?\n(Le contenu ne sera plus accessible sans le mot de passe.)",
+            "Chiffrement", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
+
+        CryptoStatus.Text = "Chiffrement en cours…";
+        string folder = dlg.FolderName;
+        try
+        {
+            string output = await Task.Run(() => FolderCrypto.EncryptFolder(folder, password, deleteOriginal));
+            CryptoStatus.Text = $"Dossier chiffré : {output}";
+            Log($"Dossier chiffré : {output}");
+        }
+        catch (Exception ex)
+        {
+            CryptoStatus.Text = $"Échec : {ex.Message}";
+        }
+    }
+
+    private async void OnDecryptFolder(object sender, RoutedEventArgs e)
+    {
+        string password = CryptoPassword.Password;
+        if (string.IsNullOrEmpty(password))
+        {
+            CryptoStatus.Text = "Saisissez le mot de passe du fichier .iasx.";
+            return;
+        }
+
+        var dlg = new OpenFileDialog { Title = "Fichier .iasx à déchiffrer", Filter = "Conteneur chiffré (*.iasx)|*.iasx" };
+        if (dlg.ShowDialog(this) != true)
+            return;
+
+        CryptoStatus.Text = "Déchiffrement en cours…";
+        string file = dlg.FileName;
+        try
+        {
+            string dest = await Task.Run(() => FolderCrypto.DecryptFolder(file, password));
+            CryptoStatus.Text = $"Dossier restauré : {dest}";
+            Log($"Dossier déchiffré : {dest}");
+        }
+        catch (Exception ex)
+        {
+            CryptoStatus.Text = $"Échec : {ex.Message}";
+        }
+    }
+
+    private async void OnProtectUsb(object sender, RoutedEventArgs e)
+    {
+        string password = CryptoPassword.Password;
+        if (string.IsNullOrEmpty(password))
+        {
+            CryptoStatus.Text = "Saisissez d'abord un mot de passe (section chiffrement).";
+            return;
+        }
+
+        string usb = GetReadyRemovableDrives().FirstOrDefault() ?? "";
+        var dlg = new OpenFolderDialog { Title = "Dossier de la clé USB à protéger", InitialDirectory = usb };
+        if (dlg.ShowDialog(this) != true)
+            return;
+
+        bool del = MessageBox.Show(this, "Supprimer le dossier d'origine sur la clé après chiffrement ?",
+            "Clé USB protégée", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
+
+        CryptoStatus.Text = "Protection de la clé en cours…";
+        string folder = dlg.FolderName;
+        try
+        {
+            string output = await Task.Run(() => FolderCrypto.EncryptFolder(folder, password, del));
+            CryptoStatus.Text = $"Clé USB protégée : {output}";
+            Log($"Dossier USB chiffré : {output}");
+        }
+        catch (Exception ex)
+        {
+            CryptoStatus.Text = $"Échec : {ex.Message}";
+        }
+    }
+
+    // ----------------------------------------------------------- verrouillage --
+
+    [DllImport("user32.dll")]
+    private static extern bool LockWorkStation();
+
+    private void OnLockNow(object sender, RoutedEventArgs e)
+    {
+        Log("Verrouillage de la session.");
+        LockWorkStation();
+    }
+
+    private void OnWakePasswordToggled(object sender, RoutedEventArgs e)
+    {
+        if (!_ready) return;
+        string value = WakePasswordSwitch.IsChecked == true ? "1" : "0";
+        try
+        {
+            RunPowercfg($"/SETACVALUEINDEX SCHEME_CURRENT SUB_NONE CONSOLELOCK {value}");
+            RunPowercfg($"/SETDCVALUEINDEX SCHEME_CURRENT SUB_NONE CONSOLELOCK {value}");
+            RunPowercfg("/SETACTIVE SCHEME_CURRENT");
+            Log(WakePasswordSwitch.IsChecked == true
+                ? "Mot de passe exigé à la sortie de veille : activé."
+                : "Mot de passe à la sortie de veille : désactivé.");
+        }
+        catch (Exception ex)
+        {
+            Log($"Réglage de la veille impossible : {ex.Message}");
+        }
+    }
+
+    private static void RunPowercfg(string args)
+    {
+        using var p = Process.Start(new ProcessStartInfo("powercfg", args)
+        { CreateNoWindow = true, UseShellExecute = false });
+        p?.WaitForExit(4000);
+    }
+
+    // -------------------------------------------------------------- réseau -----
+
+    private async void OnNetworkScan(object sender, RoutedEventArgs e)
+    {
+        NetScanButton.IsEnabled = false;
+        NetworkList.Items.Clear();
+        NetStatus.Text = "Analyse du réseau en cours…";
+        Log("Analyse du réseau démarrée.");
+        try
+        {
+            var scanner = new NetworkScanner();
+            var devices = await scanner.ScanAsync(s => Dispatcher.Invoke(() => NetStatus.Text = s));
+            foreach (var d in devices)
+                NetworkList.Items.Add($"{d.Ip,-16}{Truncate(d.Name, 38),-40}{d.Mac}");
+            NetStatus.Text = $"{devices.Count} appareil(s) détecté(s).";
+            Log($"Réseau : {devices.Count} appareil(s) détecté(s).");
+        }
+        catch (Exception ex)
+        {
+            NetStatus.Text = $"Échec : {ex.Message}";
+        }
+        finally
+        {
+            NetScanButton.IsEnabled = true;
+        }
+    }
+
+    private static string Truncate(string s, int max) => s.Length <= max ? s : s[..(max - 1)] + "…";
+
+    // ------------------------------------------------------------ analyse URL --
+
+    private void OnCheckUrl(object sender, RoutedEventArgs e)
+    {
+        string url = UrlInput.Text.Trim();
+        if (string.IsNullOrEmpty(url))
+        {
+            UrlVerdictText.Text = "Saisissez une URL.";
+            UrlVerdictText.Foreground = (Brush)FindResource("TextMutedBrush");
+            UrlReasonsText.Text = "";
+            return;
+        }
+
+        var verdict = UrlReputation.Analyze(url);
+        var green = (Brush)FindResource("GreenBrush");
+        var accent = (Brush)FindResource("AccentBrush");
+        var alert = new SolidColorBrush(Color.FromRgb(0xFF, 0x5C, 0x5C));
+
+        UrlVerdictText.Foreground = verdict.Band switch
+        {
+            UrlBand.Safe => green,
+            UrlBand.Suspicious => accent,
+            _ => alert
+        };
+        UrlVerdictText.Text = $"{verdict.BandLabel}  —  {verdict.Score}/100";
+        UrlReasonsText.Text = string.Join("\n", verdict.Reasons.Select(r => "• " + r));
+        Log($"URL analysée : {url} → {verdict.BandLabel} ({verdict.Score}/100)");
     }
 
     // -------------------------------------------------------- fenêtre / chrome -

@@ -32,6 +32,7 @@ internal static class Program
                 "license"    => CmdLicense(rest),
                 "autoruns"   => CmdAutoruns(rest),
                 "ai"         => CmdAi(rest),
+                "url"        => CmdUrl(rest),
                 "quarantine" => CmdQuarantine(rest),
                 "version"    => CmdVersion(),
                 _            => Unknown(command)
@@ -275,6 +276,25 @@ internal static class Program
         return suspicious > 0 ? 1 : 0;
     }
 
+    // ------------------------------------------------------------ analyse URL --
+
+    private static int CmdUrl(string[] args)
+    {
+        if (args.Length == 0)
+        {
+            Console.Error.WriteLine("Usage : iatech-shield url <adresse>");
+            return 2;
+        }
+
+        var v = IatechShield.Tools.UrlReputation.Analyze(args[0]);
+        PrintBanner();
+        Console.WriteLine($"URL    : {v.Url}");
+        Console.WriteLine($"Verdict: {v.BandLabel} ({v.Score}/100)");
+        foreach (string r in v.Reasons)
+            Console.WriteLine($"   - {r}");
+        return v.Band == IatechShield.Tools.UrlBand.Dangerous ? 1 : 0;
+    }
+
     // --------------------------------------------------------------- assistant IA
 
     private static int CmdAi(string[] args)
@@ -430,6 +450,7 @@ internal static class Program
               license status|activate <clé>   Gère la licence / l'activation.
               autoruns                        Liste les programmes au démarrage (persistance).
               ai <question>                   Assistant de sécurité IA (clé ANTHROPIC_API_KEY).
+              url <adresse>                   Évalue la réputation d'une URL (phishing…).
               quarantine list                 Liste les fichiers en quarantaine.
               quarantine restore <id>         Restaure un fichier (faux positif).
               quarantine delete <id>          Supprime définitivement un fichier.

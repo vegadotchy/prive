@@ -36,6 +36,10 @@
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE83D;" Content="Firewall" Checked="OnNav"/>
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
+                                     Tag="&#xE72E;" Content="Outils" Checked="OnNav"/>
+                        <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
+                                     Tag="&#xE968;" Content="Réseau" Checked="OnNav"/>
+                        <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE713;" Content="Settings" Checked="OnNav"/>
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE7C3;" Content="Logs" Checked="OnNav"/>
@@ -109,23 +113,23 @@
                                             <RotateTransform x:Name="RingRotate" CenterX="135" CenterY="135"/>
                                         </Ellipse.RenderTransform>
                                     </Ellipse>
-                                    <Ellipse Width="220" Height="220" Stroke="{StaticResource AccentBrush}" StrokeThickness="2" Opacity="0.85">
+                                    <Ellipse x:Name="MainRing" Width="220" Height="220" Stroke="{StaticResource AccentBrush}" StrokeThickness="2" Opacity="0.85">
                                         <Ellipse.Effect>
-                                            <DropShadowEffect Color="#22D3E8" BlurRadius="25" ShadowDepth="0" Opacity="0.7"/>
+                                            <DropShadowEffect x:Name="MainRingGlow" Color="#22D3E8" BlurRadius="25" ShadowDepth="0" Opacity="0.7"/>
                                         </Ellipse.Effect>
                                     </Ellipse>
                                     <Grid Width="150" Height="150">
                                         <Ellipse x:Name="CoreGlow" Width="150" Height="150" Fill="#1422D3E8"/>
-                                        <Path Data="M75,128 C40,100 18,78 18,52 C18,33 33,20 50,20 C61,20 70,26 75,36 C80,26 89,20 100,20 C117,20 132,33 132,52 C132,78 110,100 75,128 Z"
+                                        <Path x:Name="HeartPath" Data="M75,128 C40,100 18,78 18,52 C18,33 33,20 50,20 C61,20 70,26 75,36 C80,26 89,20 100,20 C117,20 132,33 132,52 C132,78 110,100 75,128 Z"
                                               Stretch="Uniform" Width="86" Height="86"
                                               Fill="#11314A" Stroke="{StaticResource AccentBrush}" StrokeThickness="2">
                                             <Path.Effect>
-                                                <DropShadowEffect Color="#22D3E8" BlurRadius="18" ShadowDepth="0" Opacity="0.9"/>
+                                                <DropShadowEffect x:Name="HeartGlow" Color="#22D3E8" BlurRadius="18" ShadowDepth="0" Opacity="0.9"/>
                                             </Path.Effect>
                                         </Path>
-                                        <Ellipse Width="26" Height="26" Fill="{StaticResource AccentBrush}">
+                                        <Ellipse x:Name="CoreDot" Width="26" Height="26" Fill="{StaticResource AccentBrush}">
                                             <Ellipse.Effect>
-                                                <DropShadowEffect Color="#22D3E8" BlurRadius="30" ShadowDepth="0" Opacity="1"/>
+                                                <DropShadowEffect x:Name="CoreDotGlow" Color="#22D3E8" BlurRadius="30" ShadowDepth="0" Opacity="1"/>
                                             </Ellipse.Effect>
                                         </Ellipse>
                                     </Grid>
@@ -373,6 +377,130 @@
                             <Button x:Name="ClearLogButton" Style="{StaticResource GhostButton}"
                                     Content="Effacer" Click="OnClearLog"/>
                         </StackPanel>
+                    </Grid>
+
+                    <!-- ==================== PAGE : OUTILS ==================== -->
+                    <Grid x:Name="PageTools" Visibility="Collapsed">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel>
+                                <TextBlock Text="Outils de protection" Style="{StaticResource PageTitle}"/>
+
+                                <!-- Chiffrement de dossier -->
+                                <Border Style="{StaticResource Card}" Margin="0,8,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="🔒 Chiffrer un dossier (mot de passe)" Foreground="{StaticResource TextPrimaryBrush}"
+                                                   FontWeight="SemiBold" FontSize="13"/>
+                                        <TextBlock Text="AES-256. Produit un fichier .iasx protégé par mot de passe."
+                                                   Foreground="{StaticResource TextMutedBrush}" FontSize="11" Margin="0,4,0,8"/>
+                                        <PasswordBox x:Name="CryptoPassword" Background="#0A1726" Foreground="{StaticResource TextPrimaryBrush}"
+                                                     BorderBrush="{StaticResource PanelStrokeBrush}" Padding="8" FontSize="12"/>
+                                        <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                            <Button x:Name="EncryptButton" Style="{StaticResource GhostButton}"
+                                                    Content="Chiffrer un dossier…" Click="OnEncryptFolder" Margin="0,0,10,0"/>
+                                            <Button x:Name="DecryptButton" Style="{StaticResource GhostButton}"
+                                                    Content="Déchiffrer un .iasx…" Click="OnDecryptFolder"/>
+                                        </StackPanel>
+                                        <TextBlock x:Name="CryptoStatus" Text="" Foreground="{StaticResource AccentBrush}"
+                                                   FontSize="11" Margin="0,8,0,0" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Clé USB protégée -->
+                                <Border Style="{StaticResource Card}" Margin="0,12,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="🔑 Protéger une clé USB" Foreground="{StaticResource TextPrimaryBrush}"
+                                                   FontWeight="SemiBold" FontSize="13"/>
+                                        <TextBlock Text="Chiffre un dossier de la clé USB avec le mot de passe ci-dessus."
+                                                   Foreground="{StaticResource TextMutedBrush}" FontSize="11" Margin="0,4,0,8"/>
+                                        <Button x:Name="UsbProtectButton" Style="{StaticResource GhostButton}" HorizontalAlignment="Left"
+                                                Content="Choisir un dossier sur la clé à protéger…" Click="OnProtectUsb"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Vérification d'URL -->
+                                <Border Style="{StaticResource Card}" Margin="0,12,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="🌐 Vérifier une URL / un site" Foreground="{StaticResource TextPrimaryBrush}"
+                                                   FontWeight="SemiBold" FontSize="13"/>
+                                        <TextBlock Text="Indique si le lien est fiable, à surveiller ou dangereux (phishing, typosquatting…)."
+                                                   Foreground="{StaticResource TextMutedBrush}" FontSize="11" Margin="0,4,0,8"/>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBox x:Name="UrlInput" Grid.Column="0" Background="#0A1726" Foreground="{StaticResource TextPrimaryBrush}"
+                                                     BorderBrush="{StaticResource PanelStrokeBrush}" Padding="8" FontSize="12"
+                                                     VerticalContentAlignment="Center"/>
+                                            <Button x:Name="CheckUrlButton" Grid.Column="1" Style="{StaticResource GhostButton}"
+                                                    Content="Analyser" Click="OnCheckUrl" Margin="10,0,0,0"/>
+                                        </Grid>
+                                        <TextBlock x:Name="UrlVerdictText" Text="" FontSize="13" FontWeight="Bold" Margin="0,10,0,0"/>
+                                        <TextBlock x:Name="UrlReasonsText" Text="" Foreground="{StaticResource TextMutedBrush}"
+                                                   FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Verrouillage PC -->
+                                <Border Style="{StaticResource Card}" Margin="0,12,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="🖥️ Verrouillage du PC" Foreground="{StaticResource TextPrimaryBrush}"
+                                                   FontWeight="SemiBold" FontSize="13"/>
+                                        <TextBlock Text="Verrouille la session (mot de passe Windows requis pour rouvrir)."
+                                                   Foreground="{StaticResource TextMutedBrush}" FontSize="11" Margin="0,4,0,8"/>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Button x:Name="LockNowButton" Style="{StaticResource GhostButton}"
+                                                    Content="Verrouiller maintenant" Click="OnLockNow" Margin="0,0,10,0"/>
+                                        </StackPanel>
+                                        <Grid Margin="0,12,0,0">
+                                            <StackPanel>
+                                                <TextBlock Text="Exiger le mot de passe à la sortie de veille" Foreground="{StaticResource TextPrimaryBrush}" FontSize="12"/>
+                                            </StackPanel>
+                                            <ToggleButton x:Name="WakePasswordSwitch" Style="{StaticResource Switch}"
+                                                          HorizontalAlignment="Right" IsChecked="False"
+                                                          Checked="OnWakePasswordToggled" Unchecked="OnWakePasswordToggled"/>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Grid>
+
+                    <!-- ==================== PAGE : RÉSEAU =================== -->
+                    <Grid x:Name="PageNetwork" Visibility="Collapsed">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <TextBlock Grid.Row="0" Text="Analyse du réseau" Style="{StaticResource PageTitle}"/>
+                        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,8,0,8">
+                            <Button x:Name="NetScanButton" Style="{StaticResource PrimaryButton}"
+                                    Content="ANALYSER LE RÉSEAU" Click="OnNetworkScan" Width="220"/>
+                            <TextBlock x:Name="NetStatus" Text="Détecte PC, imprimantes et appareils connectés."
+                                       Foreground="{StaticResource TextMutedBrush}" FontSize="11"
+                                       VerticalAlignment="Center" Margin="14,0,0,0"/>
+                        </StackPanel>
+                        <Border Grid.Row="2" Style="{StaticResource Card}">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <Grid Grid.Row="0" Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="160"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="200"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Adresse IP" Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold" FontSize="12"/>
+                                    <TextBlock Grid.Column="1" Text="Nom de l'appareil" Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold" FontSize="12"/>
+                                    <TextBlock Grid.Column="2" Text="Adresse MAC" Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold" FontSize="12"/>
+                                </Grid>
+                                <ListBox Grid.Row="1" x:Name="NetworkList" Background="#0A1726" BorderThickness="0"
+                                         Foreground="{StaticResource TextPrimaryBrush}" FontFamily="Consolas" FontSize="12"/>
+                            </Grid>
+                        </Border>
                     </Grid>
 
                 </Grid>
