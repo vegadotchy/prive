@@ -40,6 +40,53 @@ public partial class LicenseWindow : Window
         }
     }
 
+    private async void OnActivateOnline(object sender, RoutedEventArgs e)
+    {
+        string key = KeyInput.Text.Trim();
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            ShowResult("Saisissez d'abord votre clé d'achat.", false);
+            return;
+        }
+
+        OnlineActivateButton.IsEnabled = false;
+        ShowResult("Activation en ligne en cours…", true);
+        try
+        {
+            string version = System.Reflection.Assembly.GetExecutingAssembly()
+                .GetName().Version?.ToString() ?? "0.0.0";
+            var client = new OnlineActivationClient();
+            var result = await client.ActivateAsync(key, version);
+
+            if (result.Success && result.LicenseKey is not null)
+            {
+                // La licence renvoyée par le serveur est vérifiée hors-ligne (signature).
+                var check = _license.Activate(result.LicenseKey, DateTimeOffset.UtcNow);
+                if (check.Valid)
+                {
+                    Activated = true;
+                    ShowResult($"Activée en ligne : {check.License!.TierLabel}. Merci !", true);
+                }
+                else
+                {
+                    ShowResult($"Licence du serveur invalide : {check.Message}", false);
+                }
+            }
+            else
+            {
+                ShowResult(result.Message, false);
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowResult($"Échec de l'activation en ligne : {ex.Message}", false);
+        }
+        finally
+        {
+            OnlineActivateButton.IsEnabled = true;
+        }
+    }
+
     private void ShowResult(string message, bool ok)
     {
         ResultText.Text = message;

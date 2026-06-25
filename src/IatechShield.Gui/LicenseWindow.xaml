@@ -89,8 +89,16 @@
                          BorderBrush="{StaticResource PanelStrokeBrush}" Padding="8"/>
                 <TextBlock x:Name="ResultText" Foreground="{StaticResource TextMutedBrush}"
                            FontSize="11" Margin="0,8,0,0" TextWrapping="Wrap"/>
-                <Button Content="ACTIVER LA LICENCE" Style="{StaticResource PrimaryButton}"
-                        Margin="0,10,0,0" Click="OnActivate"/>
+                <Grid Margin="0,10,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Button Grid.Column="0" Content="ACTIVER LA LICENCE" Style="{StaticResource PrimaryButton}"
+                            Click="OnActivate"/>
+                    <Button x:Name="OnlineActivateButton" Grid.Column="1" Content="Activer en ligne"
+                            Style="{StaticResource GhostButton}" Margin="10,0,0,0" Click="OnActivateOnline"/>
+                </Grid>
             </StackPanel>
         </Grid>
     </Border>
