@@ -92,6 +92,7 @@ public partial class MainWindow : Window
         PageFirewall.Visibility = Visibility.Collapsed;
         PageTools.Visibility = Visibility.Collapsed;
         PageNetwork.Visibility = Visibility.Collapsed;
+        PageVpn.Visibility = Visibility.Collapsed;
         PageDevice.Visibility = Visibility.Collapsed;
         PageSystem.Visibility = Visibility.Collapsed;
         PageSettings.Visibility = Visibility.Collapsed;
@@ -104,6 +105,7 @@ public partial class MainWindow : Window
             "Firewall" => PageFirewall,
             "Outils" => PageTools,
             "Réseau" => PageNetwork,
+            "VPN" => PageVpn,
             "Appareil" => PageDevice,
             "Système" => PageSystem,
             "Settings" => PageSettings,
@@ -129,6 +131,10 @@ public partial class MainWindow : Window
             AccountUserText.Text = $"Connecté en tant que : {Environment.UserName}";
             OnRefreshPerf(this, new RoutedEventArgs());
         }
+        else if (page == PageVpn)
+        {
+            LoadVpnSettings();
+        }
     }
 
     // Couleur d'accent propre à chaque onglet.
@@ -140,6 +146,7 @@ public partial class MainWindow : Window
         ["Firewall"]   = Color.FromRgb(0xF5, 0x9E, 0x0B), // ambre
         ["Outils"]     = Color.FromRgb(0xA7, 0x8B, 0xFA), // violet
         ["Réseau"]     = Color.FromRgb(0x2D, 0xD4, 0xBF), // turquoise
+        ["VPN"]        = Color.FromRgb(0x10, 0xB9, 0x81), // vert émeraude
         ["Appareil"]   = Color.FromRgb(0xEC, 0x48, 0x99), // rose
         ["Système"]    = Color.FromRgb(0x60, 0xA5, 0xFA), // bleu clair
         ["Settings"]   = Color.FromRgb(0x94, 0xA3, 0xB8), // gris-bleu
@@ -249,6 +256,113 @@ public partial class MainWindow : Window
         {
             AppUpdateProgress.Visibility = Visibility.Collapsed;
         }
+    }
+
+    // ------------------------------------------------------------------ VPN ---
+
+    private readonly VpnManager _vpn = new();
+    private bool _vpnLoaded;
+
+    private void LoadVpnSettings()
+    {
+        if (_vpnLoaded) return;
+        _vpnLoaded = true;
+        var s = SecretVault.Load("vpn");
+        if (s.TryGetValue("server", out var srv)) VpnServer.Text = srv;
+        if (s.TryGetValue("user", out var usr)) VpnUser.Text = usr;
+        if (s.TryGetValue("password", out var pwd)) VpnPassword.Password = pwd;
+        if (s.TryGetValue("psk", out var psk)) VpnPsk.Password = psk;
+        if (s.TryGetValue("type", out var t) && int.TryParse(t, out int ti) && ti < VpnType.Items.Count)
+            VpnType.SelectedIndex = ti;
+    }
+
+    private VpnProfile CurrentVpnProfile() => new()
+    {
+        Server = VpnServer.Text.Trim(),
+        Username = VpnUser.Text.Trim(),
+        Password = VpnPassword.Password,
+        PreSharedKey = VpnPsk.Password,
+        Type = VpnType.SelectedIndex switch
+        {
+            1 => IatechShield.Tools.VpnType.Sstp,
+            2 => IatechShield.Tools.VpnType.Pptp,
+            3 => IatechShield.Tools.VpnType.Automatic,
+            _ => IatechShield.Tools.VpnType.L2tp
+        }
+    };
+
+    private void SetVpnUi(bool connected)
+    {
+        VpnDot.Fill = new SolidColorBrush(connected
+            ? Color.FromRgb(0x10, 0xB9, 0x81) : Color.FromRgb(0x64, 0x74, 0x8B));
+        VpnStatus.Text = connected ? "Connecté" : "Déconnecté";
+        VpnConnectButton.IsEnabled = !connected;
+        VpnDisconnectButton.IsEnabled = connected;
+    }
+
+    private async void OnVpnConnect(object sender, RoutedEventArgs e)
+    {
+        var profile = CurrentVpnProfile();
+        if (string.IsNullOrWhiteSpace(profile.Server))
+        {
+            VpnLog.Text = "Renseignez l'adresse du serveur VPN.";
+            return;
+        }
+
+        VpnConnectButton.IsEnabled = false;
+        VpnLog.Text = "Connexion en cours…";
+        try
+        {
+            var state = await _vpn.ConnectAsync(profile);
+            SetVpnUi(state.Connected);
+            VpnLog.Text = state.Message;
+            VpnIpText.Text = state.AssignedIp is not null ? $"IP : {state.AssignedIp}" : "";
+            if (state.Connected)
+            {
+                Log($"VPN connecté à {profile.Server}.");
+                Notify("VPN", $"Connexion sécurisée établie ({profile.Server}).");
+                if (VpnSaveCreds.IsChecked == true) SaveVpnSettings(profile);
+            }
+            else
+            {
+                VpnConnectButton.IsEnabled = true;
+                Log($"Échec VPN : {state.Message}");
+            }
+        }
+        catch (Exception ex)
+        {
+            VpnConnectButton.IsEnabled = true;
+            VpnLog.Text = $"Erreur : {ex.Message}";
+        }
+    }
+
+    private async void OnVpnDisconnect(object sender, RoutedEventArgs e)
+    {
+        VpnDisconnectButton.IsEnabled = false;
+        try
+        {
+            var state = await _vpn.DisconnectAsync();
+            SetVpnUi(false);
+            VpnIpText.Text = "";
+            VpnLog.Text = state.Message;
+            Log("VPN déconnecté.");
+        }
+        catch (Exception ex)
+        {
+            VpnLog.Text = $"Erreur : {ex.Message}";
+        }
+    }
+
+    private void SaveVpnSettings(VpnProfile p)
+    {
+        SecretVault.Save("vpn", new Dictionary<string, string>
+        {
+            ["server"] = p.Server,
+            ["user"] = p.Username,
+            ["password"] = p.Password,
+            ["psk"] = p.PreSharedKey,
+            ["type"] = VpnType.SelectedIndex.ToString()
+        });
     }
 
     // ----------------------------------------------- réputation VirusTotal ---

@@ -47,6 +47,8 @@
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE968;" Content="Réseau" Checked="OnNav"/>
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
+                                     Tag="&#xE8CE;" Content="VPN" Checked="OnNav"/>
+                        <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE950;" Content="Appareil" Checked="OnNav"/>
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE77B;" Content="Système" Checked="OnNav"/>
@@ -790,6 +792,91 @@
                                             <Button x:Name="PerfRefreshButton" Style="{StaticResource GhostButton}"
                                                     Content="Actualiser" Click="OnRefreshPerf"/>
                                         </StackPanel>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Grid>
+
+                    <!-- ===================== PAGE : VPN ==================== -->
+                    <Grid x:Name="PageVpn" Visibility="Collapsed">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel>
+                                <TextBlock Text="VPN" Style="{StaticResource PageTitle}"/>
+                                <TextBlock Text="Connexion sécurisée via le serveur VPN de votre NAS Synology (ou tout serveur L2TP/IPSec, SSTP ou PPTP). Utilise le client VPN intégré à Windows."
+                                           Foreground="{StaticResource TextMutedBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,2,0,10"/>
+
+                                <Border Style="{StaticResource Card}">
+                                    <StackPanel>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                                <Ellipse x:Name="VpnDot" Width="12" Height="12" Fill="#64748B" VerticalAlignment="Center"/>
+                                                <TextBlock x:Name="VpnStatus" Text="Déconnecté" Margin="8,0,0,0" VerticalAlignment="Center"
+                                                           Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold"/>
+                                            </StackPanel>
+                                            <TextBlock x:Name="VpnIpText" Grid.Column="1" Text="" Foreground="{StaticResource TextMutedBrush}"
+                                                       FontSize="11" VerticalAlignment="Center"/>
+                                        </Grid>
+
+                                        <Grid Margin="0,14,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="12"/>
+                                                <ColumnDefinition Width="160"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="Adresse du serveur (IP ou DNS du NAS)" Foreground="{StaticResource TextMutedBrush}" FontSize="10"/>
+                                                <TextBox x:Name="VpnServer" Background="#0A1726" Foreground="{StaticResource TextPrimaryBrush}"
+                                                         BorderBrush="{StaticResource PanelStrokeBrush}" Padding="8" Margin="0,3,0,0" VerticalContentAlignment="Center"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2">
+                                                <TextBlock Text="Type" Foreground="{StaticResource TextMutedBrush}" FontSize="10"/>
+                                                <ComboBox x:Name="VpnType" Margin="0,3,0,0" SelectedIndex="0">
+                                                    <ComboBoxItem Content="L2TP/IPSec"/>
+                                                    <ComboBoxItem Content="SSTP"/>
+                                                    <ComboBoxItem Content="PPTP"/>
+                                                    <ComboBoxItem Content="Automatique"/>
+                                                </ComboBox>
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <Grid Margin="0,10,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="12"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="Nom d'utilisateur" Foreground="{StaticResource TextMutedBrush}" FontSize="10"/>
+                                                <TextBox x:Name="VpnUser" Background="#0A1726" Foreground="{StaticResource TextPrimaryBrush}"
+                                                         BorderBrush="{StaticResource PanelStrokeBrush}" Padding="8" Margin="0,3,0,0" VerticalContentAlignment="Center"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2">
+                                                <TextBlock Text="Mot de passe" Foreground="{StaticResource TextMutedBrush}" FontSize="10"/>
+                                                <PasswordBox x:Name="VpnPassword" Background="#0A1726"
+                                                             BorderBrush="{StaticResource PanelStrokeBrush}" Padding="8" Margin="0,3,0,0" VerticalContentAlignment="Center"/>
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <StackPanel x:Name="VpnPskPanel" Margin="0,10,0,0">
+                                            <TextBlock Text="Clé pré-partagée (L2TP/IPSec — « Clé secrète » du NAS)" Foreground="{StaticResource TextMutedBrush}" FontSize="10"/>
+                                            <PasswordBox x:Name="VpnPsk" Background="#0A1726"
+                                                         BorderBrush="{StaticResource PanelStrokeBrush}" Padding="8" Margin="0,3,0,0" VerticalContentAlignment="Center"/>
+                                        </StackPanel>
+
+                                        <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+                                            <Button x:Name="VpnConnectButton" Style="{StaticResource PrimaryButton}"
+                                                    Content="SE CONNECTER" Click="OnVpnConnect" Width="170"/>
+                                            <Button x:Name="VpnDisconnectButton" Style="{StaticResource GhostButton}"
+                                                    Content="Déconnecter" Click="OnVpnDisconnect" Margin="10,0,0,0" IsEnabled="False"/>
+                                            <CheckBox x:Name="VpnSaveCreds" Content="Mémoriser (chiffré)" Foreground="{StaticResource TextMutedBrush}"
+                                                      VerticalAlignment="Center" Margin="14,0,0,0" FontSize="11" IsChecked="True"/>
+                                        </StackPanel>
+                                        <TextBlock x:Name="VpnLog" Text="" Foreground="{StaticResource AccentBrush}" FontSize="11" Margin="0,10,0,0" TextWrapping="Wrap"/>
                                     </StackPanel>
                                 </Border>
                             </StackPanel>
