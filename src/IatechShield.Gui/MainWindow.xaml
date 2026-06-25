@@ -53,6 +53,8 @@
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xEA18;" Content="Centre" Checked="OnNav"/>
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
+                                     Tag="&#xE99A;" Content="Copilote" Checked="OnNav"/>
+                        <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE950;" Content="Appareil" Checked="OnNav"/>
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE77B;" Content="Système" Checked="OnNav"/>
@@ -356,8 +358,12 @@
                                                         <ComboBoxItem Content="Analyser"/>
                                                         <ComboBoxItem Content="Ignorer"/>
                                                     </ComboBox>
-                                                    <Button Grid.Column="2" Content="Appliquer" Style="{StaticResource GhostButton}"
-                                                            Click="OnApplyThreatAction" VerticalAlignment="Center"/>
+                                                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <Button Content="Expliquer (IA)" Style="{StaticResource GhostButton}"
+                                                                Click="OnExplainThreat" Tag="{Binding}" Margin="0,0,6,0"/>
+                                                        <Button Content="Appliquer" Style="{StaticResource GhostButton}"
+                                                                Click="OnApplyThreatAction"/>
+                                                    </StackPanel>
                                                 </Grid>
                                             </Border>
                                         </DataTemplate>
@@ -1154,6 +1160,84 @@
                                 </Border>
                             </StackPanel>
                         </ScrollViewer>
+                    </Grid>
+
+                    <!-- =============== PAGE : COPILOTE IA ================ -->
+                    <Grid x:Name="PageCopilot" Visibility="Collapsed">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="2*"/>
+                            <ColumnDefinition Width="14"/>
+                            <ColumnDefinition Width="1.25*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Conversation -->
+                        <Border Grid.Column="0" Style="{StaticResource Card}">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <StackPanel Grid.Row="0" Margin="0,0,0,8">
+                                    <TextBlock Text="🤖 Copilote cybersécurité" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="15"/>
+                                    <TextBlock x:Name="CopilotHint" Text="Propulsé par Claude. Posez une question ou laissez-le vous alerter en cas d'activité suspecte."
+                                               Foreground="{StaticResource TextMutedBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                </StackPanel>
+
+                                <ScrollViewer Grid.Row="1" x:Name="ChatScroll" VerticalScrollBarVisibility="Auto">
+                                    <ItemsControl x:Name="ChatList">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Background="{Binding Bubble}" CornerRadius="10" Padding="10,8" Margin="0,4"
+                                                        HorizontalAlignment="{Binding Align}" MaxWidth="460">
+                                                    <StackPanel>
+                                                        <TextBlock Text="{Binding Sender}" Foreground="{StaticResource AccentBrush}" FontSize="10" FontWeight="SemiBold" Margin="0,0,0,2"/>
+                                                        <TextBlock Text="{Binding Text}" Foreground="{StaticResource TextPrimaryBrush}" FontSize="12" TextWrapping="Wrap"/>
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+
+                                <Grid Grid.Row="2" Margin="0,8,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="ChatInput" Grid.Column="0" Background="#0A1726" Foreground="{StaticResource TextPrimaryBrush}"
+                                             BorderBrush="{StaticResource PanelStrokeBrush}" Padding="8" VerticalContentAlignment="Center"
+                                             KeyDown="OnChatKeyDown"/>
+                                    <Button x:Name="ChatSendButton" Grid.Column="1" Style="{StaticResource PrimaryButton}" Content="Envoyer"
+                                            Click="OnChatSend" Margin="8,0,0,0"/>
+                                </Grid>
+                            </Grid>
+                        </Border>
+
+                        <!-- Outils IA -->
+                        <StackPanel Grid.Column="2">
+                            <!-- Détection d'arnaques -->
+                            <Border Style="{StaticResource Card}">
+                                <StackPanel>
+                                    <TextBlock Text="🎣 Détecter une arnaque" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="13"/>
+                                    <TextBlock Text="Collez un e-mail, un SMS ou une URL : l'IA repère le phishing." Foreground="{StaticResource TextMutedBrush}" FontSize="10" Margin="0,2,0,6" TextWrapping="Wrap"/>
+                                    <TextBox x:Name="ScamInput" Background="#0A1726" Foreground="{StaticResource TextPrimaryBrush}" BorderBrush="{StaticResource PanelStrokeBrush}"
+                                             Padding="8" Height="70" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"/>
+                                    <Button x:Name="ScamButton" Style="{StaticResource GhostButton}" Content="Analyser" Click="OnAnalyzeScam" Margin="0,8,0,0" HorizontalAlignment="Left"/>
+                                    <TextBlock x:Name="ScamResult" Text="" Foreground="{StaticResource TextPrimaryBrush}" FontSize="11" Margin="0,8,0,0" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Analyse prédictive -->
+                            <Border Style="{StaticResource Card}" Margin="0,12,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="🔮 Analyse prédictive d'un fichier" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="13"/>
+                                    <TextBlock Text="Estime la probabilité qu'un fichier soit malveillant, avant toute signature." Foreground="{StaticResource TextMutedBrush}" FontSize="10" Margin="0,2,0,6" TextWrapping="Wrap"/>
+                                    <Button x:Name="PredictButton" Style="{StaticResource GhostButton}" Content="Choisir un fichier…" Click="OnPredictFile" HorizontalAlignment="Left"/>
+                                    <TextBlock x:Name="PredictResult" Text="" Foreground="{StaticResource TextPrimaryBrush}" FontSize="11" Margin="0,8,0,0" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
                     </Grid>
 
                     <!-- =================== PAGE : APPAREIL ================== -->

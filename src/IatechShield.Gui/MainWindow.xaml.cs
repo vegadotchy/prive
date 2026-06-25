@@ -97,6 +97,7 @@ public partial class MainWindow : Window
         PageVpn.Visibility = Visibility.Collapsed;
         PageVault.Visibility = Visibility.Collapsed;
         PageCentre.Visibility = Visibility.Collapsed;
+        PageCopilot.Visibility = Visibility.Collapsed;
         PageDevice.Visibility = Visibility.Collapsed;
         PageSystem.Visibility = Visibility.Collapsed;
         PageSettings.Visibility = Visibility.Collapsed;
@@ -112,6 +113,7 @@ public partial class MainWindow : Window
             "VPN" => PageVpn,
             "Coffre-fort" => PageVault,
             "Centre" => PageCentre,
+            "Copilote" => PageCopilot,
             "Appareil" => PageDevice,
             "Système" => PageSystem,
             "Settings" => PageSettings,
@@ -148,6 +150,10 @@ public partial class MainWindow : Window
         {
             LoadVault();
         }
+        else if (page == PageCopilot)
+        {
+            EnsureChatLoaded();
+        }
     }
 
     // Couleur d'accent propre à chaque onglet.
@@ -162,6 +168,7 @@ public partial class MainWindow : Window
         ["VPN"]        = Color.FromRgb(0x10, 0xB9, 0x81), // vert émeraude
         ["Coffre-fort"] = Color.FromRgb(0xFB, 0xBF, 0x24), // or
         ["Centre"]     = Color.FromRgb(0xEF, 0x44, 0x44), // rouge sécurité
+        ["Copilote"]   = Color.FromRgb(0x8B, 0x5C, 0xF6), // violet IA
         ["Appareil"]   = Color.FromRgb(0xEC, 0x48, 0x99), // rose
         ["Système"]    = Color.FromRgb(0x60, 0xA5, 0xFA), // bleu clair
         ["Settings"]   = Color.FromRgb(0x94, 0xA3, 0xB8), // gris-bleu
@@ -724,6 +731,129 @@ public partial class MainWindow : Window
 
         _lastCryptoAddress = addr;
         _lastCryptoKind = kind;
+    }
+
+    // ------------------------------------------------------- copilote IA ---
+
+    private readonly ObservableCollection<ChatMessage> _chat = new();
+    private bool _chatLoaded;
+
+    private void EnsureChatLoaded()
+    {
+        if (_chatLoaded) return;
+        _chatLoaded = true;
+        ChatList.ItemsSource = _chat;
+        AddChat("Copilote", AiAssistant.IsConfigured
+            ? "Bonjour 👋 Je surveille votre système. Posez-moi une question, ou je vous alerterai en cas d'activité suspecte."
+            : "Pour discuter avec moi, définissez la variable d'environnement ANTHROPIC_API_KEY puis relancez l'application.",
+            isUser: false);
+    }
+
+    private void AddChat(string sender, string text, bool isUser)
+    {
+        _chat.Add(new ChatMessage
+        {
+            Sender = sender,
+            Text = text,
+            Bubble = new SolidColorBrush(isUser ? Color.FromRgb(0x14, 0x2A, 0x44) : Color.FromRgb(0x1E, 0x16, 0x38)),
+            Align = isUser ? HorizontalAlignment.Right : HorizontalAlignment.Left
+        });
+        ChatScroll?.ScrollToBottom();
+    }
+
+    private void OnChatKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter) OnChatSend(sender, new RoutedEventArgs());
+    }
+
+    private async void OnChatSend(object sender, RoutedEventArgs e)
+    {
+        string q = ChatInput.Text.Trim();
+        if (q.Length == 0) return;
+        if (!AiAssistant.IsConfigured)
+        {
+            AddChat("Copilote", "Assistant IA non configuré (ANTHROPIC_API_KEY).", false);
+            return;
+        }
+
+        AddChat("Vous", q, true);
+        ChatInput.Clear();
+        ChatSendButton.IsEnabled = false;
+        try
+        {
+            string context = $"Contexte système : {_threatCount} menace(s) détectée(s) lors de la session.\n\nQuestion de l'utilisateur : {q}";
+            string answer = await new AiAssistant().AskAsync(context);
+            AddChat("Copilote", answer, false);
+        }
+        catch (Exception ex)
+        {
+            AddChat("Copilote", $"Erreur : {ex.Message}", false);
+        }
+        finally { ChatSendButton.IsEnabled = true; }
+    }
+
+    private async void OnExplainThreat(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: ThreatItem item }) return;
+        ShowPage("Copilote");
+        EnsureChatLoaded();
+        if (!AiAssistant.IsConfigured)
+        {
+            AddChat("Copilote", "Pour l'explication IA, définissez ANTHROPIC_API_KEY.", false);
+            return;
+        }
+        AddChat("Vous", $"Explique la menace : {item.Name}", true);
+        try
+        {
+            string details = $"Type de détection : {item.Name}. SHA-256 : {item.Sha}.";
+            string answer = await new AiAssistant().ExplainThreatAsync(item.Name, item.Path, details);
+            AddChat("Copilote", answer, false);
+        }
+        catch (Exception ex) { AddChat("Copilote", $"Erreur : {ex.Message}", false); }
+    }
+
+    private async void OnAnalyzeScam(object sender, RoutedEventArgs e)
+    {
+        string content = ScamInput.Text.Trim();
+        if (content.Length == 0) { ScamResult.Text = "Collez un e-mail, SMS ou URL."; return; }
+        if (!AiAssistant.IsConfigured) { ScamResult.Text = "Configurez ANTHROPIC_API_KEY pour l'analyse IA."; return; }
+
+        ScamButton.IsEnabled = false;
+        ScamResult.Text = "Analyse en cours…";
+        try { ScamResult.Text = await new AiAssistant().AnalyzeScamAsync(content); }
+        catch (Exception ex) { ScamResult.Text = $"Erreur : {ex.Message}"; }
+        finally { ScamButton.IsEnabled = true; }
+    }
+
+    private async void OnPredictFile(object sender, RoutedEventArgs e)
+    {
+        var dlg = new OpenFileDialog { Title = "Fichier à analyser (prédictif)" };
+        if (dlg.ShowDialog(this) != true) return;
+        if (!AiAssistant.IsConfigured) { PredictResult.Text = "Configurez ANTHROPIC_API_KEY pour l'analyse IA."; return; }
+
+        PredictButton.IsEnabled = false;
+        PredictResult.Text = "Calcul des caractéristiques et estimation…";
+        try
+        {
+            string path = dlg.FileName;
+            string metadata = await Task.Run(() =>
+            {
+                var info = new FileInfo(path);
+                var h = HeuristicAnalyzer.Analyze(path);
+                return $"Nom : {info.Name}\nExtension : {info.Extension}\nTaille : {info.Length} octets\n" +
+                       $"Entropie : {h.Entropy:0.0}/8\nIndice heuristique : {(h.Suspicious ? h.Reason : "rien de notable")}";
+            });
+            PredictResult.Text = await new AiAssistant().AssessFileAsync(metadata);
+        }
+        catch (Exception ex) { PredictResult.Text = $"Erreur : {ex.Message}"; }
+        finally { PredictButton.IsEnabled = true; }
+    }
+
+    /// <summary>Alerte proactive du copilote (appelée par les détections temps réel/ransomware).</summary>
+    private void CopilotAlert(string text)
+    {
+        EnsureChatLoaded();
+        AddChat("Copilote", "⚠ " + text, false);
     }
 
     // ----------------------------------------------- réputation VirusTotal ---
@@ -1466,6 +1596,7 @@ public partial class MainWindow : Window
             Log($"RANSOMWARE : {alert.Reason} — {action}.");
             SoundFx.Danger();
             Notify("⚠ Ransomware bloqué", $"{alert.Reason} — {action}");
+            CopilotAlert($"Comportement de type rançongiciel détecté : {alert.Reason}. Action : {action}. Je recommande de lancer une analyse complète et de vérifier vos sauvegardes.");
             _ransomGuard?.Rearm();
         });
     }
@@ -2265,6 +2396,15 @@ public sealed class VaultItem : System.ComponentModel.INotifyPropertyChanged
     public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
     private void OnChanged(string name) =>
         PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(name));
+}
+
+/// <summary>Un message dans la conversation du copilote IA.</summary>
+public sealed class ChatMessage
+{
+    public string Sender { get; init; } = "";
+    public string Text { get; init; } = "";
+    public Brush Bubble { get; init; } = Brushes.Transparent;
+    public HorizontalAlignment Align { get; init; } = HorizontalAlignment.Left;
 }
 
 /// <summary>Ligne d'un critère du score de sécurité.</summary>
