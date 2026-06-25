@@ -36,7 +36,7 @@ jobs:
           elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
             echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
           else
-            echo "tag=v0.3.0" >> "$GITHUB_OUTPUT"
+            echo "tag=v0.4.0" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Récupérer le code
@@ -82,15 +82,16 @@ jobs:
           body: |
             ## IATECH-SHIELD PRO — antivirus Windows
 
-            ### Nouveautés 0.3.0
-            - 🛡️ **Icône logo** + exécution en **arrière-plan** (barre des tâches / systray) avec notifications
-            - ⚡ **Scan parallèle multi-cœurs** + **barre de progression**
-            - 🧠 **Détection heuristique sans signature** (entropie / en-tête PE)
-            - 📜 **Règles façon YARA** (injection, downloader, keylogger, mimikatz)
-            - 🌐 **Réputation VirusTotal** (par hash, le fichier n'est pas envoyé)
-            - 🎨 **Couleur d'accent par onglet** + animations de transition
-            - 🔄 **Mise à jour automatique** depuis GitHub Releases
-            - 🔐 **Activation en ligne** (serveur de référence fourni)
+            ### Nouveautés 0.4.0
+            - 🔒 **VPN** intégré (client Windows L2TP/IPSec, SSTP, PPTP) — compatible serveur VPN **Synology**
+            - 🛡️ **Protection par mot de passe** (anti-altération) : requis pour quitter ou désactiver le temps réel
+            - 📺 **Verrou de session** : écran plein écran au logo + **code PIN** après inactivité
+
+            ### Déjà présent (0.3.0)
+            - 🛡️ Icône logo + arrière-plan (systray) + notifications
+            - ⚡ Scan parallèle multi-cœurs + barre de progression
+            - 🧠 Heuristique sans signature · 📜 règles YARA · 🌐 réputation VirusTotal
+            - 🎨 Accent par onglet + animations · 🔄 mise à jour auto · 🔐 activation en ligne
 
             **Téléchargements :**
             - `IatechShield-Setup-*.exe` — installateur Windows (recommandé)
