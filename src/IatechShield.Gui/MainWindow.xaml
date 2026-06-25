@@ -59,6 +59,8 @@
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE8EC;" Content="Jumeau" Checked="OnNav"/>
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
+                                     Tag="&#xE9F9;" Content="Investigation" Checked="OnNav"/>
+                        <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE99A;" Content="Copilote" Checked="OnNav"/>
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE950;" Content="Appareil" Checked="OnNav"/>
@@ -1281,6 +1283,65 @@
                                 </Border>
                             </StackPanel>
                         </ScrollViewer>
+                    </Grid>
+
+                    <!-- ======== PAGE : CENTRE D'INVESTIGATION ======== -->
+                    <Grid x:Name="PageInvestigation" Visibility="Collapsed">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <TextBlock Grid.Row="0" Text="Centre d'investigation" Style="{StaticResource PageTitle}"/>
+                        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,6,0,8">
+                            <Button x:Name="InvRefreshButton" Style="{StaticResource PrimaryButton}" Content="Actualiser la chronologie" Click="OnRefreshInvestigation"/>
+                            <Button x:Name="InvExportButton" Style="{StaticResource GhostButton}" Content="Exporter le rapport" Click="OnExportInvestigation" Margin="10,0,0,0"/>
+                            <Button x:Name="InvClearButton" Style="{StaticResource GhostButton}" Content="Vider" Click="OnClearInvestigation" Margin="8,0,0,0"/>
+                            <TextBlock x:Name="InvStatus" Text="Chronologie horodatée des évènements de sécurité." Foreground="{StaticResource TextMutedBrush}" FontSize="11" VerticalAlignment="Center" Margin="14,0,0,0" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <Border Grid.Row="2" Style="{StaticResource Card}">
+                            <ListBox x:Name="InvList" Background="Transparent" BorderThickness="0"
+                                     Foreground="{StaticResource TextPrimaryBrush}" FontSize="12"
+                                     HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                <ListBox.ItemContainerStyle>
+                                    <Style TargetType="ListBoxItem">
+                                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                        <Setter Property="Background" Value="Transparent"/>
+                                        <Setter Property="Padding" Value="0"/>
+                                    </Style>
+                                </ListBox.ItemContainerStyle>
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,3">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <!-- Pastille + ligne de temps -->
+                                            <StackPanel Grid.Column="0" Width="14" HorizontalAlignment="Center">
+                                                <Ellipse Width="12" Height="12" Fill="{Binding Color}"/>
+                                                <Rectangle Width="2" Fill="#2A3B55" VerticalAlignment="Stretch" Height="40" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                            </StackPanel>
+                                            <Border Grid.Column="1" Background="#22FFFFFF" CornerRadius="8" Padding="10" Margin="8,0,0,0"
+                                                    BorderBrush="{Binding Color}" BorderThickness="1">
+                                                <StackPanel>
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Grid.Column="0" Text="{Binding Title}" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="12"/>
+                                                        <TextBlock Grid.Column="1" Text="{Binding Time}" Foreground="{StaticResource TextMutedBrush}" FontSize="10"/>
+                                                    </Grid>
+                                                    <TextBlock Text="{Binding Detail}" Foreground="{StaticResource TextMutedBrush}" FontSize="10" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                                    <TextBlock Text="{Binding Category}" Foreground="{StaticResource AccentBrush}" FontSize="9" Margin="0,2,0,0"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Border>
                     </Grid>
 
                     <!-- ========== PAGE : JUMEAU NUMÉRIQUE ========== -->

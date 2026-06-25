@@ -100,6 +100,7 @@ public partial class MainWindow : Window
         PageCentre.Visibility = Visibility.Collapsed;
         PageIntegrity.Visibility = Visibility.Collapsed;
         PageTwin.Visibility = Visibility.Collapsed;
+        PageInvestigation.Visibility = Visibility.Collapsed;
         PageCopilot.Visibility = Visibility.Collapsed;
         PageDevice.Visibility = Visibility.Collapsed;
         PageSystem.Visibility = Visibility.Collapsed;
@@ -119,6 +120,7 @@ public partial class MainWindow : Window
             "Centre" => PageCentre,
             "Intégrité" => PageIntegrity,
             "Jumeau" => PageTwin,
+            "Investigation" => PageInvestigation,
             "Copilote" => PageCopilot,
             "Appareil" => PageDevice,
             "Système" => PageSystem,
@@ -160,6 +162,10 @@ public partial class MainWindow : Window
         {
             EnsureChatLoaded();
         }
+        else if (page == PageInvestigation)
+        {
+            OnRefreshInvestigation(this, new RoutedEventArgs());
+        }
     }
 
     // Couleur d'accent propre à chaque onglet.
@@ -177,6 +183,7 @@ public partial class MainWindow : Window
         ["Centre"]     = Color.FromRgb(0xEF, 0x44, 0x44), // rouge sécurité
         ["Intégrité"]  = Color.FromRgb(0x34, 0xD3, 0x99), // vert santé
         ["Jumeau"]     = Color.FromRgb(0x38, 0xBD, 0xF8), // bleu clair jumeau
+        ["Investigation"] = Color.FromRgb(0xF4, 0x72, 0xB6), // rose investigation
         ["Copilote"]   = Color.FromRgb(0x8B, 0x5C, 0xF6), // violet IA
         ["Appareil"]   = Color.FromRgb(0xEC, 0x48, 0x99), // rose
         ["Système"]    = Color.FromRgb(0x60, 0xA5, 0xFA), // bleu clair
@@ -747,6 +754,101 @@ public partial class MainWindow : Window
         "STARTUP" => "Démarrage", "TASK" => "Tâche", "FILE" => "Fichier", _ => cat
     };
 
+    // ------------------------------------------- centre d'investigation ---
+
+    private readonly ObservableCollection<TimelineItem> _timeline = new();
+    private bool _timelineBound;
+
+    /// <summary>Enregistre un évènement dans la chronologie d'investigation.</summary>
+    private void RecordIncident(string category, IncidentSeverity severity, string title, string detail)
+    {
+        try { IncidentLog.Record(category, severity, title, detail, DateTimeOffset.Now); }
+        catch { /* best-effort */ }
+    }
+
+    private void OnRefreshInvestigation(object sender, RoutedEventArgs e)
+    {
+        if (!_timelineBound) { InvList.ItemsSource = _timeline; _timelineBound = true; }
+        _timeline.Clear();
+        var events = IncidentLog.Load();
+        foreach (var ev in events)
+        {
+            _timeline.Add(new TimelineItem
+            {
+                Title = ev.Title,
+                Detail = ev.Detail,
+                Category = ev.Category,
+                Time = ev.Time.LocalDateTime.ToString("dd/MM HH:mm:ss"),
+                Color = new SolidColorBrush(ev.Severity switch
+                {
+                    IncidentSeverity.Critical => Color.FromRgb(0xEF, 0x44, 0x44),
+                    IncidentSeverity.Warning => Color.FromRgb(0xF5, 0x9E, 0x0B),
+                    _ => Color.FromRgb(0x34, 0xD3, 0x99)
+                })
+            });
+        }
+        InvStatus.Text = events.Count == 0 ? "Aucun évènement enregistré pour l'instant." : $"{events.Count} évènement(s).";
+    }
+
+    private void OnExportInvestigation(object sender, RoutedEventArgs e)
+    {
+        var events = IncidentLog.Load();
+        if (events.Count == 0) { InvStatus.Text = "Rien à exporter."; return; }
+
+        var dlg = new SaveFileDialog
+        {
+            Title = "Exporter le rapport d'incident",
+            FileName = $"rapport-iatech-shield-{DateTime.Now:yyyyMMdd-HHmm}.html",
+            Filter = "Rapport HTML (*.html)|*.html"
+        };
+        if (dlg.ShowDialog(this) != true) return;
+
+        try
+        {
+            File.WriteAllText(dlg.FileName, BuildIncidentReportHtml(events));
+            InvStatus.Text = "Rapport exporté. Ouvrez-le et imprimez-le en PDF si besoin.";
+            Log($"Rapport d'incident exporté : {dlg.FileName}");
+            try { Process.Start(new ProcessStartInfo(dlg.FileName) { UseShellExecute = true }); } catch { }
+        }
+        catch (Exception ex) { InvStatus.Text = $"Échec de l'export : {ex.Message}"; }
+    }
+
+    private void OnClearInvestigation(object sender, RoutedEventArgs e)
+    {
+        IncidentLog.Clear();
+        _timeline.Clear();
+        InvStatus.Text = "Chronologie vidée.";
+    }
+
+    private static string BuildIncidentReportHtml(IReadOnlyList<IncidentEvent> events)
+    {
+        string Esc(string s) => System.Net.WebUtility.HtmlEncode(s);
+        var rows = new StringBuilder();
+        foreach (var ev in events)
+        {
+            string color = ev.Severity switch
+            {
+                IncidentSeverity.Critical => "#ef4444",
+                IncidentSeverity.Warning => "#f59e0b",
+                _ => "#34d399"
+            };
+            rows.Append(
+                $"<tr><td>{ev.Time.LocalDateTime:dd/MM/yyyy HH:mm:ss}</td>" +
+                $"<td><b style='color:{color}'>{ev.Severity}</b></td>" +
+                $"<td>{Esc(ev.Category)}</td><td>{Esc(ev.Title)}</td><td>{Esc(ev.Detail)}</td></tr>");
+        }
+        return
+            "<!doctype html><html lang='fr'><head><meta charset='utf-8'><title>Rapport IATECH-SHIELD PRO</title>" +
+            "<style>body{font-family:Segoe UI,Arial,sans-serif;background:#0a1726;color:#e6eefb;padding:28px}" +
+            "h1{color:#22d3e8}table{border-collapse:collapse;width:100%;font-size:13px}" +
+            "th,td{border:1px solid #24364f;padding:7px;text-align:left;vertical-align:top}th{background:#10233a;color:#22d3e8}" +
+            "tr:nth-child(even){background:#0e1d31}</style></head><body>" +
+            $"<h1>🛡️ IATECH-SHIELD PRO — Rapport d'incident</h1>" +
+            $"<p>Généré le {DateTime.Now:dd/MM/yyyy à HH:mm} · {events.Count} évènement(s) · poste {Esc(Environment.MachineName)}</p>" +
+            "<table><tr><th>Date</th><th>Gravité</th><th>Catégorie</th><th>Évènement</th><th>Détail</th></tr>" +
+            rows + "</table></body></html>";
+    }
+
     private static Color ScoreColor(int score) => score switch
     {
         >= 75 => Color.FromRgb(0x34, 0xD3, 0x99),
@@ -769,6 +871,7 @@ public partial class MainWindow : Window
         PanicStatus.Text = "Activation du mode Panic…";
         Log("Mode Panic activé.");
         Notify("🚨 Mode Panic", "Réseau coupé, USB bloqué, session verrouillée.");
+        RecordIncident("Mode Panic", IncidentSeverity.Warning, "Mode Panic activé", "Réseau coupé, USB bloqué, processus suspects arrêtés, session verrouillée.");
         try
         {
             string report = await PanicMode.EngageAsync();
@@ -1450,6 +1553,7 @@ public partial class MainWindow : Window
                             Log($"MENACE : {name} — {path}");
                             SoundFx.Threat();
                             Notify("Menace détectée", $"{name}\n{path}");
+                            RecordIncident("Analyse", IncidentSeverity.Critical, $"Menace détectée : {name}", path);
                         });
                     }
 
@@ -1809,6 +1913,7 @@ public partial class MainWindow : Window
             Log($"Temps réel — menace bloquée : {result.Path}");
             SoundFx.Threat();
             Notify("Menace bloquée (temps réel)", Path.GetFileName(result.Path));
+            RecordIncident("Temps réel", IncidentSeverity.Critical, "Menace bloquée en temps réel", result.Path);
         });
     }
 
@@ -1863,6 +1968,7 @@ public partial class MainWindow : Window
             Log($"RANSOMWARE : {alert.Reason} — {action}.");
             SoundFx.Danger();
             Notify("⚠ Ransomware bloqué", $"{alert.Reason} — {action}");
+            RecordIncident("Ransomware", IncidentSeverity.Critical, "Comportement de rançongiciel bloqué", $"{alert.Reason} — {action}");
             CopilotAlert($"Comportement de type rançongiciel détecté : {alert.Reason}. Action : {action}. Je recommande de lancer une analyse complète et de vérifier vos sauvegardes.");
             _ransomGuard?.Rearm();
         });
@@ -2687,6 +2793,16 @@ public sealed class ChatMessage
     public string Text { get; init; } = "";
     public Brush Bubble { get; init; } = Brushes.Transparent;
     public HorizontalAlignment Align { get; init; } = HorizontalAlignment.Left;
+}
+
+/// <summary>Un évènement de la chronologie d'investigation.</summary>
+public sealed class TimelineItem
+{
+    public string Title { get; init; } = "";
+    public string Detail { get; init; } = "";
+    public string Category { get; init; } = "";
+    public string Time { get; init; } = "";
+    public Brush Color { get; init; } = Brushes.Gray;
 }
 
 /// <summary>Un accès webcam/micro affiché.</summary>
