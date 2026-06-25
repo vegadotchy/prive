@@ -30,6 +30,8 @@ internal static class Program
                 "trust"      => CmdTrust(rest),
                 "guard"      => CmdGuard(rest),
                 "license"    => CmdLicense(rest),
+                "autoruns"   => CmdAutoruns(rest),
+                "ai"         => CmdAi(rest),
                 "quarantine" => CmdQuarantine(rest),
                 "version"    => CmdVersion(),
                 _            => Unknown(command)
@@ -245,6 +247,59 @@ internal static class Program
         Environment.GetFolderPath(Environment.SpecialFolder.Desktop)
     };
 
+    // --------------------------------------------------------- registre / auto -
+
+    private static int CmdAutoruns(string[] args)
+    {
+        var guard = new RegistryGuard();
+        var entries = guard.ListAutoRuns();
+
+        PrintBanner();
+        if (entries.Count == 0)
+        {
+            Console.WriteLine("Aucune entrée de démarrage automatique lisible (ou hors Windows).");
+            return 0;
+        }
+
+        Console.WriteLine($"{entries.Count} programme(s) au démarrage automatique :");
+        int suspicious = 0;
+        foreach (var e in entries)
+        {
+            string flag = e.Suspicious ? "  [SUSPECT]" : "";
+            Console.WriteLine($"  [{e.Location}] {e.Name}{flag}");
+            Console.WriteLine($"      → {e.Command}");
+            if (e.Suspicious) suspicious++;
+        }
+        Console.WriteLine(new string('-', 60));
+        Console.WriteLine($"{suspicious} entrée(s) suspecte(s).");
+        return suspicious > 0 ? 1 : 0;
+    }
+
+    // --------------------------------------------------------------- assistant IA
+
+    private static int CmdAi(string[] args)
+    {
+        if (args.Length == 0)
+        {
+            Console.Error.WriteLine("Usage : iatech-shield ai <votre question de sécurité>");
+            return 2;
+        }
+
+        string question = string.Join(' ', args);
+        try
+        {
+            string answer = new IatechShield.Ai.AiAssistant().AskAsync(question).GetAwaiter().GetResult();
+            PrintBanner();
+            Console.WriteLine(answer);
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Assistant IA indisponible : {ex.Message}");
+            return 1;
+        }
+    }
+
     // -------------------------------------------------------------- licence ---
 
     private static int CmdLicense(string[] args)
@@ -373,6 +428,8 @@ internal static class Program
               trust <fichier.exe>             Calcule le score de confiance d'un programme.
               guard [dossiers...]             Bouclier anti-ransomware (canaris + arrêt).
               license status|activate <clé>   Gère la licence / l'activation.
+              autoruns                        Liste les programmes au démarrage (persistance).
+              ai <question>                   Assistant de sécurité IA (clé ANTHROPIC_API_KEY).
               quarantine list                 Liste les fichiers en quarantaine.
               quarantine restore <id>         Restaure un fichier (faux positif).
               quarantine delete <id>          Supprime définitivement un fichier.

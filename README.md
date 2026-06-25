@@ -18,6 +18,9 @@ Antivirus pédagogique et fonctionnel pour **Windows**, écrit en **C# / .NET 8*
 | **Score de confiance des apps** | ✅ | Note /100 (signature Authenticode, éditeur, emplacement). |
 | **Bouclier anti-ransomware** | ✅ | Canaris + détection de modifications massives + arrêt du processus. |
 | **Auto-scan des clés USB** | ✅ | Analyse automatique à l'insertion d'un périphérique amovible. |
+| **Droits administrateur** | ✅ | L'interface démarre élevée (UAC) pour agir sur le système. |
+| **Inspection du registre** | ✅ | Liste/analyse les programmes au démarrage (persistance malware). |
+| **Assistant IA (Claude)** | ✅ | Analyse les menaces et recommande des actions (SDK Anthropic). |
 | Installateur `.exe` | ✅ | Script Inno Setup (`installer/iatech-shield.iss`). |
 | Détection d'anomalie / ML local | ⏳ | À venir (voir `ARCHITECTURE.md`). |
 | Module noyau (mémoire, anti-exploit) | 🔬 | Recherche — nécessite un pilote signé (voir `ARCHITECTURE.md`). |
@@ -95,7 +98,25 @@ iatech-shield guard C:\Donnees\Important
 iatech-shield quarantine list
 iatech-shield quarantine restore <id>     # en cas de faux positif
 iatech-shield quarantine delete <id>
+
+# Programmes au démarrage automatique (persistance)
+iatech-shield autoruns
+
+# Assistant de sécurité IA (nécessite ANTHROPIC_API_KEY)
+iatech-shield ai "ce fichier facture.pdf.exe est-il dangereux ?"
 ```
+
+### Assistant IA (Claude)
+
+L'assistant utilise le **SDK officiel Anthropic** (modèle `claude-opus-4-8`). Définissez
+votre clé avant de lancer l'application ou la CLI :
+
+```bash
+setx ANTHROPIC_API_KEY "votre-clé-anthropic"   # Windows (nouvelle session)
+```
+
+Dans l'interface, le bouton **« Assistant IA »** envoie l'état du système à Claude et
+affiche un avis de sécurité + les actions recommandées.
 
 ## Tester la détection (sans danger)
 

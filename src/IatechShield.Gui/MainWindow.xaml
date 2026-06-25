@@ -70,6 +70,9 @@
                             <TextBlock x:Name="LicenseStatusText" Text="Essai" FontSize="11"
                                        Foreground="{StaticResource AccentBrush}"/>
                         </Border>
+                        <Button x:Name="AiButton" Content="Assistant IA" Click="OnAiAssistant" Style="{x:Null}"
+                                FontSize="11" Height="26" Padding="10,0" Cursor="Hand" Margin="0,0,8,0"
+                                Foreground="White" Background="#16607A" BorderThickness="0"/>
                         <Button x:Name="ActivateButton" Content="Activer" Click="OnOpenLicense" Style="{x:Null}"
                                 FontSize="11" Height="26" Padding="10,0" Cursor="Hand" Margin="0,0,8,0"
                                 Foreground="White" Background="#1577C9" BorderThickness="0"/>

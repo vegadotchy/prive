@@ -8,6 +8,7 @@ using System.Windows.Media;
 using Microsoft.Win32;
 using IatechShield.Engine;
 using IatechShield.Licensing;
+using IatechShield.Ai;
 
 namespace IatechShield.Gui;
 
@@ -379,6 +380,49 @@ public partial class MainWindow : Window
         ReactorPulseText.Text = safe
             ? "Pulsations du cœur-réacteur : STABLES"
             : "Pulsations du cœur-réacteur : INSTABLES";
+    }
+
+    // ----------------------------------------------------------- assistant IA -
+
+    private async void OnAiAssistant(object sender, RoutedEventArgs e)
+    {
+        if (!AiAssistant.IsConfigured)
+        {
+            MessageBox.Show(this,
+                "L'assistant IA nécessite une clé Anthropic.\n\n" +
+                "Définissez la variable d'environnement ANTHROPIC_API_KEY, puis relancez " +
+                "IATECH-SHIELD PRO.",
+                "Assistant IA — configuration requise",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        // On résume l'état courant pour que l'IA donne un avis pertinent.
+        var guard = new RegistryGuard();
+        int suspectAutoruns = guard.ListAutoRuns().Count(a => a.Suspicious);
+        string context =
+            $"État du système : {_threatCount} menace(s) détectée(s) lors du dernier scan, " +
+            $"{suspectAutoruns} programme(s) suspect(s) au démarrage automatique. " +
+            "Donne un avis de sécurité et les prochaines actions recommandées.";
+
+        AiButton.IsEnabled = false;
+        AiButton.Content = "Analyse…";
+        try
+        {
+            string answer = await new AiAssistant().AskAsync(context);
+            MessageBox.Show(this, answer, "Assistant IA — IATECH-SHIELD PRO",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, $"Assistant IA indisponible : {ex.Message}",
+                "Assistant IA", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        finally
+        {
+            AiButton.IsEnabled = true;
+            AiButton.Content = "Assistant IA";
+        }
     }
 
     // -------------------------------------------------------- fenêtre / chrome -

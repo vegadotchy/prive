@@ -8,6 +8,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- SDK officiel Anthropic (assistant IA). -->
+    <PackageReference Include="Anthropic" Version="*" />
+    <!-- Accès au registre Windows (points de démarrage automatique). -->
+    <PackageReference Include="Microsoft.Win32.Registry" Version="5.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- La base de signatures est copiée chez tout projet qui référence le moteur. -->
     <None Update="signatures.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

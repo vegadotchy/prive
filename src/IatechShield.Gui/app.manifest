@@ -5,9 +5,11 @@
   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
     <security>
       <requestedPrivileges>
-        <!-- asInvoker : pas d'élévation forcée. Lancer en administrateur pour
-             analyser/quarantainer des dossiers système protégés. -->
-        <requestedExecutionLevel level="asInvoker" uiAccess="false" />
+        <!-- requireAdministrator : l'antivirus démarre avec les droits admin
+             (nécessaires pour analyser/quarantainer des zones système protégées,
+             gérer le registre et la protection en temps réel). Windows affichera
+             une invite UAC au lancement. -->
+        <requestedExecutionLevel level="requireAdministrator" uiAccess="false" />
       </requestedPrivileges>
     </security>
   </trustInfo>
