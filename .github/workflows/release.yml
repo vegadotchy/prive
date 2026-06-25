@@ -36,7 +36,7 @@ jobs:
           elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
             echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
           else
-            echo "tag=v0.2.0" >> "$GITHUB_OUTPUT"
+            echo "tag=v0.2.1" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Récupérer le code
