@@ -9,21 +9,22 @@ public static class Branding
     /// <summary>Page produit principale (achat « À vie »).</summary>
     public const string ProductUrl = "https://iatechfutur.be/products/iatech-shield-pro-antivirus-nouvelle-generation";
 
-    // Pages d'abonnement (le client choisit « s'abonner » → prélèvement automatique).
-    private const string MonthlyUrl = "https://iatechfutur.be/products/iatech-shield-pro-abonnement-mensuel";
-    private const string YearlyUrl = "https://iatechfutur.be/products/iatech-shield-pro-abonnement-annuel";
+    // Ajout direct au panier AVEC le plan d'abonnement (selling_plan) :
+    // le panier et le paiement afficheront « Abonnement · tous les mois / ans ».
+    private const string MonthlyCart = "https://iatechfutur.be/cart/56252004008276:1?selling_plan=690981175636";
+    private const string YearlyCart = "https://iatechfutur.be/cart/56252004696404:1?selling_plan=690981142868";
     // Variante « À vie » (paiement unique) — ajout direct au panier.
     private const string LifetimeCart = "https://iatechfutur.be/cart/56251035386196:1";
 
     /// <summary>
-    /// Lien boutique selon la formule choisie :
-    /// mensuel / annuel → page d'abonnement (renouvellement auto) ;
-    /// à vie → ajout direct au panier (paiement unique).
+    /// Lien « ajout direct au panier » selon la formule :
+    /// mensuel / annuel → abonnement (renouvellement auto, mention « Abonnement » au panier) ;
+    /// à vie → paiement unique.
     /// </summary>
     public static string ShopUrlForPlan(string plan) => plan switch
     {
-        "monthly" => MonthlyUrl,
-        "yearly" => YearlyUrl,
+        "monthly" => MonthlyCart,
+        "yearly" => YearlyCart,
         "lifetime" => LifetimeCart,
         _ => ProductUrl
     };
