@@ -36,7 +36,7 @@ jobs:
           elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
             echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
           else
-            echo "tag=v0.9.4" >> "$GITHUB_OUTPUT"
+            echo "tag=v0.9.5" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Récupérer le code
@@ -91,6 +91,11 @@ jobs:
           generate_release_notes: true
           body: |
             ## IATECH-SHIELD PRO — antivirus Windows
+
+            ### Nouveautés 0.9.5
+            - 🎉 **Écran de félicitations** après activation : logo + **coche verte** et « Licence activée pour … / à vie »
+            - ✅ Le bouton **« Activer »** devient **vert « ✓ Activé »** une fois la licence posée
+            - ⏳ **Compte à rebours** (jours / heures / minutes) pour les licences mensuelles et annuelles ; mention **« Licence à vie »** pour les achats définitifs — le bandeau « Essai — 15 j » disparaît
 
             ### Nouveautés 0.9.4
             - 🛒 **Boutique intégrée** : les formules **Mensuel / Annuel / À vie** ouvrent directement la boutique **iatechfutur.be** pour l'achat

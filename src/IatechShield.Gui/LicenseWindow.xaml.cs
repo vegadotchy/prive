@@ -32,13 +32,35 @@ public partial class LicenseWindow : Window
         if (check.Valid)
         {
             Activated = true;
-            ShowResult($"Licence activée : {check.License!.TierLabel}. Merci !", true);
+            ShowSuccess(check.License!);
         }
         else
         {
             ShowResult(check.Message, false);
         }
     }
+
+    /// <summary>Affiche l'écran de félicitations (logo + coche verte) après activation.</summary>
+    private void ShowSuccess(License license)
+    {
+        if (license.IsLifetime)
+        {
+            SuccessMessage.Text = "Licence à vie activée";
+            SuccessDetail.Text = "Merci ! IATECH-SHIELD PRO est désormais activé définitivement sur ce PC.";
+        }
+        else
+        {
+            string label = license.TierLabel.ToLowerInvariant(); // « mensuelle » / « annuelle »
+            string until = license.ExpiresUtc?.ToLocalTime().ToString("dd/MM/yyyy") ?? "";
+            SuccessMessage.Text = $"Licence {label} activée";
+            SuccessDetail.Text = $"Merci ! Votre licence est valable jusqu'au {until}. " +
+                                 "Le compte à rebours s'affiche en haut de l'application.";
+        }
+        SuccessPanel.Visibility = Visibility.Visible;
+    }
+
+    /// <summary>Ferme la fenêtre une fois le succès affiché (le dashboard se met à jour).</summary>
+    private void OnSuccessContinue(object sender, RoutedEventArgs e) => Close();
 
     private async void OnActivateOnline(object sender, RoutedEventArgs e)
     {
@@ -65,7 +87,7 @@ public partial class LicenseWindow : Window
                 if (check.Valid)
                 {
                     Activated = true;
-                    ShowResult($"Activée en ligne : {check.License!.TierLabel}. Merci !", true);
+                    ShowSuccess(check.License!);
                 }
                 else
                 {

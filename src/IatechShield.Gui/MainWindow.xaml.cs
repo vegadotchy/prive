@@ -38,6 +38,8 @@ public partial class MainWindow : Window
     private readonly LicenseManager _license = new();
 
     private bool _activated = true;
+    /// <summary>Expiration de la licence active (null = à vie ou pas de licence) — pour le compte à rebours.</summary>
+    private DateTimeOffset? _licenseExpiry;
     private bool _ready;
     private int _threatCount;
     private bool _scanning;
@@ -245,7 +247,7 @@ public partial class MainWindow : Window
     private void StartMetricsTimer()
     {
         _metricsTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-        _metricsTimer.Tick += (_, _) => UpdateMetrics();
+        _metricsTimer.Tick += (_, _) => { UpdateMetrics(); UpdateLicenseCountdown(); };
         _metricsTimer.Start();
         UpdateMetrics();
     }
@@ -1906,25 +1908,50 @@ public partial class MainWindow : Window
         var accent = (Brush)FindResource("AccentBrush");
         var alert = new SolidColorBrush(Color.FromRgb(0xFF, 0x5C, 0x5C));
 
+        _licenseExpiry = null;
+
         switch (status.State)
         {
             case LicenseState.Licensed:
-                LicenseStatusText.Text = status.License!.IsLifetime ? "Licence à vie" : $"Licence {status.License.TierLabel}";
                 LicenseStatusText.Foreground = green;
                 LicenseBadge.BorderBrush = green;
-                ActivateButton.Visibility = Visibility.Collapsed;
+                LicenseBadge.Background = new SolidColorBrush(Color.FromRgb(0x0E, 0x2E, 0x1F));
+                if (status.License!.IsLifetime)
+                {
+                    // Achat « à vie » : pas de compte à rebours.
+                    LicenseStatusText.Text = "✓ Licence à vie";
+                }
+                else
+                {
+                    // Mensuel / annuel : on mémorise l'échéance pour le compte à rebours (j/h/min).
+                    _licenseExpiry = status.License.ExpiresUtc;
+                    UpdateLicenseCountdown();
+                }
+                // Le bouton « Activer » devient vert avec la mention « Activé ✓ ».
+                ActivateButton.Visibility = Visibility.Visible;
+                ActivateButton.Content = "✓ Activé";
+                ActivateButton.Background = green;
+                ActivateButton.Foreground = Brushes.White;
                 break;
             case LicenseState.TrialActive:
                 LicenseStatusText.Text = $"Essai — {status.TrialDaysRemaining} j";
                 LicenseStatusText.Foreground = accent;
                 LicenseBadge.BorderBrush = accent;
+                LicenseBadge.Background = new SolidColorBrush(Color.FromRgb(0x0E, 0x2A, 0x3F));
                 ActivateButton.Visibility = Visibility.Visible;
+                ActivateButton.Content = "Activer";
+                ActivateButton.Background = new SolidColorBrush(Color.FromRgb(0x15, 0x77, 0xC9));
+                ActivateButton.Foreground = Brushes.White;
                 break;
             default:
                 LicenseStatusText.Text = "Essai expiré";
                 LicenseStatusText.Foreground = alert;
                 LicenseBadge.BorderBrush = alert;
+                LicenseBadge.Background = new SolidColorBrush(Color.FromRgb(0x2A, 0x0E, 0x12));
                 ActivateButton.Visibility = Visibility.Visible;
+                ActivateButton.Content = "Activer";
+                ActivateButton.Background = new SolidColorBrush(Color.FromRgb(0x15, 0x77, 0xC9));
+                ActivateButton.Foreground = Brushes.White;
                 break;
         }
 
@@ -1950,6 +1977,31 @@ public partial class MainWindow : Window
         // On ramène l'utilisateur sur le dashboard et on le fige derrière le voile.
         if (locked && NavDashboard is not null)
             NavDashboard.IsChecked = true;
+    }
+
+    /// <summary>
+    /// Met à jour le compte à rebours de la licence (mensuel / annuel) en jours, heures,
+    /// minutes. Appelé chaque seconde. Pour une licence à vie, ne fait rien (pas d'échéance).
+    /// </summary>
+    private void UpdateLicenseCountdown()
+    {
+        if (_licenseExpiry is not { } expiry || LicenseStatusText is null)
+            return;
+
+        TimeSpan left = expiry - DateTimeOffset.UtcNow;
+        if (left <= TimeSpan.Zero)
+        {
+            // Échéance atteinte : on réévalue tout l'état (bascule en « essai expiré » → verrou).
+            LicenseStatusText.Text = "Licence expirée";
+            _licenseExpiry = null;
+            RefreshLicense();
+            return;
+        }
+
+        // Format : « 12j 04h 09m » (les secondes évitent un affichage figé sans surcharger l'œil).
+        LicenseStatusText.Text = left.TotalDays >= 1
+            ? $"⏳ {left.Days}j {left.Hours:00}h {left.Minutes:00}m"
+            : $"⏳ {left.Hours:00}h {left.Minutes:00}m {left.Seconds:00}s";
     }
 
     private void OnOpenLicense(object sender, RoutedEventArgs e)
