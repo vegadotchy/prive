@@ -983,6 +983,10 @@ public partial class MainWindow : Window
                 if (isNew) newCount++;
                 if (d.Risks.Count > 0) riskCount++;
 
+                bool https = d.OpenPorts.Any(p => p.Number is 443 or 8443);
+                bool http = d.OpenPorts.Any(p => p.Number is 80 or 8080);
+                string adminUrl = https ? $"https://{d.Ip}" : http ? $"http://{d.Ip}" : $"http://{d.Ip}";
+
                 _radar.Add(new RadarItem
                 {
                     Ip = d.Ip,
@@ -993,6 +997,9 @@ public partial class MainWindow : Window
                         ? "Aucun port courant ouvert"
                         : "Ports : " + string.Join(", ", d.OpenPorts.Select(p => $"{p.Number} ({p.Service})")),
                     Risks = d.Risks.ToList(),
+                    RisksText = string.Join(" ", d.Risks),
+                    AdminUrl = adminUrl,
+                    ActionsVisibility = d.Risks.Count > 0 ? Visibility.Visible : Visibility.Collapsed,
                     IsNew = isNew,
                     NewVisibility = isNew ? Visibility.Visible : Visibility.Collapsed,
                     BorderBrush = new SolidColorBrush(
@@ -1021,6 +1028,82 @@ public partial class MainWindow : Window
         {
             RadarButton.IsEnabled = true;
         }
+    }
+
+    private void OnRadarOpenAdmin(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: RadarItem item }) return;
+        try
+        {
+            Process.Start(new ProcessStartInfo(item.AdminUrl) { UseShellExecute = true });
+            RadarStatus.Text = $"Interface ouverte : {item.AdminUrl} — changez le mot de passe par défaut.";
+            Log($"Radar : ouverture de l'interface {item.AdminUrl}");
+        }
+        catch (Exception ex) { RadarStatus.Text = $"Ouverture impossible : {ex.Message}"; }
+    }
+
+    private async void OnRadarBlock(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: RadarItem item }) return;
+        var confirm = new PromptWindow("Bloquer l'appareil",
+            $"Bloquer {item.Ip} via le pare-feu Windows (ce PC ne communiquera plus avec lui) ? Tapez OUI.",
+            "Bloquer") { Owner = this };
+        if (confirm.ShowDialog() != true || !string.Equals(confirm.Value.Trim(), "OUI", StringComparison.OrdinalIgnoreCase))
+            return;
+
+        RadarStatus.Text = $"Blocage de {item.Ip}…";
+        try
+        {
+            bool ok = await NetGuard.BlockIpAsync(item.Ip);
+            RadarStatus.Text = ok ? $"Appareil {item.Ip} bloqué (pare-feu). Réversible via « Débloquer »."
+                                  : $"Échec du blocage de {item.Ip} (droits administrateur requis ?).";
+            if (ok)
+            {
+                RecordIncident("Radar", IncidentSeverity.Warning, $"Appareil bloqué : {item.Ip}", item.RisksText);
+                Log($"Radar : appareil {item.Ip} bloqué au pare-feu.");
+            }
+        }
+        catch (Exception ex) { RadarStatus.Text = $"Erreur : {ex.Message}"; }
+    }
+
+    private async void OnRadarUnblock(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: RadarItem item }) return;
+        RadarStatus.Text = $"Déblocage de {item.Ip}…";
+        try
+        {
+            bool ok = await NetGuard.UnblockIpAsync(item.Ip);
+            RadarStatus.Text = ok ? $"Appareil {item.Ip} débloqué." : $"Aucune règle de blocage pour {item.Ip}.";
+            if (ok) Log($"Radar : appareil {item.Ip} débloqué.");
+        }
+        catch (Exception ex) { RadarStatus.Text = $"Erreur : {ex.Message}"; }
+    }
+
+    private async void OnRadarAdvice(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: RadarItem item }) return;
+        if (!AiAssistant.IsConfigured)
+        {
+            System.Windows.MessageBox.Show(this,
+                $"Appareil : {item.NameLine} ({item.Ip}) — {item.TypeLabel}\n\nRisques :\n{item.RisksText}\n\n" +
+                "Conseils : changez le mot de passe par défaut, désactivez Telnet/FTP, mettez à jour le firmware, " +
+                "et coupez l'accès Internet de l'appareil s'il n'en a pas besoin.",
+                "Conseils de correction", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+            return;
+        }
+
+        ShowPage("Copilote");
+        EnsureChatLoaded();
+        AddChat("Vous", $"Comment corriger les risques de l'appareil {item.TypeLabel} ({item.Ip}) ?", true);
+        try
+        {
+            string answer = await new AiAssistant().AskAsync(
+                $"Un appareil du réseau local présente des risques. Type : {item.TypeLabel}. Adresse : {item.Ip}. " +
+                $"Nom : {item.NameLine}. Risques détectés : {item.RisksText}. " +
+                "Donne des étapes concrètes et simples pour corriger ces risques.");
+            AddChat("Copilote", answer, false);
+        }
+        catch (Exception ex) { AddChat("Copilote", $"Erreur : {ex.Message}", false); }
     }
 
     private static HashSet<string> LoadRadarKnown()
@@ -2784,6 +2867,13 @@ public sealed class RadarItem
     public bool IsNew { get; init; }
     public Visibility NewVisibility { get; init; } = Visibility.Collapsed;
     public Brush BorderBrush { get; init; } = Brushes.Gray;
+
+    /// <summary>URL de l'interface d'administration (https si dispo, sinon http).</summary>
+    public string AdminUrl { get; init; } = "";
+    /// <summary>Risques regroupés en une ligne (pour les conseils).</summary>
+    public string RisksText { get; init; } = "";
+    /// <summary>Affiche la barre d'actions seulement si l'appareil présente un risque.</summary>
+    public Visibility ActionsVisibility { get; init; } = Visibility.Collapsed;
 }
 
 /// <summary>Un message dans la conversation du copilote IA.</summary>

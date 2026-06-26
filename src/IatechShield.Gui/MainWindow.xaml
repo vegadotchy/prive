@@ -922,6 +922,17 @@
                                                             </DataTemplate>
                                                         </ItemsControl.ItemTemplate>
                                                     </ItemsControl>
+                                                    <!-- Barre d'actions de correction (appareils à risque) -->
+                                                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0" Visibility="{Binding ActionsVisibility}">
+                                                        <Button Content="Ouvrir l'interface" Style="{StaticResource GhostButton}" Height="30"
+                                                                Click="OnRadarOpenAdmin" Tag="{Binding}" Margin="0,0,6,0"/>
+                                                        <Button Content="Bloquer (pare-feu)" Style="{StaticResource GhostButton}" Height="30"
+                                                                Click="OnRadarBlock" Tag="{Binding}" Margin="0,0,6,0"/>
+                                                        <Button Content="Débloquer" Style="{StaticResource GhostButton}" Height="30"
+                                                                Click="OnRadarUnblock" Tag="{Binding}" Margin="0,0,6,0"/>
+                                                        <Button Content="Conseils (IA)" Style="{StaticResource GhostButton}" Height="30"
+                                                                Click="OnRadarAdvice" Tag="{Binding}"/>
+                                                    </StackPanel>
                                                 </StackPanel>
                                             </Grid>
                                         </Border>
