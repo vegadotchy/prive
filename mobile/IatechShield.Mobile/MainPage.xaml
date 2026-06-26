@@ -34,6 +34,23 @@
                 </VerticalStackLayout>
             </Border>
 
+            <!-- Compte & licence -->
+            <Border BackgroundColor="{StaticResource BgCard}" StrokeThickness="0" Padding="18"
+                    StrokeShape="RoundRectangle 16">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Mon compte" FontSize="16" FontAttributes="Bold"
+                           TextColor="{StaticResource TextPrimary}"/>
+                    <Label x:Name="AccountLabel" Text="Non connecté"
+                           FontSize="13" TextColor="{StaticResource TextMuted}"/>
+                    <Label x:Name="LicenseLabel" Text=""
+                           FontSize="13" TextColor="{StaticResource Accent}"/>
+                    <Button x:Name="AccountButton" Text="Se connecter (Google / e-mail)"
+                            BackgroundColor="{StaticResource Accent}" TextColor="#06101B"
+                            FontAttributes="Bold" CornerRadius="12" HeightRequest="46"
+                            Clicked="OnAccountClicked"/>
+                </VerticalStackLayout>
+            </Border>
+
             <!-- Fonctions -->
             <Border BackgroundColor="{StaticResource BgCard}" StrokeThickness="0" Padding="18"
                     StrokeShape="RoundRectangle 16">

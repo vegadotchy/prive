@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="IatechShield.Mobile.LoginPage"
+             BackgroundColor="{StaticResource Bg}"
+             Title="Mon compte">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="22" Spacing="14">
+
+            <Label Text="🛡️" FontSize="48" HorizontalOptions="Center" Margin="0,16,0,0"/>
+            <Label Text="Connexion à votre compte" FontSize="20" FontAttributes="Bold"
+                   TextColor="{StaticResource TextPrimary}" HorizontalOptions="Center"/>
+            <Label Text="Liez votre licence à votre compte : après réinstallation, reconnectez-vous sans ressaisir la clé."
+                   FontSize="12" TextColor="{StaticResource TextMuted}"
+                   HorizontalTextAlignment="Center"/>
+
+            <!-- Google -->
+            <Button Text="Continuer avec Google" BackgroundColor="White" TextColor="#1F2937"
+                    FontAttributes="Bold" CornerRadius="12" HeightRequest="48"
+                    Clicked="OnGoogle" Margin="0,8,0,0"/>
+
+            <Label Text="— ou par e-mail —" FontSize="12" TextColor="{StaticResource TextMuted}"
+                   HorizontalOptions="Center" Margin="0,4,0,4"/>
+
+            <Entry x:Name="EmailEntry" Placeholder="Adresse e-mail" Keyboard="Email"
+                   TextColor="{StaticResource TextPrimary}" PlaceholderColor="{StaticResource TextMuted}"
+                   BackgroundColor="{StaticResource BgCard}"/>
+            <Entry x:Name="PasswordEntry" Placeholder="Mot de passe" IsPassword="True"
+                   TextColor="{StaticResource TextPrimary}" PlaceholderColor="{StaticResource TextMuted}"
+                   BackgroundColor="{StaticResource BgCard}"/>
+
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="10" Margin="0,6,0,0">
+                <Button Grid.Column="0" Text="Se connecter" BackgroundColor="{StaticResource Accent}"
+                        TextColor="#06101B" FontAttributes="Bold" CornerRadius="12" Clicked="OnSignIn"/>
+                <Button Grid.Column="1" Text="Créer un compte" BackgroundColor="{StaticResource BgCard}"
+                        TextColor="{StaticResource Accent}" CornerRadius="12" Clicked="OnSignUp"/>
+            </Grid>
+
+            <Label x:Name="StatusLabel" FontSize="13" TextColor="{StaticResource TextMuted}"
+                   HorizontalTextAlignment="Center" Margin="0,8,0,0"/>
+
+            <ActivityIndicator x:Name="Busy" IsRunning="False" Color="{StaticResource Accent}"/>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>
