@@ -74,27 +74,60 @@ public sealed class AiAssistant
 
         // Le SDK lit ANTHROPIC_API_KEY : on l'alimente avec la clé enregistrée dans l'app.
         Environment.SetEnvironmentVariable("ANTHROPIC_API_KEY", apiKey);
-        var client = new AnthropicClient();
 
-        var response = await client.Messages.Create(new MessageCreateParams
+        try
         {
-            Model = Model.ClaudeOpus4_8,
-            MaxTokens = 1024,
-            Messages =
-            [
-                new()
-                {
-                    Role = Role.User,
-                    Content = $"{Persona}\n\n---\n\n{prompt}"
-                }
-            ]
-        });
+            var client = new AnthropicClient();
+            var response = await client.Messages.Create(new MessageCreateParams
+            {
+                Model = Model.ClaudeOpus4_8,
+                MaxTokens = 1024,
+                Messages =
+                [
+                    new()
+                    {
+                        Role = Role.User,
+                        Content = $"{Persona}\n\n---\n\n{prompt}"
+                    }
+                ]
+            });
 
-        var sb = new StringBuilder();
-        foreach (var text in response.Content.Select(b => b.Value).OfType<TextBlock>())
-            sb.AppendLine(text.Text);
+            var sb = new StringBuilder();
+            foreach (var text in response.Content.Select(b => b.Value).OfType<TextBlock>())
+                sb.AppendLine(text.Text);
 
-        string answer = sb.ToString().Trim();
-        return answer.Length > 0 ? answer : "(aucune réponse)";
+            string answer = sb.ToString().Trim();
+            return answer.Length > 0 ? answer : "(aucune réponse)";
+        }
+        catch (Exception ex)
+        {
+            return FriendlyError(ex.Message);
+        }
     }
+
+    /// <summary>Traduit les erreurs de l'API en messages clairs (crédits, clé, quota…).</summary>
+    private static string FriendlyError(string raw)
+    {
+        string m = raw.ToLowerInvariant();
+
+        if (m.Contains("credit balance") || m.Contains("too low") || m.Contains("billing") || m.Contains("payment"))
+            return "⚠ Votre compte API Anthropic n'a pas assez de crédits.\n\n" +
+                   "L'API est facturée à l'usage, séparément de l'abonnement Claude.ai. " +
+                   "Ajoutez quelques crédits sur console.anthropic.com → « Plans & Billing » (≈ 5 $ suffisent et durent longtemps), " +
+                   "puis réessayez. Toutes les autres fonctions de l'antivirus marchent sans crédit.";
+
+        if (m.Contains("authentication") || m.Contains("invalid x-api-key") || m.Contains("invalid api key") || m.Contains("unauthorized") || m.Contains("401"))
+            return "⚠ Clé API Anthropic invalide ou révoquée. Vérifiez-la dans Réglages → Assistant IA " +
+                   "(elle commence par « sk-ant-… »), ou créez-en une nouvelle sur console.anthropic.com.";
+
+        if (m.Contains("rate limit") || m.Contains("429") || m.Contains("overloaded"))
+            return "⚠ Trop de requêtes pour le moment (limite de débit). Patientez quelques secondes puis réessayez.";
+
+        if (m.Contains("model") && (m.Contains("not found") || m.Contains("does not exist") || m.Contains("not_found")))
+            return "⚠ Le modèle IA n'est pas disponible sur votre compte. Vérifiez l'accès au modèle dans la console Anthropic.";
+
+        return "⚠ L'assistant IA est temporairement indisponible : " + Short(raw);
+    }
+
+    private static string Short(string s) => s.Length > 220 ? s[..220].Trim() + "…" : s.Trim();
 }
