@@ -1137,6 +1137,9 @@
                                 </Grid>
                                 <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
                                     <Button x:Name="VaultAddButton" Style="{StaticResource PrimaryButton}" Content="AJOUTER AU COFFRE" Click="OnVaultAdd" Width="200"/>
+                                    <Button x:Name="VaultImportButton" Style="{StaticResource GhostButton}" Content="Importer CSV (Google/Edge/Chrome)" Click="OnVaultImportCsv" Margin="10,0,0,0"/>
+                                    <Button x:Name="VaultImportBrowserButton" Style="{StaticResource GhostButton}" Content="Importer depuis le navigateur" Click="OnVaultImportBrowser" Margin="8,0,0,0"/>
+                                    <Button x:Name="VaultExportButton" Style="{StaticResource GhostButton}" Content="Exporter (protégé)" Click="OnVaultExport" Margin="8,0,0,0"/>
                                     <TextBlock x:Name="VaultStatus" Text="" Foreground="{StaticResource AccentBrush}" FontSize="11" VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap"/>
                                 </StackPanel>
                             </StackPanel>

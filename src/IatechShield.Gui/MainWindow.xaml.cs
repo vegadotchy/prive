@@ -558,6 +558,162 @@ public partial class MainWindow : Window
         VaultStatus.Text = "Entrée ajoutée et chiffrée.";
     }
 
+    private void OnVaultImportCsv(object sender, RoutedEventArgs e)
+    {
+        if (!_vaultLoaded) LoadVault();
+        var dlg = new OpenFileDialog
+        {
+            Title = "Importer un CSV de mots de passe (export Google / Edge / Chrome)",
+            Filter = "Fichiers CSV (*.csv)|*.csv|Tous les fichiers (*.*)|*.*"
+        };
+        if (dlg.ShowDialog(this) != true) return;
+
+        try
+        {
+            var rows = ParseCsv(File.ReadAllText(dlg.FileName));
+            if (rows.Count == 0) { VaultStatus.Text = "CSV vide ou illisible."; return; }
+
+            // En-tête type Chrome/Edge : name,url,username,password[,note]
+            var header = rows[0].Select(h => h.Trim().ToLowerInvariant()).ToList();
+            int iName = header.IndexOf("name"), iUrl = header.IndexOf("url");
+            int iUser = header.IndexOf("username"), iPwd = header.IndexOf("password");
+            int iNote = header.IndexOf("note");
+            int start = (iUser >= 0 || iPwd >= 0) ? 1 : 0; // saute l'en-tête s'il existe
+            if (iUser < 0) iUser = 2;
+            if (iPwd < 0) iPwd = 3;
+            if (iName < 0) iName = 0;
+            if (iUrl < 0) iUrl = 1;
+
+            int added = 0;
+            for (int r = start; r < rows.Count; r++)
+            {
+                var c = rows[r];
+                string Get(int i) => i >= 0 && i < c.Count ? c[i] : "";
+                string pwd = Get(iPwd);
+                string user = Get(iUser);
+                if (string.IsNullOrEmpty(pwd) && string.IsNullOrEmpty(user)) continue;
+                string title = Get(iName);
+                if (string.IsNullOrWhiteSpace(title)) title = Get(iUrl);
+                _vault.Insert(0, new VaultItem
+                {
+                    Title = string.IsNullOrWhiteSpace(title) ? "(importé)" : title,
+                    Username = user,
+                    Password = pwd,
+                    Url = Get(iUrl),
+                    Notes = iNote >= 0 ? Get(iNote) : ""
+                });
+                added++;
+            }
+            SaveVault();
+            VaultStatus.Text = $"{added} mot(s) de passe importé(s) et chiffré(s).";
+            Log($"Coffre-fort : import CSV de {added} entrées.");
+        }
+        catch (Exception ex) { VaultStatus.Text = $"Échec de l'import : {ex.Message}"; }
+    }
+
+    private void OnVaultImportBrowser(object sender, RoutedEventArgs e)
+    {
+        // L'export sécurisé du navigateur (DPAPI/AES) est protégé : on ouvre la page
+        // d'export du navigateur, puis l'utilisateur réimporte le CSV obtenu.
+        System.Windows.MessageBox.Show(this,
+            "Pour importer vos mots de passe du navigateur :\n\n" +
+            "1) Dans Chrome/Edge : Paramètres → Mots de passe → « Exporter les mots de passe » → enregistrez le CSV.\n" +
+            "2) Revenez ici et cliquez « Importer CSV ».\n\n" +
+            "J'ouvre la page des mots de passe de votre navigateur.",
+            "Importer depuis le navigateur", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+        foreach (var url in new[] { "edge://settings/passwords", "chrome://settings/passwords" })
+        {
+            try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); return; }
+            catch { /* navigateur suivant */ }
+        }
+    }
+
+    private void OnVaultExport(object sender, RoutedEventArgs e)
+    {
+        if (!_vaultLoaded) LoadVault();
+        if (_vault.Count == 0) { VaultStatus.Text = "Le coffre est vide."; return; }
+
+        // Téléchargement protégé : exige le mot de passe de protection.
+        if (!TamperEnabled)
+        {
+            VaultStatus.Text = "Définissez d'abord un mot de passe de protection (Réglages) pour pouvoir exporter.";
+            return;
+        }
+        if (!RequireTamperAuth("Exporter (télécharger) les mots de passe du coffre-fort"))
+            return;
+
+        var dlg = new SaveFileDialog
+        {
+            Title = "Exporter le coffre-fort (CSV)",
+            FileName = $"coffre-iatech-shield-{DateTime.Now:yyyyMMdd-HHmm}.csv",
+            Filter = "Fichier CSV (*.csv)|*.csv"
+        };
+        if (dlg.ShowDialog(this) != true) return;
+
+        try
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("name,url,username,password,note");
+            foreach (var v in _vault)
+                sb.AppendLine(string.Join(",", new[] { v.Title, v.Url, v.Username, v.Password, v.Notes }.Select(CsvField)));
+            File.WriteAllText(dlg.FileName, sb.ToString());
+            VaultStatus.Text = $"{_vault.Count} entrée(s) exportée(s). ⚠ Fichier en clair : conservez-le en lieu sûr.";
+            Log("Coffre-fort exporté (CSV protégé par mot de passe).");
+        }
+        catch (Exception ex) { VaultStatus.Text = $"Échec de l'export : {ex.Message}"; }
+    }
+
+    private static string CsvField(string s)
+    {
+        s ??= "";
+        return s.Contains(',') || s.Contains('"') || s.Contains('\n')
+            ? "\"" + s.Replace("\"", "\"\"") + "\""
+            : s;
+    }
+
+    /// <summary>Analyse un CSV (gère les guillemets, virgules et sauts de ligne échappés).</summary>
+    private static List<List<string>> ParseCsv(string text)
+    {
+        var rows = new List<List<string>>();
+        var row = new List<string>();
+        var field = new StringBuilder();
+        bool inQuotes = false;
+        for (int i = 0; i < text.Length; i++)
+        {
+            char ch = text[i];
+            if (inQuotes)
+            {
+                if (ch == '"')
+                {
+                    if (i + 1 < text.Length && text[i + 1] == '"') { field.Append('"'); i++; }
+                    else inQuotes = false;
+                }
+                else field.Append(ch);
+            }
+            else
+            {
+                switch (ch)
+                {
+                    case '"': inQuotes = true; break;
+                    case ',': row.Add(field.ToString()); field.Clear(); break;
+                    case '\r': break;
+                    case '\n':
+                        row.Add(field.ToString()); field.Clear();
+                        if (row.Count > 1 || row[0].Length > 0) rows.Add(row);
+                        row = new List<string>();
+                        break;
+                    default: field.Append(ch); break;
+                }
+            }
+        }
+        if (field.Length > 0 || row.Count > 0)
+        {
+            row.Add(field.ToString());
+            if (row.Count > 1 || row[0].Length > 0) rows.Add(row);
+        }
+        return rows;
+    }
+
     private void OnVaultGenerate(object sender, RoutedEventArgs e)
     {
         const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%&*?";
