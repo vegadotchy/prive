@@ -60,6 +60,8 @@ public partial class MainWindow : Window
             StartLockWatcher();
             StartHeartbeat();
             StartCredentialBridge();
+            StartMetricsTimer();
+            LoadSystemInfo();
             var v = CurrentAppVersion;
             HeaderVersion.Text = $"{v.Major}.{v.Minor}.{v.Build}";
             _ready = true;
@@ -213,6 +215,95 @@ public partial class MainWindow : Window
         }
         brush.BeginAnimation(SolidColorBrush.ColorProperty,
             new ColorAnimation(target, TimeSpan.FromMilliseconds(280)) { EasingFunction = new QuadraticEase() });
+    }
+
+    // ----------------------------------------- CPU / RAM temps réel + infos ---
+
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+    private struct FileTimeRaw { public uint Low; public uint High; }
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool GetSystemTimes(out FileTimeRaw idle, out FileTimeRaw kernel, out FileTimeRaw user);
+
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+    private sealed class MemoryStatusEx
+    {
+        public uint dwLength = (uint)System.Runtime.InteropServices.Marshal.SizeOf(typeof(MemoryStatusEx));
+        public uint dwMemoryLoad;
+        public ulong ullTotalPhys, ullAvailPhys, ullTotalPageFile, ullAvailPageFile;
+        public ulong ullTotalVirtual, ullAvailVirtual, ullAvailExtendedVirtual;
+    }
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    private static extern bool GlobalMemoryStatusEx([System.Runtime.InteropServices.In, System.Runtime.InteropServices.Out] MemoryStatusEx mem);
+
+    private DispatcherTimer? _metricsTimer;
+    private ulong _prevIdle, _prevKernel, _prevUser;
+    private bool _sysInfoLoaded;
+
+    private void StartMetricsTimer()
+    {
+        _metricsTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        _metricsTimer.Tick += (_, _) => UpdateMetrics();
+        _metricsTimer.Start();
+        UpdateMetrics();
+    }
+
+    private static ulong Ft(FileTimeRaw f) => ((ulong)f.High << 32) | f.Low;
+
+    private void UpdateMetrics()
+    {
+        try
+        {
+            if (GetSystemTimes(out var idle, out var kern, out var usr))
+            {
+                ulong i = Ft(idle), k = Ft(kern), u = Ft(usr);
+                if (_prevKernel > 0 || _prevUser > 0)
+                {
+                    ulong total = (k - _prevKernel) + (u - _prevUser);
+                    ulong idleDelta = i - _prevIdle;
+                    double cpu = total > 0 ? Math.Clamp((1.0 - (double)idleDelta / total) * 100.0, 0, 100) : 0;
+                    CpuPercent.Text = $"{cpu:0}%";
+                    CpuBar.Value = cpu;
+                    CpuPercent.Foreground = new SolidColorBrush(cpu < 70 ? Color.FromRgb(0x34, 0xD3, 0x99)
+                        : cpu < 90 ? Color.FromRgb(0xF5, 0x9E, 0x0B) : Color.FromRgb(0xEF, 0x44, 0x44));
+                }
+                _prevIdle = i; _prevKernel = k; _prevUser = u;
+            }
+
+            var mem = new MemoryStatusEx();
+            if (GlobalMemoryStatusEx(mem) && mem.ullTotalPhys > 0)
+            {
+                double load = mem.dwMemoryLoad;
+                RamPercent.Text = $"{load:0}%";
+                RamBar.Value = load;
+                double totalGb = mem.ullTotalPhys / 1073741824.0;
+                double usedGb = (mem.ullTotalPhys - mem.ullAvailPhys) / 1073741824.0;
+                RamDetail.Text = $"{usedGb:0.0} / {totalGb:0.0} Go";
+                RamPercent.Foreground = new SolidColorBrush(load < 75 ? Color.FromRgb(0x22, 0xD3, 0xE8)
+                    : load < 90 ? Color.FromRgb(0xF5, 0x9E, 0x0B) : Color.FromRgb(0xEF, 0x44, 0x44));
+            }
+        }
+        catch { /* compteurs indisponibles */ }
+    }
+
+    private async void LoadSystemInfo()
+    {
+        if (_sysInfoLoaded) return;
+        _sysInfoLoaded = true;
+        try
+        {
+            var info = await SystemInfo.GatherAsync();
+            SysOs.Text = $"Windows : {info.Os} — {info.OsVersion}";
+            SysCpu.Text = $"Processeur : {info.Cpu} ({info.CpuCores})";
+            SysRam.Text = $"Mémoire : {info.RamTotal}";
+            SysGpu.Text = $"Carte graphique : {info.Gpu}";
+            SysMachine.Text = $"Machine : {info.Machine}";
+            SysInstall.Text = $"Windows installé le : {info.InstallDate}";
+            SysDisks.ItemsSource = info.Disks;
+        }
+        catch (Exception ex) { SysOs.Text = $"Infos système indisponibles : {ex.Message}"; }
     }
 
     /// <summary>Met à jour les indicateurs animés du tableau de bord (comptage progressif).</summary>
