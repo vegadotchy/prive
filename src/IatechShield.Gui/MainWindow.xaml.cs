@@ -58,6 +58,7 @@ public partial class MainWindow : Window
             InitEngine();
             SetupTray();
             StartLockWatcher();
+            StartHeartbeat();
             _ready = true;
             ShowPage("Dashboard");
         };
@@ -204,6 +205,41 @@ public partial class MainWindow : Window
         }
         brush.BeginAnimation(SolidColorBrush.ColorProperty,
             new ColorAnimation(target, TimeSpan.FromMilliseconds(280)) { EasingFunction = new QuadraticEase() });
+    }
+
+    /// <summary>Fait battre le cœur central du tableau de bord (rythme « lub-dub » réaliste).</summary>
+    private void StartHeartbeat()
+    {
+        // Un cycle d'environ 1,15 s : forte contraction, légère reprise, puis repos.
+        var beat = new DoubleAnimationUsingKeyFrames { RepeatBehavior = RepeatBehavior.Forever };
+        var ease = new SineEase { EasingMode = EasingMode.EaseInOut };
+        beat.KeyFrames.Add(new EasingDoubleKeyFrame(1.00, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(0)), ease));
+        beat.KeyFrames.Add(new EasingDoubleKeyFrame(1.14, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(140)), ease)); // lub
+        beat.KeyFrames.Add(new EasingDoubleKeyFrame(1.00, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(300)), ease));
+        beat.KeyFrames.Add(new EasingDoubleKeyFrame(1.09, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(430)), ease)); // dub
+        beat.KeyFrames.Add(new EasingDoubleKeyFrame(1.00, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(580)), ease));
+        beat.KeyFrames.Add(new EasingDoubleKeyFrame(1.00, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(1150)), ease)); // repos
+
+        HeartScale.BeginAnimation(ScaleTransform.ScaleXProperty, beat);
+        HeartScale.BeginAnimation(ScaleTransform.ScaleYProperty, beat);
+        CoreDotScale.BeginAnimation(ScaleTransform.ScaleXProperty, beat);
+        CoreDotScale.BeginAnimation(ScaleTransform.ScaleYProperty, beat);
+
+        // Le halo enfle un peu plus fort et son intensité pulse.
+        var halo = new DoubleAnimationUsingKeyFrames { RepeatBehavior = RepeatBehavior.Forever };
+        halo.KeyFrames.Add(new EasingDoubleKeyFrame(1.00, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(0)), ease));
+        halo.KeyFrames.Add(new EasingDoubleKeyFrame(1.22, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(160)), ease));
+        halo.KeyFrames.Add(new EasingDoubleKeyFrame(1.00, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(420)), ease));
+        halo.KeyFrames.Add(new EasingDoubleKeyFrame(1.00, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(1150)), ease));
+        GlowScale.BeginAnimation(ScaleTransform.ScaleXProperty, halo);
+        GlowScale.BeginAnimation(ScaleTransform.ScaleYProperty, halo);
+
+        var glowOpacity = new DoubleAnimationUsingKeyFrames { RepeatBehavior = RepeatBehavior.Forever };
+        glowOpacity.KeyFrames.Add(new EasingDoubleKeyFrame(0.45, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(0)), ease));
+        glowOpacity.KeyFrames.Add(new EasingDoubleKeyFrame(1.00, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(150)), ease));
+        glowOpacity.KeyFrames.Add(new EasingDoubleKeyFrame(0.45, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(450)), ease));
+        glowOpacity.KeyFrames.Add(new EasingDoubleKeyFrame(0.45, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(1150)), ease));
+        HeartGlow.BeginAnimation(System.Windows.Media.Effects.DropShadowEffect.OpacityProperty, glowOpacity);
     }
 
     private static void AnimatePageIn(UIElement page)
@@ -2990,6 +3026,42 @@ public partial class MainWindow : Window
     }
 
     private void OnMinimize(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
+
+    private bool _isFullscreen;
+    private Rect _restoreBounds;
+
+    private void OnToggleMaximize(object sender, RoutedEventArgs e) => ToggleFullscreen();
+
+    private void OnWindowKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.F11) ToggleFullscreen();
+        else if (e.Key == Key.Escape && _isFullscreen) ToggleFullscreen();
+    }
+
+    private void ToggleFullscreen()
+    {
+        if (!_isFullscreen)
+        {
+            _restoreBounds = new Rect(Left, Top, Width, Height);
+            WindowState = WindowState.Normal;
+            Left = 0; Top = 0;
+            Width = SystemParameters.PrimaryScreenWidth;
+            Height = SystemParameters.PrimaryScreenHeight;
+            RootBorder.CornerRadius = new CornerRadius(0);
+            MaximizeButton.Content = "\uE923"; // restaurer
+            MaximizeButton.ToolTip = "Quitter le plein écran (F11)";
+            _isFullscreen = true;
+        }
+        else
+        {
+            Left = _restoreBounds.Left; Top = _restoreBounds.Top;
+            Width = _restoreBounds.Width; Height = _restoreBounds.Height;
+            RootBorder.CornerRadius = new CornerRadius(16);
+            MaximizeButton.Content = "\uE922"; // plein écran
+            MaximizeButton.ToolTip = "Plein écran (F11)";
+            _isFullscreen = false;
+        }
+    }
 
     // Le bouton X ne ferme pas l'app : il la réduit dans la barre des tâches.
     private void OnClose(object sender, RoutedEventArgs e) => Close();
