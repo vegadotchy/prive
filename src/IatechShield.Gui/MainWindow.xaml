@@ -460,7 +460,22 @@
                             <Border Style="{StaticResource Card}" Margin="0,8,0,0">
                                 <StackPanel>
                                     <TextBlock Text="Assistant IA (Claude)" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="13"/>
-                                    <TextBlock x:Name="ApiKeyStatusText" Text="" Foreground="{StaticResource TextMutedBrush}" FontSize="11" Margin="0,6,0,0"/>
+                                    <TextBlock x:Name="ApiKeyStatusText" Text="" Foreground="{StaticResource TextMutedBrush}" FontSize="11" Margin="0,6,0,6" TextWrapping="Wrap"/>
+                                    <TextBlock Text="Collez votre clé Anthropic (commence par sk-ant-…). Obtenez-la sur console.anthropic.com → API Keys. Elle est stockée chiffrée sur ce PC, aucune variable d'environnement ni redémarrage requis."
+                                               Foreground="{StaticResource TextMutedBrush}" FontSize="10" Margin="0,0,0,6" TextWrapping="Wrap"/>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <PasswordBox x:Name="ApiKeyInput" Grid.Column="0" Background="#0A1726"
+                                                     BorderBrush="{StaticResource PanelStrokeBrush}" Padding="8" FontSize="12" VerticalContentAlignment="Center"/>
+                                        <Button x:Name="ApiKeySaveButton" Grid.Column="1" Style="{StaticResource GhostButton}"
+                                                Content="Enregistrer la clé" Click="OnSaveApiKey" Margin="10,0,0,0"/>
+                                        <Button x:Name="ApiKeyGetButton" Grid.Column="2" Style="{StaticResource GhostButton}"
+                                                Content="Obtenir une clé" Click="OnGetApiKey" Margin="8,0,0,0"/>
+                                    </Grid>
                                 </StackPanel>
                             </Border>
                             <Border Style="{StaticResource Card}" Margin="0,12,0,0">

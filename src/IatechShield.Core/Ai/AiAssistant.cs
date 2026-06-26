@@ -1,6 +1,7 @@
 using System.Text;
 using Anthropic;
 using Anthropic.Models.Messages;
+using IatechShield.Tools;
 
 namespace IatechShield.Ai;
 
@@ -18,9 +19,23 @@ public sealed class AiAssistant
         "concrètes (mettre en quarantaine, analyser, ignorer) et explique le risque " +
         "simplement. Ne fournis jamais d'aide à la création de logiciels malveillants.";
 
-    /// <summary>Vrai si la clé API est configurée.</summary>
-    public static bool IsConfigured =>
-        !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY"));
+    /// <summary>Clé enregistrée dans l'application (chiffrée DPAPI), ou variable d'environnement.</summary>
+    public static string? ResolveApiKey()
+    {
+        string? stored = SecretVault.Load("ai").GetValueOrDefault("key");
+        if (!string.IsNullOrWhiteSpace(stored)) return stored.Trim();
+        string? env = Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY");
+        return string.IsNullOrWhiteSpace(env) ? null : env.Trim();
+    }
+
+    /// <summary>Enregistre la clé API dans le coffre local chiffré (DPAPI).</summary>
+    public static void SaveApiKey(string key)
+        => SecretVault.Save("ai", new Dictionary<string, string> { ["key"] = key.Trim() });
+
+    public static void ClearApiKey() => SecretVault.Delete("ai");
+
+    /// <summary>Vrai si la clé API est configurée (app ou variable d'environnement).</summary>
+    public static bool IsConfigured => !string.IsNullOrWhiteSpace(ResolveApiKey());
 
     /// <summary>#1 — Explique une menace en langage clair (rôle, risque, danger, action).</summary>
     public Task<string> ExplainThreatAsync(string name, string path, string details, CancellationToken cancel = default)
@@ -52,10 +67,13 @@ public sealed class AiAssistant
     /// <summary>Envoie une question/un contexte à Claude et renvoie la réponse texte.</summary>
     public async Task<string> AskAsync(string prompt, CancellationToken cancel = default)
     {
-        if (!IsConfigured)
-            return "Assistant IA non configuré : définissez la variable d'environnement " +
-                   "ANTHROPIC_API_KEY avec votre clé Anthropic.";
+        string? apiKey = ResolveApiKey();
+        if (string.IsNullOrWhiteSpace(apiKey))
+            return "Assistant IA non configuré : collez votre clé Anthropic dans Réglages → Assistant IA " +
+                   "(ou définissez la variable d'environnement ANTHROPIC_API_KEY).";
 
+        // Le SDK lit ANTHROPIC_API_KEY : on l'alimente avec la clé enregistrée dans l'app.
+        Environment.SetEnvironmentVariable("ANTHROPIC_API_KEY", apiKey);
         var client = new AnthropicClient();
 
         var response = await client.Messages.Create(new MessageCreateParams

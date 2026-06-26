@@ -136,8 +136,8 @@ public partial class MainWindow : Window
         if (page == PageSettings)
         {
             ApiKeyStatusText.Text = AiAssistant.IsConfigured
-                ? "Clé ANTHROPIC_API_KEY détectée — assistant IA actif."
-                : "Aucune clé détectée. Définissez ANTHROPIC_API_KEY pour activer l'assistant IA.";
+                ? "✓ Clé Anthropic configurée — assistant IA actif."
+                : "Aucune clé. Collez votre clé Anthropic ci-dessous pour activer l'assistant IA.";
             if (AppVersionText is not null)
                 AppVersionText.Text = $"Version installée : {CurrentAppVersion}";
             if (TamperStatus is not null)
@@ -1463,6 +1463,34 @@ public partial class MainWindow : Window
     {
         EnsureChatLoaded();
         AddChat("Copilote", "⚠ " + text, false);
+    }
+
+    // -------------------------------------------------- clé API assistant ---
+
+    private void OnSaveApiKey(object sender, RoutedEventArgs e)
+    {
+        string key = ApiKeyInput.Password.Trim();
+        if (string.IsNullOrEmpty(key))
+        {
+            AiAssistant.ClearApiKey();
+            ApiKeyStatusText.Text = "Clé effacée. L'assistant IA est désactivé.";
+            return;
+        }
+        if (!key.StartsWith("sk-", StringComparison.OrdinalIgnoreCase))
+        {
+            ApiKeyStatusText.Text = "⚠ La clé Anthropic commence normalement par « sk-ant-… ». Vérifiez le copier-coller.";
+            return;
+        }
+        AiAssistant.SaveApiKey(key);
+        ApiKeyInput.Clear();
+        ApiKeyStatusText.Text = "✓ Clé enregistrée (chiffrée). Assistant IA actif — aucun redémarrage nécessaire.";
+        Log("Clé API Anthropic enregistrée.");
+    }
+
+    private void OnGetApiKey(object sender, RoutedEventArgs e)
+    {
+        try { Process.Start(new ProcessStartInfo("https://console.anthropic.com/settings/keys") { UseShellExecute = true }); }
+        catch (Exception ex) { ApiKeyStatusText.Text = $"Ouverture impossible : {ex.Message}"; }
     }
 
     // ----------------------------------------------- réputation VirusTotal ---
