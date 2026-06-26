@@ -1814,6 +1814,40 @@
                     </StackPanel>
                 </Grid>
             </Border>
+
+            <!-- ============= VERROU « LICENCE REQUISE » (essai expiré) ============= -->
+            <!-- Recouvre toute la fenêtre quand les 15 jours d'essai sont terminés :
+                 le logiciel reste figé sur le dashboard jusqu'à l'achat / activation. -->
+            <Border x:Name="LicenseLockOverlay" Grid.Row="0" Grid.RowSpan="2"
+                    Grid.Column="0" Grid.ColumnSpan="2" CornerRadius="16"
+                    Panel.ZIndex="9999" Visibility="Collapsed">
+                <Border.Background>
+                    <SolidColorBrush Color="#070F1A" Opacity="0.97"/>
+                </Border.Background>
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="540">
+                    <TextBlock Text="&#xE72E;" FontFamily="Segoe MDL2 Assets" FontSize="72"
+                               Foreground="{StaticResource AccentBrush}" HorizontalAlignment="Center"/>
+                    <TextBlock Text="Licence requise" FontSize="34" FontWeight="Bold"
+                               Foreground="{StaticResource TextPrimaryBrush}"
+                               HorizontalAlignment="Center" Margin="0,18,0,0"/>
+                    <TextBlock Text="Votre période d'essai de 15 jours est terminée."
+                               FontSize="15" Foreground="{StaticResource TextMutedBrush}"
+                               HorizontalAlignment="Center" Margin="0,12,0,0" TextWrapping="Wrap"
+                               TextAlignment="Center"/>
+                    <TextBlock Text="Veuillez acheter une licence sur la boutique IATECHFUTUR pour continuer à utiliser IATECH-SHIELD PRO."
+                               FontSize="14" Foreground="{StaticResource TextMutedBrush}"
+                               HorizontalAlignment="Center" Margin="0,4,0,0" TextWrapping="Wrap"
+                               TextAlignment="Center"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,28,0,0">
+                        <Button Content="🛒  Acheter une licence" Style="{StaticResource PrimaryButton}"
+                                Click="OnBuyLicenseFromLock" MinWidth="220"/>
+                        <Button Content="J'ai déjà une clé" Style="{StaticResource GhostButton}"
+                                Click="OnActivateFromLock" Margin="12,0,0,0"/>
+                    </StackPanel>
+                    <TextBlock Text="iatechfutur.be" FontSize="12" Foreground="{StaticResource AccentBrush}"
+                               HorizontalAlignment="Center" Margin="0,18,0,0"/>
+                </StackPanel>
+            </Border>
         </Grid>
     </Border>
 

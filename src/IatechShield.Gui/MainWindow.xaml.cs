@@ -1931,6 +1931,25 @@ public partial class MainWindow : Window
         ScanButton.IsEnabled = _activated && _scanner is not null;
         if (FullScanButton is not null)
             FullScanButton.IsEnabled = _activated && _scanner is not null;
+
+        ApplyTrialLock(status);
+    }
+
+    /// <summary>
+    /// Verrou d'essai : dès que les 15 jours sont terminés (ni licence, ni essai actif),
+    /// le logiciel reste figé sur le dashboard avec le message « Licence requise ».
+    /// </summary>
+    private void ApplyTrialLock(LicenseStatus status)
+    {
+        if (LicenseLockOverlay is null)
+            return;
+
+        bool locked = status.State is not (LicenseState.Licensed or LicenseState.TrialActive);
+        LicenseLockOverlay.Visibility = locked ? Visibility.Visible : Visibility.Collapsed;
+
+        // On ramène l'utilisateur sur le dashboard et on le fige derrière le voile.
+        if (locked && NavDashboard is not null)
+            NavDashboard.IsChecked = true;
     }
 
     private void OnOpenLicense(object sender, RoutedEventArgs e)
@@ -1947,6 +1966,27 @@ public partial class MainWindow : Window
         _license.Deactivate();
         RefreshLicense();
         Log("Licence désactivée (retour en mode essai).");
+    }
+
+    /// <summary>Voile « Licence requise » → ouvre la boutique IATECHFUTUR.</summary>
+    private void OnBuyLicenseFromLock(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(
+                Branding.ShopUrl) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Impossible d'ouvrir la boutique : {ex.Message}\n\nRendez-vous sur {Branding.ShopUrl}",
+                "IATECH-SHIELD PRO", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+    }
+
+    /// <summary>Voile « Licence requise » → fenêtre d'activation (saisie de la clé achetée).</summary>
+    private void OnActivateFromLock(object sender, RoutedEventArgs e)
+    {
+        OnOpenLicense(this, new RoutedEventArgs());
     }
 
     private bool EnsureActivated()

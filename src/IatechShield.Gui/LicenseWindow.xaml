@@ -42,7 +42,9 @@
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
-                <Border Grid.Column="0" Style="{StaticResource Card}" Margin="0,0,6,0">
+                <Border Grid.Column="0" Style="{StaticResource Card}" Margin="0,0,6,0"
+                        Tag="monthly" Cursor="Hand" MouseLeftButtonUp="OnBuyPlan"
+                        ToolTip="Acheter l'abonnement mensuel sur iatechfutur.be">
                     <StackPanel>
                         <TextBlock Text="Mensuel" Foreground="{StaticResource TextPrimaryBrush}"
                                    FontWeight="SemiBold" HorizontalAlignment="Center"/>
@@ -50,10 +52,14 @@
                                    FontWeight="Bold" HorizontalAlignment="Center" Margin="0,6,0,0"/>
                         <TextBlock Text="par mois" Foreground="{StaticResource TextMutedBrush}"
                                    FontSize="10" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Acheter →" Foreground="{StaticResource AccentBrush}"
+                                   FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,6,0,0"/>
                     </StackPanel>
                 </Border>
 
-                <Border Grid.Column="1" Style="{StaticResource Card}" Margin="6,0,6,0">
+                <Border Grid.Column="1" Style="{StaticResource Card}" Margin="6,0,6,0"
+                        Tag="yearly" Cursor="Hand" MouseLeftButtonUp="OnBuyPlan"
+                        ToolTip="Acheter l'abonnement annuel sur iatechfutur.be">
                     <StackPanel>
                         <TextBlock Text="Annuel" Foreground="{StaticResource TextPrimaryBrush}"
                                    FontWeight="SemiBold" HorizontalAlignment="Center"/>
@@ -63,11 +69,15 @@
                                    FontSize="10" HorizontalAlignment="Center"/>
                         <TextBlock Text="2 mois offerts" Foreground="{StaticResource GreenBrush}"
                                    FontSize="10" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                        <TextBlock Text="Acheter →" Foreground="{StaticResource AccentBrush}"
+                                   FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,4,0,0"/>
                     </StackPanel>
                 </Border>
 
                 <Border Grid.Column="2" Style="{StaticResource Card}" Margin="6,0,0,0"
-                        BorderBrush="{StaticResource AccentBrush}">
+                        BorderBrush="{StaticResource AccentBrush}"
+                        Tag="lifetime" Cursor="Hand" MouseLeftButtonUp="OnBuyPlan"
+                        ToolTip="Acheter la licence à vie sur iatechfutur.be">
                     <StackPanel>
                         <TextBlock Text="À vie" Foreground="{StaticResource TextPrimaryBrush}"
                                    FontWeight="SemiBold" HorizontalAlignment="Center"/>
@@ -75,6 +85,8 @@
                                    FontWeight="Bold" HorizontalAlignment="Center" Margin="0,6,0,0"/>
                         <TextBlock Text="paiement unique" Foreground="{StaticResource TextMutedBrush}"
                                    FontSize="10" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Acheter →" Foreground="{StaticResource AccentBrush}"
+                                   FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,6,0,0"/>
                     </StackPanel>
                 </Border>
             </Grid>

@@ -95,6 +95,23 @@ public partial class LicenseWindow : Window
             : new SolidColorBrush(Color.FromRgb(0xFF, 0x5C, 0x5C));
     }
 
+    /// <summary>Ouvre la boutique IATECHFUTUR sur la formule choisie (mensuel / annuel / à vie).</summary>
+    private void OnBuyPlan(object sender, MouseButtonEventArgs e)
+    {
+        string plan = (sender as FrameworkElement)?.Tag as string ?? "";
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(
+                Branding.ShopUrlForPlan(plan)) { UseShellExecute = true });
+            ShowResult("La boutique iatechfutur.be s'ouvre dans votre navigateur. " +
+                       "Après l'achat, collez la clé reçue par e-mail ci-dessous puis cliquez sur « Activer la licence ».", true);
+        }
+        catch (Exception ex)
+        {
+            ShowResult($"Impossible d'ouvrir la boutique : {ex.Message}\nRendez-vous sur {Branding.ShopUrl}", false);
+        }
+    }
+
     private void OnDrag(object sender, MouseButtonEventArgs e)
     {
         if (e.ButtonState == MouseButtonState.Pressed)
