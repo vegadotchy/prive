@@ -14,14 +14,18 @@ namespace IatechShield.Gui;
 /// </summary>
 public sealed class LockScreen : Window
 {
-    private readonly string _pinHash;
+    private readonly string? _pinHash;
+    private readonly string? _passwordHash;
+    private readonly bool _helloEnabled;
     private readonly PasswordBox _pin = new();
     private readonly TextBlock _error = new();
     private bool _unlocked;
 
-    public LockScreen(string pinHash)
+    public LockScreen(string? pinHash, string? passwordHash = null, bool helloEnabled = false)
     {
         _pinHash = pinHash;
+        _passwordHash = passwordHash;
+        _helloEnabled = helloEnabled;
 
         WindowStyle = WindowStyle.None;
         WindowState = WindowState.Maximized;
@@ -63,7 +67,7 @@ public sealed class LockScreen : Window
         });
         center.Children.Add(new TextBlock
         {
-            Text = "Session verrouillée — saisissez votre code PIN",
+            Text = "Session verrouillée — saisissez votre code PIN ou mot de passe",
             Foreground = new SolidColorBrush(Color.FromRgb(0x94, 0xA3, 0xB8)),
             FontSize = 12,
             HorizontalAlignment = HorizontalAlignment.Center,
@@ -98,6 +102,27 @@ public sealed class LockScreen : Window
         unlock.Click += (_, _) => TryUnlock();
         center.Children.Add(unlock);
 
+        if (_helloEnabled)
+        {
+            var hello = new Button
+            {
+                Content = "🙂  Windows Hello (visage / empreinte)",
+                Padding = new Thickness(16, 7, 16, 7),
+                Margin = new Thickness(0, 10, 0, 0),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Cursor = Cursors.Hand,
+                Background = new SolidColorBrush(Color.FromRgb(0x10, 0x23, 0x38)),
+                Foreground = Brushes.White
+            };
+            hello.Click += async (_, _) =>
+            {
+                bool ok = await BiometricAuth.VerifyAsync("Déverrouiller IATECH-SHIELD PRO");
+                if (ok) { _unlocked = true; Close(); }
+                else { _error.Text = "Windows Hello a échoué ou n'est pas disponible."; _error.Visibility = Visibility.Visible; }
+            };
+            center.Children.Add(hello);
+        }
+
         root.Children.Add(center);
         Content = root;
         Loaded += (_, _) => _pin.Focus();
@@ -105,13 +130,15 @@ public sealed class LockScreen : Window
 
     private void TryUnlock()
     {
-        if (SecretHash.Verify(_pin.Password, _pinHash))
+        bool ok = (!string.IsNullOrEmpty(_pinHash) && SecretHash.Verify(_pin.Password, _pinHash))
+               || (!string.IsNullOrEmpty(_passwordHash) && SecretHash.Verify(_pin.Password, _passwordHash));
+        if (ok)
         {
             _unlocked = true;
             Close();
             return;
         }
-        _error.Text = "Code PIN incorrect.";
+        _error.Text = "Code PIN ou mot de passe incorrect.";
         _error.Visibility = Visibility.Visible;
         _pin.Clear();
         _pin.Focus();

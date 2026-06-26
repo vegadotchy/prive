@@ -1872,17 +1872,28 @@ public partial class MainWindow : Window
 
     private DispatcherTimer? _lockTimer;
     private string? _lockPinHash;
+    private string? _lockPasswordHash;
+    private bool _lockHello;
     private int _lockDelayMs = 5 * 60 * 1000;
     private bool _lockShowing;
     private bool _lockSettingsLoaded;
 
-    private void StartLockWatcher()
+    private bool LockConfigured => !string.IsNullOrEmpty(_lockPinHash) || !string.IsNullOrEmpty(_lockPasswordHash) || _lockHello;
+
+    private void LoadLockConfig()
     {
         var cfg = SecretVault.Load("lock");
         _lockPinHash = cfg.GetValueOrDefault("pin");
+        _lockPasswordHash = cfg.GetValueOrDefault("password");
+        _lockHello = cfg.GetValueOrDefault("hello") == "1";
         if (cfg.TryGetValue("delay", out var d) && int.TryParse(d, out int min) && min > 0)
             _lockDelayMs = min * 60 * 1000;
-        if (string.IsNullOrEmpty(_lockPinHash)) return;
+    }
+
+    private void StartLockWatcher()
+    {
+        LoadLockConfig();
+        if (string.IsNullOrEmpty(_lockPinHash) && string.IsNullOrEmpty(_lockPasswordHash)) return;
 
         _lockTimer ??= new DispatcherTimer { Interval = TimeSpan.FromSeconds(15) };
         _lockTimer.Tick -= OnLockTick;
@@ -1892,7 +1903,8 @@ public partial class MainWindow : Window
 
     private void OnLockTick(object? sender, EventArgs e)
     {
-        if (_lockShowing || string.IsNullOrEmpty(_lockPinHash)) return;
+        if (_lockShowing) return;
+        if (string.IsNullOrEmpty(_lockPinHash) && string.IsNullOrEmpty(_lockPasswordHash)) return;
         if (IdleMilliseconds() >= _lockDelayMs)
             ShowLockScreen();
     }
@@ -1906,16 +1918,73 @@ public partial class MainWindow : Window
 
     private void ShowLockScreen()
     {
-        if (_lockShowing || string.IsNullOrEmpty(_lockPinHash)) return;
+        if (_lockShowing) return;
         _lockShowing = true;
         try
         {
             ShowFromTray();
-            var lockScreen = new LockScreen(_lockPinHash) { Owner = this };
+            var lockScreen = new LockScreen(_lockPinHash, _lockPasswordHash, _lockHello) { Owner = this };
             lockScreen.ShowDialog();
         }
         catch { /* en cas d'échec d'affichage, on ne bloque pas l'utilisateur */ }
         finally { _lockShowing = false; }
+    }
+
+    // --- Carte « Verrouillage du PC » (mot de passe / PIN / Windows Hello) ---
+
+    private void OnLockPcNow(object sender, RoutedEventArgs e)
+    {
+        LoadLockConfig();
+        if (LockConfigured)
+        {
+            ShowLockScreen();
+            return;
+        }
+        // Aucun identifiant IATECH défini : repli sur le verrouillage Windows.
+        try { LockWorkStation(); Log("Verrouillage de la session Windows."); }
+        catch (Exception ex) { PcLockStatus.Text = $"Verrouillage impossible : {ex.Message}"; }
+    }
+
+    private void OnSetPcLock(object sender, RoutedEventArgs e)
+    {
+        string pwd = PcLockPassword.Password;
+        string pin = PcLockPin.Password;
+        bool hello = PcHelloCheck.IsChecked == true;
+
+        if (string.IsNullOrEmpty(pwd) && string.IsNullOrEmpty(pin) && !hello)
+        {
+            PcLockStatus.Text = "Définissez au moins un mot de passe, un PIN, ou activez Windows Hello.";
+            return;
+        }
+
+        var cfg = SecretVault.Load("lock");
+        if (!string.IsNullOrEmpty(pwd)) cfg["password"] = SecretHash.Hash(pwd);
+        if (!string.IsNullOrEmpty(pin)) cfg["pin"] = SecretHash.Hash(pin);
+        cfg["hello"] = hello ? "1" : "0";
+        if (!cfg.ContainsKey("delay")) cfg["delay"] = "5";
+        SecretVault.Save("lock", cfg);
+
+        PcLockPassword.Clear();
+        PcLockPin.Clear();
+        LoadLockConfig();
+        StartLockWatcher();
+
+        var methods = new List<string>();
+        if (!string.IsNullOrEmpty(_lockPasswordHash)) methods.Add("mot de passe");
+        if (!string.IsNullOrEmpty(_lockPinHash)) methods.Add("PIN");
+        if (_lockHello) methods.Add("Windows Hello");
+        PcLockStatus.Text = $"Verrouillage configuré : {string.Join(" + ", methods)}.";
+        Log($"Verrouillage du PC configuré ({string.Join("+", methods)}).");
+    }
+
+    private async void OnToggleHello(object sender, RoutedEventArgs e)
+    {
+        if (PcHelloCheck.IsChecked != true) { PcHelloStatus.Text = ""; return; }
+        bool available = await BiometricAuth.IsAvailableAsync();
+        PcHelloStatus.Text = available
+            ? "Windows Hello est disponible sur ce PC."
+            : "⚠ Windows Hello n'est pas configuré sur ce PC (Paramètres Windows → Comptes → Options de connexion).";
+        if (!available) PcHelloCheck.IsChecked = false;
     }
 
     private void LoadLockSettings()

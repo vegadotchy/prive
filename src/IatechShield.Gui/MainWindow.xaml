@@ -727,12 +727,39 @@
                                     <StackPanel>
                                         <TextBlock Text="🖥️ Verrouillage du PC" Foreground="{StaticResource TextPrimaryBrush}"
                                                    FontWeight="SemiBold" FontSize="13"/>
-                                        <TextBlock Text="Verrouille la session (mot de passe Windows requis pour rouvrir)."
-                                                   Foreground="{StaticResource TextMutedBrush}" FontSize="11" Margin="0,4,0,8"/>
-                                        <StackPanel Orientation="Horizontal">
-                                            <Button x:Name="SessionLockButton" Style="{StaticResource GhostButton}"
-                                                    Content="Verrouiller maintenant" Click="OnSessionLockNow" Margin="0,0,10,0"/>
+                                        <TextBlock Text="Verrouille l'écran avec le logo IATECH-SHIELD. Déverrouillage par mot de passe, code PIN, ou Windows Hello (visage/empreinte)."
+                                                   Foreground="{StaticResource TextMutedBrush}" FontSize="11" Margin="0,4,0,8" TextWrapping="Wrap"/>
+
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="10"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="Mot de passe (optionnel)" Foreground="{StaticResource TextMutedBrush}" FontSize="10"/>
+                                                <PasswordBox x:Name="PcLockPassword" Background="#0A1726" BorderBrush="{StaticResource PanelStrokeBrush}"
+                                                             Padding="8" Margin="0,3,0,0" VerticalContentAlignment="Center"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2">
+                                                <TextBlock Text="Code PIN (optionnel)" Foreground="{StaticResource TextMutedBrush}" FontSize="10"/>
+                                                <PasswordBox x:Name="PcLockPin" Background="#0A1726" BorderBrush="{StaticResource PanelStrokeBrush}"
+                                                             Padding="8" Margin="0,3,0,0" VerticalContentAlignment="Center"/>
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <CheckBox x:Name="PcHelloCheck" Content="Autoriser Windows Hello (reconnaissance faciale / empreinte)"
+                                                  Foreground="{StaticResource TextPrimaryBrush}" FontSize="12" Margin="0,10,0,0" Click="OnToggleHello"/>
+                                        <TextBlock x:Name="PcHelloStatus" Text="" Foreground="{StaticResource TextMutedBrush}" FontSize="10" Margin="0,2,0,0"/>
+
+                                        <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                            <Button x:Name="SessionLockButton" Style="{StaticResource PrimaryButton}" Width="190"
+                                                    Content="VERROUILLER MAINTENANT" Click="OnLockPcNow"/>
+                                            <Button x:Name="PcLockSaveButton" Style="{StaticResource GhostButton}"
+                                                    Content="Définir" Click="OnSetPcLock" Margin="10,0,0,0"/>
                                         </StackPanel>
+                                        <TextBlock x:Name="PcLockStatus" Text="" Foreground="{StaticResource AccentBrush}" FontSize="11" Margin="0,8,0,0" TextWrapping="Wrap"/>
+
                                         <Grid Margin="0,12,0,0">
                                             <StackPanel>
                                                 <TextBlock Text="Exiger le mot de passe à la sortie de veille" Foreground="{StaticResource TextPrimaryBrush}" FontSize="12"/>
