@@ -16,10 +16,10 @@ jobs:
       - name: Récupérer le code
         uses: actions/checkout@v4
 
-      - name: Installer .NET SDK 8
+      - name: Installer .NET SDK 9
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: "8.0.x"
+          dotnet-version: "9.0.x"
 
       - name: Installer le workload MAUI Android
         run: dotnet workload install maui-android
