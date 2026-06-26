@@ -1,6 +1,7 @@
 name: Build Android (MAUI)
 
-# Compile l'application mobile IATECH-SHIELD PRO (Android) à chaque changement.
+# Compile l'application mobile IATECH-SHIELD PRO (Android) et publie un APK
+# téléchargeable et installable directement sur un téléphone (signé en debug).
 on:
   push:
     branches: ["**"]
@@ -27,5 +28,23 @@ jobs:
       - name: Restaurer
         run: dotnet restore mobile/IatechShield.Mobile/IatechShield.Mobile.csproj
 
-      - name: Compiler (Release)
-        run: dotnet build mobile/IatechShield.Mobile/IatechShield.Mobile.csproj -c Release --no-restore
+      - name: Compiler l'APK (Debug, signé et installable)
+        run: >
+          dotnet build mobile/IatechShield.Mobile/IatechShield.Mobile.csproj
+          -c Debug -f net9.0-android --no-restore
+          -p:AndroidPackageFormat=apk
+
+      - name: Localiser l'APK
+        id: apk
+        run: |
+          file=$(find mobile -name "*-Signed.apk" | head -n1)
+          if [ -z "$file" ]; then file=$(find mobile -name "*.apk" | head -n1); fi
+          echo "Trouvé : $file"
+          echo "path=$file" >> "$GITHUB_OUTPUT"
+
+      - name: Publier l'APK (artifact téléchargeable)
+        uses: actions/upload-artifact@v4
+        with:
+          name: IATECH-SHIELD-PRO-Android-APK
+          path: ${{ steps.apk.outputs.path }}
+          if-no-files-found: error
