@@ -59,6 +59,9 @@ public partial class MainWindow : Window
             SetupTray();
             StartLockWatcher();
             StartHeartbeat();
+            StartCredentialBridge();
+            var v = CurrentAppVersion;
+            HeaderVersion.Text = $"{v.Major}.{v.Minor}.{v.Build}";
             _ready = true;
             ShowPage("Dashboard");
             RefreshDashboardKpis();
@@ -1620,6 +1623,65 @@ public partial class MainWindow : Window
     {
         EnsureChatLoaded();
         AddChat("Copilote", "⚠ " + text, false);
+    }
+
+    // ------------------ enregistrement auto des identifiants (extension) ---
+
+    private CredentialBridge? _credBridge;
+
+    private void StartCredentialBridge()
+    {
+        try
+        {
+            _credBridge = new CredentialBridge(Dispatcher);
+            _credBridge.CredentialReceived += OnBrowserCredential;
+            _credBridge.Start();
+        }
+        catch { /* pont indisponible : sans incidence */ }
+    }
+
+    private void OnBrowserCredential(string url, string user, string pass)
+    {
+        if (!_vaultLoaded) LoadVault();
+
+        // Évite les doublons exacts déjà enregistrés.
+        if (_vault.Any(v => string.Equals(v.Url, url, StringComparison.OrdinalIgnoreCase)
+                            && v.Username == user && v.Password == pass))
+            return;
+
+        string host = url;
+        try { host = new Uri(url).Host; } catch { }
+
+        var result = System.Windows.MessageBox.Show(this,
+            $"Un identifiant vient d'être saisi sur :\n{url}\n\nIdentifiant : {user}\n\nL'enregistrer dans le coffre-fort IATECH-SHIELD ?",
+            "Nouvel identifiant détecté", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Question);
+        if (result != System.Windows.MessageBoxResult.Yes) return;
+
+        // Met à jour si le même site+utilisateur existe déjà, sinon ajoute.
+        var existing = _vault.FirstOrDefault(v =>
+            string.Equals(v.Url, url, StringComparison.OrdinalIgnoreCase) && v.Username == user);
+        if (existing is not null) { existing.Password = pass; }
+        else _vault.Insert(0, new VaultItem { Title = host, Username = user, Password = pass, Url = url });
+
+        SaveVault();
+        Notify("Coffre-fort", $"Identifiant pour {host} enregistré.");
+        Log($"Coffre-fort : identifiant enregistré via le navigateur ({host}).");
+    }
+
+    private void OnOpenExtensionFolder(object sender, RoutedEventArgs e)
+    {
+        string folder = System.IO.Path.Combine(AppContext.BaseDirectory, "browser-extension");
+        try
+        {
+            if (System.IO.Directory.Exists(folder))
+                Process.Start(new ProcessStartInfo(folder) { UseShellExecute = true });
+            else
+                System.Windows.MessageBox.Show(this,
+                    "Le dossier de l'extension est fourni avec l'application (browser-extension). " +
+                    "Chargez-le dans Chrome/Edge via « Gérer les extensions » → « Mode développeur » → « Charger l'extension non empaquetée ».",
+                    "Extension navigateur", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+        }
+        catch (Exception ex) { Log($"Ouverture du dossier extension impossible : {ex.Message}"); }
     }
 
     // -------------------------------------------------- clé API assistant ---

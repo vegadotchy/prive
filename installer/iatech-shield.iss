@@ -7,7 +7,8 @@
 
 #define MyAppName "IATECH-SHIELD PRO"
 #define MyAppVersion "0.8.0"
-#define MyAppPublisher "IATECH"
+#define MyAppPublisher "IATECHFUTUR"
+#define MyAppUrl "https://github.com/vegadotchy/prive"
 #define MyGuiExe "iatech-shield-gui.exe"
 #define MyCliExe "iatech-shield.exe"
 
@@ -16,6 +17,17 @@ AppId={{8E2A6C41-7F3D-4B92-9A1C-IATECHSHIELD01}}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
+AppPublisherURL={#MyAppUrl}
+AppSupportURL={#MyAppUrl}
+AppUpdatesURL={#MyAppUrl}/releases
+; Logo bouclier dans « Programmes et fonctionnalités » + désinstallation propre.
+UninstallDisplayIcon={app}\{#MyGuiExe}
+UninstallDisplayName={#MyAppName}
+SetupIconFile=..\src\IatechShield.Gui\icon.ico
+VersionInfoVersion={#MyAppVersion}
+VersionInfoCompany={#MyAppPublisher}
+VersionInfoProductName={#MyAppName}
+VersionInfoDescription=IATECH-SHIELD PRO — Antivirus
 DefaultDirName={autopf}\IatechShield
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
@@ -44,6 +56,8 @@ Name: "addtopath"; Description: "Ajouter la commande iatech-shield au PATH"; Gro
 [Files]
 ; Dossier de publication (contient l'interface, la CLI et signatures.json).
 Source: "..\dist\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+; Extension navigateur (enregistrement automatique des identifiants).
+Source: "..\browser-extension\*"; DestDir: "{app}\browser-extension"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyGuiExe}"

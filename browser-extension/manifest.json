@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "IATECH-SHIELD PRO — Enregistrement des identifiants",
+  "version": "1.0.0",
+  "description": "Propose d'enregistrer dans le coffre-fort IATECH-SHIELD PRO les identifiants saisis dans le navigateur (canal 100% local).",
+  "permissions": ["scripting"],
+  "host_permissions": ["http://127.0.0.1/*"],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ]
+}
