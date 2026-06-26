@@ -1,0 +1,31 @@
+name: Build Android (MAUI)
+
+# Compile l'application mobile IATECH-SHIELD PRO (Android) à chaque changement.
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "mobile/**"
+      - ".github/workflows/android.yml"
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Installer .NET SDK 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Installer le workload MAUI Android
+        run: dotnet workload install maui-android
+
+      - name: Restaurer
+        run: dotnet restore mobile/IatechShield.Mobile/IatechShield.Mobile.csproj
+
+      - name: Compiler (Release)
+        run: dotnet build mobile/IatechShield.Mobile/IatechShield.Mobile.csproj -c Release --no-restore
