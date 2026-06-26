@@ -36,7 +36,7 @@ jobs:
           elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
             echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
           else
-            echo "tag=v0.7.0" >> "$GITHUB_OUTPUT"
+            echo "tag=v0.8.0" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Récupérer le code
@@ -82,7 +82,15 @@ jobs:
           body: |
             ## IATECH-SHIELD PRO — antivirus Windows
 
-            ### Nouveautés 0.7.0
+            ### Nouveautés 0.8.0
+            - 🎨 **Dashboard dynamique** : cœur central agrandi qui **bat** + nœuds en orbite + **bandeau KPI animé** (compteurs)
+            - 🖥️ **Mode plein écran** (F11) + **pied de page** « Powered by IATECHFUTUR® » + © 2026
+            - 🔐 **Verrouillage du PC** : mot de passe / **code PIN** / **Windows Hello** (visage, empreinte) — bouton corrigé
+            - 🗝️ **Coffre-fort** : **import CSV** (Google/Edge/Chrome), import navigateur, **export protégé** par mot de passe
+            - 🤖 **Clé IA dans l'app** : collez votre clé Anthropic dans Réglages (chiffrée, sans variable d'env ni redémarrage)
+            - 📡 **Radar** : actions de correction par appareil (ouvrir l'admin, **bloquer au pare-feu**, conseils)
+
+            ### 0.7.0
             - 📡 **Radar du réseau local** : appareils, ports, type (routeur/caméra IP/NAS/imprimante/objet connecté), vulnérabilités, alerte « nouveau »
             - 💚 **Tableau de bord d'intégrité** : Sécurité, Performances, Confidentialité, Vulnérabilités, Température, Santé SSD, Batterie
             - 🧬 **Jumeau numérique & ADN des logiciels** : empreinte complète du système + détection de toute modification anormale
