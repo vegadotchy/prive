@@ -36,7 +36,7 @@ jobs:
           elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
             echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
           else
-            echo "tag=v0.8.0" >> "$GITHUB_OUTPUT"
+            echo "tag=v0.9.0" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Récupérer le code
@@ -82,7 +82,12 @@ jobs:
           body: |
             ## IATECH-SHIELD PRO — antivirus Windows
 
-            ### Nouveautés 0.8.0
+            ### Nouveautés 0.9.0
+            - 🌐 **Statut VPN en direct** : connecté/durée, **débit ↓/↑**, volumes, IP locale, **IP publique + pays + opérateur**
+            - 🧩 **Extension navigateur** (Chrome/Edge) : propose d'**enregistrer les identifiants** saisis dans le coffre-fort (canal 100% local)
+            - 🏷️ **Installateur professionnel** : **logo bouclier** dans « Programmes et fonctionnalités », éditeur IATECHFUTUR, icône du setup
+
+            ### 0.8.0
             - 🎨 **Dashboard dynamique** : cœur central agrandi qui **bat** + nœuds en orbite + **bandeau KPI animé** (compteurs)
             - 🖥️ **Mode plein écran** (F11) + **pied de page** « Powered by IATECHFUTUR® » + © 2026
             - 🔐 **Verrouillage du PC** : mot de passe / **code PIN** / **Windows Hello** (visage, empreinte) — bouton corrigé
