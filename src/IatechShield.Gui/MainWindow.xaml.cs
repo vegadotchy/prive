@@ -521,9 +521,83 @@ public partial class MainWindow : Window
         }
     };
 
+    // --- Statut VPN en direct (débit, IP publique, pays) ---
+
+    private DispatcherTimer? _vpnStatsTimer;
+    private long _vpnPrevIn, _vpnPrevOut;
+    private DateTime _vpnConnectedAt;
+    private bool _vpnGeoFetched;
+
+    private void StartVpnLiveMonitor()
+    {
+        _vpnConnectedAt = DateTime.Now;
+        _vpnPrevIn = _vpnPrevOut = 0;
+        _vpnGeoFetched = false;
+        VpnLiveState.Text = "Connecté";
+        _vpnStatsTimer ??= new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+        _vpnStatsTimer.Tick -= OnVpnStatsTick;
+        _vpnStatsTimer.Tick += OnVpnStatsTick;
+        _vpnStatsTimer.Start();
+        OnVpnStatsTick(this, EventArgs.Empty);
+        _ = FetchVpnGeoAsync();
+    }
+
+    private void StopVpnLiveMonitor()
+    {
+        _vpnStatsTimer?.Stop();
+        VpnLiveState.Text = "Déconnecté";
+        VpnUptime.Text = VpnLocalIpText.Text = VpnPublicIpText.Text = VpnCountryText.Text = VpnIspText.Text = "—";
+        VpnDownRate.Text = VpnUpRate.Text = "—";
+        VpnDownTotal.Text = "Reçu : —";
+        VpnUpTotal.Text = "Envoyé : —";
+    }
+
+    private void OnVpnStatsTick(object? sender, EventArgs e)
+    {
+        var s = VpnStats.Read(CurrentVpnProfile().Name);
+        if (s is null)
+        {
+            VpnLiveState.Text = "Connexion : adaptateur VPN introuvable…";
+            return;
+        }
+
+        double seconds = _vpnStatsTimer?.Interval.TotalSeconds ?? 2;
+        if (_vpnPrevIn > 0 || _vpnPrevOut > 0)
+        {
+            VpnDownRate.Text = VpnStats.FormatRate(Math.Max(0, s.BytesIn - _vpnPrevIn) / seconds);
+            VpnUpRate.Text = VpnStats.FormatRate(Math.Max(0, s.BytesOut - _vpnPrevOut) / seconds);
+        }
+        _vpnPrevIn = s.BytesIn;
+        _vpnPrevOut = s.BytesOut;
+
+        VpnLiveState.Text = $"Connecté ({s.AdapterName})";
+        VpnLocalIpText.Text = s.LocalIp;
+        VpnDownTotal.Text = "Reçu : " + VpnStats.FormatBytes(s.BytesIn);
+        VpnUpTotal.Text = "Envoyé : " + VpnStats.FormatBytes(s.BytesOut);
+        var up = DateTime.Now - _vpnConnectedAt;
+        VpnUptime.Text = up.TotalHours >= 1 ? $"{(int)up.TotalHours}h {up.Minutes:00}m {up.Seconds:00}s" : $"{up.Minutes:00}m {up.Seconds:00}s";
+    }
+
+    private async Task FetchVpnGeoAsync()
+    {
+        if (_vpnGeoFetched) return;
+        _vpnGeoFetched = true;
+        VpnCountryText.Text = "localisation…";
+        var geo = await GeoInfo.LookupAsync();
+        if (geo is null)
+        {
+            VpnCountryText.Text = "indisponible (hors-ligne ?)";
+            return;
+        }
+        VpnPublicIpText.Text = geo.Ip;
+        VpnCountryText.Text = string.IsNullOrEmpty(geo.City) ? geo.Country : $"{geo.Country} — {geo.City}";
+        VpnIspText.Text = geo.Isp;
+    }
+
     private void SetVpnUi(bool connected)
     {
         _vpnConnected = connected;
+        if (connected) StartVpnLiveMonitor(); else StopVpnLiveMonitor();
         VpnDot.Fill = new SolidColorBrush(connected
             ? Color.FromRgb(0x10, 0xB9, 0x81) : Color.FromRgb(0x64, 0x74, 0x8B));
         VpnStatus.Text = connected ? "Connecté" : "Déconnecté";

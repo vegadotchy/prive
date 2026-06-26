@@ -1160,6 +1160,61 @@
                                         <TextBlock x:Name="VpnLog" Text="" Foreground="{StaticResource AccentBrush}" FontSize="11" Margin="0,10,0,0" TextWrapping="Wrap"/>
                                     </StackPanel>
                                 </Border>
+
+                                <!-- État de la connexion en direct -->
+                                <Border Style="{StaticResource Card}" Margin="0,12,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="État de la connexion en direct" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="13"/>
+
+                                        <Grid Margin="0,10,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <!-- Débit descendant -->
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="↓ Débit entrant" Foreground="{StaticResource TextMutedBrush}" FontSize="10"/>
+                                                <TextBlock x:Name="VpnDownRate" Text="—" Foreground="{StaticResource GreenBrush}" FontSize="24" FontWeight="Bold"/>
+                                                <TextBlock x:Name="VpnDownTotal" Text="Reçu : —" Foreground="{StaticResource TextMutedBrush}" FontSize="10"/>
+                                            </StackPanel>
+                                            <!-- Débit montant -->
+                                            <StackPanel Grid.Column="1">
+                                                <TextBlock Text="↑ Débit sortant" Foreground="{StaticResource TextMutedBrush}" FontSize="10"/>
+                                                <TextBlock x:Name="VpnUpRate" Text="—" Foreground="{StaticResource AccentBrush}" FontSize="24" FontWeight="Bold"/>
+                                                <TextBlock x:Name="VpnUpTotal" Text="Envoyé : —" Foreground="{StaticResource TextMutedBrush}" FontSize="10"/>
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <Border Height="1" Background="{StaticResource PanelStrokeBrush}" Margin="0,12"/>
+
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Connexion :" Foreground="{StaticResource TextMutedBrush}" FontSize="11" Margin="0,2,12,2"/>
+                                            <TextBlock x:Name="VpnLiveState" Grid.Row="0" Grid.Column="1" Text="Déconnecté" Foreground="{StaticResource TextPrimaryBrush}" FontSize="11" FontWeight="SemiBold" Margin="0,2"/>
+                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Durée :" Foreground="{StaticResource TextMutedBrush}" FontSize="11" Margin="0,2,12,2"/>
+                                            <TextBlock x:Name="VpnUptime" Grid.Row="1" Grid.Column="1" Text="—" Foreground="{StaticResource TextPrimaryBrush}" FontSize="11" Margin="0,2"/>
+                                            <TextBlock Grid.Row="2" Grid.Column="0" Text="IP locale (VPN) :" Foreground="{StaticResource TextMutedBrush}" FontSize="11" Margin="0,2,12,2"/>
+                                            <TextBlock x:Name="VpnLocalIpText" Grid.Row="2" Grid.Column="1" Text="—" Foreground="{StaticResource TextPrimaryBrush}" FontFamily="Consolas" FontSize="11" Margin="0,2"/>
+                                            <TextBlock Grid.Row="3" Grid.Column="0" Text="IP publique :" Foreground="{StaticResource TextMutedBrush}" FontSize="11" Margin="0,2,12,2"/>
+                                            <TextBlock x:Name="VpnPublicIpText" Grid.Row="3" Grid.Column="1" Text="—" Foreground="{StaticResource TextPrimaryBrush}" FontFamily="Consolas" FontSize="11" Margin="0,2"/>
+                                            <TextBlock Grid.Row="4" Grid.Column="0" Text="Pays / ville :" Foreground="{StaticResource TextMutedBrush}" FontSize="11" Margin="0,2,12,2"/>
+                                            <TextBlock x:Name="VpnCountryText" Grid.Row="4" Grid.Column="1" Text="—" Foreground="{StaticResource AccentBrush}" FontSize="11" Margin="0,2"/>
+                                            <TextBlock Grid.Row="5" Grid.Column="0" Text="Opérateur :" Foreground="{StaticResource TextMutedBrush}" FontSize="11" Margin="0,2,12,2"/>
+                                            <TextBlock x:Name="VpnIspText" Grid.Row="5" Grid.Column="1" Text="—" Foreground="{StaticResource TextPrimaryBrush}" FontSize="11" Margin="0,2" TextTrimming="CharacterEllipsis"/>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
                         </ScrollViewer>
                     </Grid>
