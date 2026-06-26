@@ -6,29 +6,25 @@ public static class Branding
     /// <summary>Boutique IATECHFUTUR.</summary>
     public const string ShopUrl = "https://iatechfutur.be";
 
-    /// <summary>Page produit IATECH-SHIELD PRO.</summary>
+    /// <summary>Page produit principale (achat « À vie »).</summary>
     public const string ProductUrl = "https://iatechfutur.be/products/iatech-shield-pro-antivirus-nouvelle-generation";
 
-    // Identifiants de variantes Shopify (ajout direct au panier via /cart/<id>:1).
-    private const string VariantMonthly = "56251035320660";
-    private const string VariantYearly = "56251035353428";
-    private const string VariantLifetime = "56251035386196";
+    // Pages d'abonnement (le client choisit « s'abonner » → prélèvement automatique).
+    private const string MonthlyUrl = "https://iatechfutur.be/products/iatech-shield-pro-abonnement-mensuel";
+    private const string YearlyUrl = "https://iatechfutur.be/products/iatech-shield-pro-abonnement-annuel";
+    // Variante « À vie » (paiement unique) — ajout direct au panier.
+    private const string LifetimeCart = "https://iatechfutur.be/cart/56251035386196:1";
 
     /// <summary>
-    /// Lien « ajout direct au panier » de la boutique iatechfutur.be selon la formule
-    /// choisie (mensuel / annuel / à vie). Clic = produit mis dans le panier Shopify.
+    /// Lien boutique selon la formule choisie :
+    /// mensuel / annuel → page d'abonnement (renouvellement auto) ;
+    /// à vie → ajout direct au panier (paiement unique).
     /// </summary>
-    public static string ShopUrlForPlan(string plan)
+    public static string ShopUrlForPlan(string plan) => plan switch
     {
-        string variant = plan switch
-        {
-            "monthly" => VariantMonthly,
-            "yearly" => VariantYearly,
-            "lifetime" => VariantLifetime,
-            _ => ""
-        };
-        return string.IsNullOrEmpty(variant)
-            ? ProductUrl
-            : $"{ShopUrl}/cart/{variant}:1";
-    }
+        "monthly" => MonthlyUrl,
+        "yearly" => YearlyUrl,
+        "lifetime" => LifetimeCart,
+        _ => ProductUrl
+    };
 }
