@@ -12,6 +12,23 @@
         <SolidColorBrush x:Key="TextPrimaryBrush" Color="#E8F6FB"/>
         <SolidColorBrush x:Key="TextMutedBrush" Color="#6E8BA0"/>
         <SolidColorBrush x:Key="PanelStrokeBrush" Color="#1E3A52"/>
+        <!-- Touches dorées + violet pour casser la monochromie. -->
+        <SolidColorBrush x:Key="GoldBrush" Color="#FBBF24"/>
+        <SolidColorBrush x:Key="GoldDeepBrush" Color="#F59E0B"/>
+        <SolidColorBrush x:Key="VioletBrush" Color="#A78BFA"/>
+        <SolidColorBrush x:Key="PinkBrush" Color="#F472B6"/>
+
+        <!-- Dégradé doré (boutons d'achat / d'action premium). -->
+        <LinearGradientBrush x:Key="GoldButton" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#FCD34D" Offset="0"/>
+            <GradientStop Color="#F59E0B" Offset="1"/>
+        </LinearGradientBrush>
+
+        <!-- Dégradé violet → cyan (boutons secondaires colorés). -->
+        <LinearGradientBrush x:Key="VioletButton" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#8B5CF6" Offset="0"/>
+            <GradientStop Color="#22D3E8" Offset="1"/>
+        </LinearGradientBrush>
 
         <LinearGradientBrush x:Key="WindowBackground" StartPoint="0,0" EndPoint="0.4,1">
             <GradientStop Color="{StaticResource BgTopColor}" Offset="0"/>
@@ -26,8 +43,9 @@
         </LinearGradientBrush>
 
         <LinearGradientBrush x:Key="AccentButton" StartPoint="0,0" EndPoint="1,1">
-            <GradientStop Color="#1FB6CC" Offset="0"/>
-            <GradientStop Color="#1577C9" Offset="1"/>
+            <GradientStop Color="#22D3E8" Offset="0"/>
+            <GradientStop Color="#1577C9" Offset="0.55"/>
+            <GradientStop Color="#8B5CF6" Offset="1"/>
         </LinearGradientBrush>
 
         <!-- ============================ Carte ============================= -->
@@ -86,15 +104,42 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="bd" CornerRadius="10" Background="{StaticResource AccentButton}">
+                        <Border x:Name="bd" CornerRadius="10" Background="{StaticResource AccentButton}"
+                                RenderTransformOrigin="0.5,0.5">
+                            <Border.RenderTransform>
+                                <ScaleTransform x:Name="bdScale" ScaleX="1" ScaleY="1"/>
+                            </Border.RenderTransform>
                             <Border.Effect>
-                                <DropShadowEffect Color="#22D3E8" BlurRadius="20" ShadowDepth="0" Opacity="0.5"/>
+                                <DropShadowEffect x:Name="bdGlow" Color="#22D3E8" BlurRadius="20" ShadowDepth="0" Opacity="0.5"/>
                             </Border.Effect>
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="Opacity" Value="0.9"/>
+                                <!-- Survol : légère mise à l'échelle + halo doré intense. -->
+                                <Setter TargetName="bdGlow" Property="Color" Value="#FBBF24"/>
+                                <Setter TargetName="bdGlow" Property="BlurRadius" Value="34"/>
+                                <Setter TargetName="bdGlow" Property="Opacity" Value="0.85"/>
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="bdScale" Storyboard.TargetProperty="ScaleX"
+                                                             To="1.03" Duration="0:0:0.15"/>
+                                            <DoubleAnimation Storyboard.TargetName="bdScale" Storyboard.TargetProperty="ScaleY"
+                                                             To="1.06" Duration="0:0:0.15"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="bdScale" Storyboard.TargetProperty="ScaleX"
+                                                             To="1" Duration="0:0:0.15"/>
+                                            <DoubleAnimation Storyboard.TargetName="bdScale" Storyboard.TargetProperty="ScaleY"
+                                                             To="1" Duration="0:0:0.15"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="bd" Property="Opacity" Value="0.4"/>
@@ -188,7 +233,8 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="#10314A"/>
+                                <Setter TargetName="bd" Property="Background" Value="#1A2A10"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource GoldBrush}"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="bd" Property="Opacity" Value="0.4"/>

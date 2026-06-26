@@ -36,6 +36,7 @@ public partial class MainWindow : Window
     private readonly ProcessCuller _culler = new();
     private readonly RegistryGuard _registry = new();
     private readonly LicenseManager _license = new();
+    private readonly CloudAccount _cloud = new();
 
     private bool _activated = true;
     /// <summary>Expiration de la licence active (null = à vie ou pas de licence) — pour le compte à rebours.</summary>
@@ -43,6 +44,8 @@ public partial class MainWindow : Window
     private bool _ready;
     private int _threatCount;
     private bool _scanning;
+    /// <summary>Permet d'arrêter le scan en cours (bouton « Arrêter »).</summary>
+    private CancellationTokenSource? _scanCts;
     private readonly StringBuilder _log = new();
     private readonly ObservableCollection<ThreatItem> _threats = new();
     private readonly ObservableCollection<NetworkDeviceItem> _networkDevices = new();
@@ -69,6 +72,7 @@ public partial class MainWindow : Window
             _ready = true;
             ShowPage("Dashboard");
             RefreshDashboardKpis();
+            _ = InitCloudAsync();
         };
     }
 
@@ -165,6 +169,12 @@ public partial class MainWindow : Window
         }
         else if (page == PageVault)
         {
+            if (!EnsureVaultUnlocked())
+            {
+                // Mauvais mot de passe / annulé : on renvoie au dashboard, coffre masqué.
+                if (NavDashboard is not null) NavDashboard.IsChecked = true;
+                return;
+            }
             LoadVault();
         }
         else if (page == PageCopilot)
@@ -423,7 +433,7 @@ public partial class MainWindow : Window
                 AppUpdateStatus.Text = $"Nouvelle version disponible : {check.Latest.Name} (vous avez {CurrentAppVersion}).";
                 InstallUpdateButton.Visibility = check.Latest.InstallerUrl is not null
                     ? Visibility.Visible : Visibility.Collapsed;
-                Notify("Mise à jour disponible", $"IATECH-SHIELD {check.Latest.Tag} est disponible.");
+                Notify("Mise à jour disponible", $"IATECH-SHIELD {check.Latest.Tag} est disponible.", "Settings");
             }
             else
             {
@@ -721,7 +731,7 @@ public partial class MainWindow : Window
             if (state.Connected)
             {
                 Log($"VPN connecté à {profile.Server}.");
-                Notify("VPN", $"Connexion sécurisée établie ({profile.Server}).");
+                Notify("VPN", $"Connexion sécurisée établie ({profile.Server}).", "VPN");
                 if (VpnSaveCreds.IsChecked == true) SaveVpnSettings(profile);
             }
             else
@@ -764,8 +774,49 @@ public partial class MainWindow : Window
 
     private readonly ObservableCollection<VaultItem> _vault = new();
     private bool _vaultLoaded;
+    private bool _vaultUnlocked;
 
     private sealed record VaultDto(string Id, string Title, string Username, string Password, string Url, string Notes);
+
+    /// <summary>
+    /// Exige le mot de passe du coffre-fort avant d'y accéder (défini à la première
+    /// ouverture). Une fois validé, l'accès reste ouvert pour la session.
+    /// </summary>
+    private bool EnsureVaultUnlocked()
+    {
+        if (_vaultUnlocked) return true;
+
+        string? hash = SecretVault.Load("vaultlock").GetValueOrDefault("hash");
+
+        if (string.IsNullOrWhiteSpace(hash))
+        {
+            // Première ouverture : on définit le mot de passe maître du coffre-fort.
+            var create = new PromptWindow("Coffre-fort",
+                "Définissez un mot de passe pour protéger l'accès au coffre-fort :", "Définir") { Owner = this };
+            if (create.ShowDialog() != true || create.Value.Length < 4)
+            {
+                MessageBox.Show("Mot de passe trop court (4 caractères minimum). Accès au coffre-fort annulé.",
+                    "Coffre-fort", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return false;
+            }
+            SecretVault.Save("vaultlock", new Dictionary<string, string> { ["hash"] = SecretHash.Hash(create.Value) });
+            _vaultUnlocked = true;
+            Log("Mot de passe du coffre-fort défini.");
+            return true;
+        }
+
+        var prompt = new PromptWindow("Coffre-fort verrouillé",
+            "Saisissez le mot de passe du coffre-fort :", "Déverrouiller") { Owner = this };
+        if (prompt.ShowDialog() != true)
+            return false;
+        if (!SecretHash.Verify(prompt.Value, hash))
+        {
+            MessageBox.Show("Mot de passe incorrect.", "Coffre-fort", MessageBoxButton.OK, MessageBoxImage.Error);
+            return false;
+        }
+        _vaultUnlocked = true;
+        return true;
+    }
 
     private void LoadVault()
     {
@@ -1149,7 +1200,7 @@ public partial class MainWindow : Window
 
             if (sensitive)
             {
-                Notify("⚠ Jumeau numérique", "Des éléments sensibles (services/pilotes/démarrage/hosts) ont changé.");
+                Notify("⚠ Jumeau numérique", "Des éléments sensibles (services/pilotes/démarrage/hosts) ont changé.", "Jumeau");
                 CopilotAlert("Le jumeau numérique a détecté des modifications sur des éléments sensibles (services, pilotes, démarrage ou fichier hosts). Cela peut indiquer une infection ou une altération — vérifiez la liste dans l'onglet Jumeau.");
             }
         }
@@ -1279,7 +1330,7 @@ public partial class MainWindow : Window
         PanicButton.IsEnabled = false;
         PanicStatus.Text = "Activation du mode Panic…";
         Log("Mode Panic activé.");
-        Notify("🚨 Mode Panic", "Réseau coupé, USB bloqué, session verrouillée.");
+        Notify("🚨 Mode Panic", "Réseau coupé, USB bloqué, session verrouillée.", "Centre");
         RecordIncident("Mode Panic", IncidentSeverity.Warning, "Mode Panic activé", "Réseau coupé, USB bloqué, processus suspects arrêtés, session verrouillée.");
         try
         {
@@ -1349,7 +1400,7 @@ public partial class MainWindow : Window
             ClipboardStatus.Text = msg + $"\nAvant : {_lastCryptoAddress}\nAprès : {addr}";
             ClipboardStatus.Foreground = new SolidColorBrush(Color.FromRgb(0xEF, 0x44, 0x44));
             SoundFx.Threat();
-            Notify("⚠ Presse-papiers compromis", "Une adresse crypto copiée a été modifiée. Vérifiez avant d'envoyer des fonds !");
+            Notify("⚠ Presse-papiers compromis", "Une adresse crypto copiée a été modifiée. Vérifiez avant d'envoyer des fonds !", "Centre");
             Log("ALERTE presse-papiers : adresse crypto remplacée.");
         }
         else
@@ -1424,7 +1475,7 @@ public partial class MainWindow : Window
             Log($"Radar réseau : {devices.Count} appareils, {newCount} nouveaux, {riskCount} à risque.");
             if (newCount > 0 || riskCount > 0)
             {
-                Notify("Radar réseau", $"{newCount} nouvel(s) appareil(s), {riskCount} à risque détecté(s).");
+                Notify("Radar réseau", $"{newCount} nouvel(s) appareil(s), {riskCount} à risque détecté(s).", "Radar");
                 if (riskCount > 0)
                     CopilotAlert($"Le radar réseau a trouvé {riskCount} appareil(s) présentant des risques (ports exposés). Consultez l'onglet Radar.");
             }
@@ -1571,7 +1622,7 @@ public partial class MainWindow : Window
                 : $"{accesses.Count} application(s) — {inUse} en cours d'utilisation.";
             if (inUse > 0)
             {
-                Notify("📷 Webcam/micro", $"{inUse} application(s) utilisent actuellement votre caméra/micro.");
+                Notify("📷 Webcam/micro", $"{inUse} application(s) utilisent actuellement votre caméra/micro.", "Protection");
                 CopilotAlert($"{inUse} application(s) utilisent actuellement votre webcam ou votre micro. Vérifiez l'onglet Centre si ce n'est pas attendu.");
             }
         }
@@ -1757,7 +1808,7 @@ public partial class MainWindow : Window
         else _vault.Insert(0, new VaultItem { Title = host, Username = user, Password = pass, Url = url });
 
         SaveVault();
-        Notify("Coffre-fort", $"Identifiant pour {host} enregistré.");
+        Notify("Coffre-fort", $"Identifiant pour {host} enregistré.", "Coffre-fort");
         Log($"Coffre-fort : identifiant enregistré via le navigateur ({host}).");
     }
 
@@ -1839,7 +1890,7 @@ public partial class MainWindow : Window
             {
                 string label = report.PopularName is { Length: > 0 } ? $" — {report.PopularName}" : "";
                 VtStatus.Text = $"⚠ {Path.GetFileName(path)} : {report.Summary}{label}.";
-                Notify("VirusTotal — menace", $"{Path.GetFileName(path)} : {report.Summary}");
+                Notify("VirusTotal — menace", $"{Path.GetFileName(path)} : {report.Summary}", "Scan");
                 Log($"VirusTotal : {Path.GetFileName(path)} — {report.Summary}{label}");
             }
             else
@@ -2010,7 +2061,127 @@ public partial class MainWindow : Window
         var dialog = new LicenseWindow(_license, status) { Owner = this };
         dialog.ShowDialog();
         if (dialog.Activated)
+        {
             RefreshLicense();
+            // Si le client est connecté, on mémorise sa clé dans son compte cloud
+            // (réinstallation = reconnexion, sans ressaisir la clé).
+            _ = PushLicenseToCloudAsync();
+            if (!_cloud.IsSignedIn)
+                ProposeAccountAfterActivation();
+        }
+    }
+
+    // ------------------------------------------------------------ compte cloud
+
+    /// <summary>Au démarrage : restaure la session enregistrée et récupère la licence du compte.</summary>
+    private async Task InitCloudAsync()
+    {
+        try
+        {
+            if (await _cloud.RestoreSessionAsync())
+            {
+                UpdateAccountButton();
+                await PullLicenseFromCloudAsync();
+            }
+        }
+        catch { /* hors-ligne : on reste en mode local */ }
+    }
+
+    private void OnOpenAccount(object sender, RoutedEventArgs e)
+    {
+        if (_cloud.IsSignedIn)
+        {
+            var choice = MessageBox.Show(
+                $"Connecté en tant que : {_cloud.Session!.Email}\n\nVoulez-vous vous déconnecter de ce compte ?",
+                "Mon compte", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (choice == MessageBoxResult.Yes)
+            {
+                _cloud.SignOut();
+                UpdateAccountButton();
+                Log("Compte déconnecté.");
+            }
+            return;
+        }
+
+        var dialog = new LoginWindow(_cloud) { Owner = this };
+        dialog.ShowDialog();
+        if (_cloud.IsSignedIn)
+        {
+            UpdateAccountButton();
+            Log($"Connecté : {_cloud.Session!.Email}");
+            // Après connexion : on récupère la licence du compte, sinon on y pousse la licence locale.
+            _ = AfterSignInSyncAsync();
+        }
+    }
+
+    private async Task AfterSignInSyncAsync()
+    {
+        bool restored = await PullLicenseFromCloudAsync();
+        if (!restored)
+            await PushLicenseToCloudAsync(); // le compte n'avait pas de licence → on y met la nôtre si activée
+    }
+
+    /// <summary>Récupère la licence du compte cloud et l'active localement si présente. Vrai si activée.</summary>
+    private async Task<bool> PullLicenseFromCloudAsync()
+    {
+        var cloud = await _cloud.FetchLicenseAsync();
+        if (cloud is null || string.IsNullOrWhiteSpace(cloud.LicenseKey))
+            return false;
+
+        var check = _license.Activate(cloud.LicenseKey, DateTimeOffset.UtcNow);
+        if (check.Valid)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                RefreshLicense();
+                Log("Licence restaurée depuis votre compte.");
+            });
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>Enregistre la licence actuellement active dans le compte cloud.</summary>
+    private async Task PushLicenseToCloudAsync()
+    {
+        if (!_cloud.IsSignedIn) return;
+        var status = _license.GetStatus(DateTimeOffset.UtcNow);
+        if (status.State != LicenseState.Licensed || status.License is null) return;
+
+        string tier = status.License.Tier.ToString().ToLowerInvariant();
+        await _cloud.SaveLicenseAsync(
+            File.Exists(LicenseKeyFilePath()) ? File.ReadAllText(LicenseKeyFilePath()).Trim() : "",
+            tier, status.License.ExpiresUtc);
+    }
+
+    private static string LicenseKeyFilePath()
+        => Path.Combine(LicenseManager.DefaultStorageDir(), "license.key");
+
+    private void UpdateAccountButton()
+    {
+        if (AccountButton is null) return;
+        if (_cloud.IsSignedIn)
+        {
+            AccountButton.Content = "✓ Compte";
+            AccountButton.Background = new SolidColorBrush(Color.FromRgb(0x1E, 0x4D, 0x3A));
+            AccountButton.ToolTip = $"Connecté : {_cloud.Session!.Email} — cliquez pour vous déconnecter";
+        }
+        else
+        {
+            AccountButton.Content = "Compte";
+            AccountButton.Background = new SolidColorBrush(Color.FromRgb(0x2A, 0x35, 0x50));
+            AccountButton.ToolTip = "Se connecter (Google ou e-mail) pour retrouver sa licence après réinstallation";
+        }
+    }
+
+    private void ProposeAccountAfterActivation()
+    {
+        var choice = MessageBox.Show(
+            "Licence activée ✓\n\nVoulez-vous créer un compte (Google ou e-mail) pour lier cette licence ?\n" +
+            "Ainsi, après une réinstallation, il suffira de vous reconnecter — sans ressaisir la clé.",
+            "Lier ma licence à un compte", MessageBoxButton.YesNo, MessageBoxImage.Information);
+        if (choice == MessageBoxResult.Yes)
+            OnOpenAccount(this, new RoutedEventArgs());
     }
 
     private void OnDeactivateLicense(object sender, RoutedEventArgs e)
@@ -2172,8 +2343,11 @@ public partial class MainWindow : Window
     private async Task RunScanAsync(IReadOnlyList<string> targets, Action<string> report)
     {
         _scanning = true;
+        _scanCts = new CancellationTokenSource();
+        var cancel = _scanCts.Token;
         ScanButton.IsEnabled = false;
         if (FullScanButton is not null) FullScanButton.IsEnabled = false;
+        ShowStopButtons(true);
         ResetThreats();
         SetProgress(0, indeterminate: true, visible: true);
 
@@ -2192,11 +2366,12 @@ public partial class MainWindow : Window
                 var list = new List<string>();
                 foreach (string target in targets)
                 {
+                    cancel.ThrowIfCancellationRequested();
                     try { list.AddRange(ScanService.EnumerateFiles(target)); }
                     catch { /* cible inaccessible : ignorée */ }
                 }
                 return list;
-            });
+            }, cancel);
 
             int total = allFiles.Count;
             Log($"{total} fichier(s) à analyser sur {Environment.ProcessorCount} cœur(s).");
@@ -2221,7 +2396,7 @@ public partial class MainWindow : Window
                             UpdateThreatUi();
                             Log($"MENACE : {name} — {path}");
                             SoundFx.Threat();
-                            Notify("Menace détectée", $"{name}\n{path}");
+                            Notify("Menace détectée — cliquez pour agir", $"{name}\n{path}", "Scan");
                             RecordIncident("Analyse", IncidentSeverity.Critical, $"Menace détectée : {name}", path);
                         });
                     }
@@ -2237,8 +2412,8 @@ public partial class MainWindow : Window
                             report($"Analyse… {scanned}/{total} fichiers ({percent}%), {snapThreats} menace(s)");
                         });
                     }
-                });
-            });
+                }, cancel: cancel);
+            }, cancel);
 
             SetProgress(100, indeterminate: false, visible: false);
             report($"Terminé : {total} fichiers analysés, {threats} menace(s).");
@@ -2246,6 +2421,15 @@ public partial class MainWindow : Window
             UpdateThreatUi();
             Log($"Analyse terminée : {total} fichiers, {threats} menace(s).");
             SoundFx.ScanDone();
+        }
+        catch (OperationCanceledException)
+        {
+            // Arrêt demandé par l'utilisateur (bouton « Arrêter »).
+            SetProgress(0, indeterminate: false, visible: false);
+            report($"⏹ Analyse arrêtée — {threats} menace(s) trouvée(s) avant l'arrêt.");
+            _threatCount = _threats.Count;
+            UpdateThreatUi();
+            Log("Analyse arrêtée par l'utilisateur.");
         }
         catch (Exception ex)
         {
@@ -2256,8 +2440,29 @@ public partial class MainWindow : Window
         finally
         {
             _scanning = false;
+            ShowStopButtons(false);
+            _scanCts?.Dispose();
+            _scanCts = null;
             RefreshLicense();
         }
+    }
+
+    /// <summary>Arrête le scan en cours (annulation coopérative).</summary>
+    private void OnStopScan(object sender, RoutedEventArgs e)
+    {
+        if (_scanCts is { IsCancellationRequested: false })
+        {
+            _scanCts.Cancel();
+            Log("Arrêt du scan demandé…");
+        }
+    }
+
+    /// <summary>Affiche / masque les boutons « Arrêter » des deux pages de scan.</summary>
+    private void ShowStopButtons(bool show)
+    {
+        var vis = show ? Visibility.Visible : Visibility.Collapsed;
+        if (StopScanButton is not null) StopScanButton.Visibility = vis;
+        if (StopFullScanButton is not null) StopFullScanButton.Visibility = vis;
     }
 
     /// <summary>Met à jour les deux barres de progression du scan (rapide + complet).</summary>
@@ -2516,6 +2721,25 @@ public partial class MainWindow : Window
         finally { _lockShowing = false; }
     }
 
+    /// <summary>
+    /// Écran de veille : plein écran noir + cœur battant. À la sortie, on enchaîne
+    /// sur l'écran de verrouillage IATECH (PIN / mot de passe) si configuré.
+    /// </summary>
+    private void OnScreensaver(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var saver = new ScreensaverWindow { Owner = this };
+            saver.ShowDialog();
+        }
+        catch { /* affichage impossible : on enchaîne quand même sur le verrou */ }
+
+        // Au réveil : verrouillage IATECH (sinon, rien — l'utilisateur revient au dashboard).
+        LoadLockConfig();
+        if (LockConfigured)
+            ShowLockScreen();
+    }
+
     // --- Carte « Verrouillage du PC » (mot de passe / PIN / Windows Hello) ---
 
     private void OnLockPcNow(object sender, RoutedEventArgs e)
@@ -2650,7 +2874,7 @@ public partial class MainWindow : Window
             ScanStatusText.Text = $"Menace bloquée : {Path.GetFileName(result.Path)}";
             Log($"Temps réel — menace bloquée : {result.Path}");
             SoundFx.Threat();
-            Notify("Menace bloquée (temps réel)", Path.GetFileName(result.Path));
+            Notify("Menace bloquée (temps réel)", Path.GetFileName(result.Path), "Scan");
             RecordIncident("Temps réel", IncidentSeverity.Critical, "Menace bloquée en temps réel", result.Path);
         });
     }
@@ -2705,7 +2929,7 @@ public partial class MainWindow : Window
             ScanStatusText.Text = $"⚠ RANSOMWARE : {alert.Reason} — {action}.";
             Log($"RANSOMWARE : {alert.Reason} — {action}.");
             SoundFx.Danger();
-            Notify("⚠ Ransomware bloqué", $"{alert.Reason} — {action}");
+            Notify("⚠ Ransomware bloqué", $"{alert.Reason} — {action}", "Centre");
             RecordIncident("Ransomware", IncidentSeverity.Critical, "Comportement de rançongiciel bloqué", $"{alert.Reason} — {action}");
             CopilotAlert($"Comportement de type rançongiciel détecté : {alert.Reason}. Action : {action}. Je recommande de lancer une analyse complète et de vérifier vos sauvegardes.");
             _ransomGuard?.Rearm();
@@ -3421,6 +3645,8 @@ public partial class MainWindow : Window
 
     private System.Windows.Forms.NotifyIcon? _tray;
     private bool _reallyExit;
+    /// <summary>Onglet à ouvrir si l'utilisateur clique la dernière notification.</summary>
+    private string? _notifyTarget;
 
     private void SetupTray()
     {
@@ -3447,8 +3673,18 @@ public partial class MainWindow : Window
             });
             _tray.ContextMenuStrip = menu;
             _tray.DoubleClick += (_, _) => ShowFromTray();
+            // Clic sur la bulle de notification → ouvre l'app sur l'onglet concerné.
+            _tray.BalloonTipClicked += (_, _) => OnNotificationClicked();
         }
         catch { /* la barre des tâches n'est pas critique */ }
+    }
+
+    /// <summary>Ouvre l'application et navigue vers l'onglet visé par la dernière notification.</summary>
+    private void OnNotificationClicked()
+    {
+        ShowFromTray();
+        if (_ready && _notifyTarget is { Length: > 0 } target)
+            ShowPage(target);
     }
 
     private void ShowFromTray()
@@ -3459,9 +3695,13 @@ public partial class MainWindow : Window
         Topmost = true; Topmost = false;
     }
 
-    /// <summary>Notification système (bulle dans la barre des tâches).</summary>
-    private void Notify(string title, string message)
+    /// <summary>
+    /// Notification système (bulle dans la barre des tâches). <paramref name="target"/>
+    /// est l'onglet ouvert si l'utilisateur clique la bulle (ex. « Scan » pour une menace).
+    /// </summary>
+    private void Notify(string title, string message, string? target = null)
     {
+        _notifyTarget = target;
         if (_gamerMode) return; // notifications suspendues en mode Gamer
         try { _tray?.ShowBalloonTip(4000, title, message, System.Windows.Forms.ToolTipIcon.Warning); }
         catch { }

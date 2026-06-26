@@ -52,7 +52,7 @@
                                    FontWeight="Bold" HorizontalAlignment="Center" Margin="0,6,0,0"/>
                         <TextBlock Text="par mois" Foreground="{StaticResource TextMutedBrush}"
                                    FontSize="10" HorizontalAlignment="Center"/>
-                        <TextBlock Text="Acheter →" Foreground="{StaticResource AccentBrush}"
+                        <TextBlock Text="Acheter →" Foreground="{StaticResource GoldBrush}"
                                    FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,6,0,0"/>
                     </StackPanel>
                 </Border>
@@ -69,7 +69,7 @@
                                    FontSize="10" HorizontalAlignment="Center"/>
                         <TextBlock Text="2 mois offerts" Foreground="{StaticResource GreenBrush}"
                                    FontSize="10" HorizontalAlignment="Center" Margin="0,2,0,0"/>
-                        <TextBlock Text="Acheter →" Foreground="{StaticResource AccentBrush}"
+                        <TextBlock Text="Acheter →" Foreground="{StaticResource GoldBrush}"
                                    FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,4,0,0"/>
                     </StackPanel>
                 </Border>
@@ -85,7 +85,7 @@
                                    FontWeight="Bold" HorizontalAlignment="Center" Margin="0,6,0,0"/>
                         <TextBlock Text="paiement unique" Foreground="{StaticResource TextMutedBrush}"
                                    FontSize="10" HorizontalAlignment="Center"/>
-                        <TextBlock Text="Acheter →" Foreground="{StaticResource AccentBrush}"
+                        <TextBlock Text="Acheter →" Foreground="{StaticResource GoldBrush}"
                                    FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,6,0,0"/>
                     </StackPanel>
                 </Border>

@@ -36,7 +36,7 @@ jobs:
           elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
             echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
           else
-            echo "tag=v0.9.5" >> "$GITHUB_OUTPUT"
+            echo "tag=v0.10.0" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Récupérer le code
@@ -91,6 +91,14 @@ jobs:
           generate_release_notes: true
           body: |
             ## IATECH-SHIELD PRO — antivirus Windows
+
+            ### Nouveautés 0.10.0
+            - 👤 **Comptes clients (Google + e-mail)** : connectez-vous pour **lier votre licence à votre compte** ; après réinstallation, il suffit de se reconnecter — plus besoin de ressaisir la clé
+            - ⏹ **Bouton « Arrêter le scan »** : interrompez à tout moment une analyse (disque / dossier / fichier)
+            - 🌙 **Écran de veille** : écran noir avec **cœur battant** ; au réveil, l'**écran de verrouillage** (PIN / mot de passe) protège l'accès
+            - 🔐 **Coffre-fort protégé** : un **mot de passe** est désormais requis pour ouvrir le coffre-fort
+            - 🔔 **Notifications cliquables** : cliquez une alerte pour ouvrir l'app **directement sur l'onglet concerné** (menaces, etc.)
+            - 🎨 **Interface plus vivante** : dégradés intenses, **touches dorées**, effets de survol animés
 
             ### Nouveautés 0.9.5
             - 🎉 **Écran de félicitations** après activation : logo + **coche verte** et « Licence activée pour … / à vie »
