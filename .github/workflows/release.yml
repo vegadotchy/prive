@@ -61,6 +61,13 @@ jobs:
           -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
           -o dist
 
+      - name: Publier le générateur de licences (outil éditeur, win-x64)
+        run: >
+          dotnet publish src/IatechShield.KeyGen/IatechShield.KeyGen.csproj
+          -c Release -r win-x64 --self-contained true
+          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+          -o keygen
+
       - name: Installer Inno Setup
         run: choco install innosetup --no-progress -y
 
@@ -70,6 +77,9 @@ jobs:
 
       - name: Compresser l'application autonome
         run: Compress-Archive -Path dist\* -DestinationPath IatechShield-App-win-x64.zip -Force
+
+      - name: Compresser l'outil éditeur (générateur de licences)
+        run: Compress-Archive -Path keygen\* -DestinationPath IatechShield-KeyGen-win-x64.zip -Force
 
       - name: Publier la Release
         uses: softprops/action-gh-release@v2
@@ -144,3 +154,4 @@ jobs:
           files: |
             installer/Output/*.exe
             IatechShield-App-win-x64.zip
+            IatechShield-KeyGen-win-x64.zip
