@@ -2360,15 +2360,30 @@ public partial class MainWindow : Window
         try
         {
             // 1) Inventaire des fichiers (permet une progression déterminée).
+            //    On énumère fichier par fichier en vérifiant l'annulation à chaque pas :
+            //    le bouton « Arrêter » réagit même pendant l'inventaire d'un disque entier.
             report("Préparation : inventaire des fichiers…");
             var allFiles = await Task.Run(() =>
             {
                 var list = new List<string>();
+                int seen = 0;
                 foreach (string target in targets)
                 {
                     cancel.ThrowIfCancellationRequested();
-                    try { list.AddRange(ScanService.EnumerateFiles(target)); }
-                    catch { /* cible inaccessible : ignorée */ }
+                    IEnumerable<string> files;
+                    try { files = ScanService.EnumerateFiles(target); }
+                    catch { continue; /* cible introuvable : ignorée */ }
+
+                    foreach (string file in files)
+                    {
+                        cancel.ThrowIfCancellationRequested();
+                        list.Add(file);
+                        if (++seen % 500 == 0)
+                        {
+                            int snap = list.Count;
+                            Dispatcher.Invoke(() => report($"Préparation : {snap} fichiers repérés…"));
+                        }
+                    }
                 }
                 return list;
             }, cancel);
@@ -2454,6 +2469,11 @@ public partial class MainWindow : Window
         {
             _scanCts.Cancel();
             Log("Arrêt du scan demandé…");
+            // Retour visuel immédiat (l'arrêt effectif suit dans la foulée).
+            if (StopScanButton is not null) StopScanButton.IsEnabled = false;
+            if (StopFullScanButton is not null) StopFullScanButton.IsEnabled = false;
+            if (ScanStatusText is not null) ScanStatusText.Text = "⏹ Arrêt en cours…";
+            if (FullScanStatus is not null) FullScanStatus.Text = "⏹ Arrêt en cours…";
         }
     }
 
@@ -2461,8 +2481,8 @@ public partial class MainWindow : Window
     private void ShowStopButtons(bool show)
     {
         var vis = show ? Visibility.Visible : Visibility.Collapsed;
-        if (StopScanButton is not null) StopScanButton.Visibility = vis;
-        if (StopFullScanButton is not null) StopFullScanButton.Visibility = vis;
+        if (StopScanButton is not null) { StopScanButton.Visibility = vis; StopScanButton.IsEnabled = show; }
+        if (StopFullScanButton is not null) { StopFullScanButton.Visibility = vis; StopFullScanButton.IsEnabled = show; }
     }
 
     /// <summary>Met à jour les deux barres de progression du scan (rapide + complet).</summary>
