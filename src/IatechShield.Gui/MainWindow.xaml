@@ -136,11 +136,49 @@
                     <!-- ================= PAGE : DASHBOARD ================= -->
                     <Grid x:Name="PageDashboard">
                         <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
-                        <Grid Grid.Row="0">
+                        <!-- Bandeau KPI animé -->
+                        <UniformGrid Grid.Row="0" Rows="1" Columns="5" Margin="0,0,0,6">
+                            <Border Style="{StaticResource Card}" Margin="0,0,6,0" Padding="12">
+                                <StackPanel>
+                                    <TextBlock Text="🛡️ Menaces (session)" Foreground="{StaticResource TextMutedBrush}" FontSize="10"/>
+                                    <TextBlock x:Name="KpiThreats" Text="0" Foreground="{StaticResource GreenBrush}" FontSize="26" FontWeight="Bold"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource Card}" Margin="6,0,6,0" Padding="12">
+                                <StackPanel>
+                                    <TextBlock Text="🧬 Signatures" Foreground="{StaticResource TextMutedBrush}" FontSize="10"/>
+                                    <TextBlock x:Name="KpiSignatures" Text="0" Foreground="{StaticResource AccentBrush}" FontSize="26" FontWeight="Bold"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource Card}" Margin="6,0,6,0" Padding="12">
+                                <StackPanel>
+                                    <TextBlock Text="💚 Score sécurité" Foreground="{StaticResource TextMutedBrush}" FontSize="10"/>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock x:Name="KpiScore" Text="—" Foreground="{StaticResource AccentBrush}" FontSize="26" FontWeight="Bold"/>
+                                        <TextBlock Text="/100" Foreground="{StaticResource TextMutedBrush}" FontSize="11" VerticalAlignment="Bottom" Margin="2,0,0,4"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource Card}" Margin="6,0,6,0" Padding="12">
+                                <StackPanel>
+                                    <TextBlock Text="📡 Appareils réseau" Foreground="{StaticResource TextMutedBrush}" FontSize="10"/>
+                                    <TextBlock x:Name="KpiDevices" Text="0" Foreground="{StaticResource AccentBrush}" FontSize="26" FontWeight="Bold"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource Card}" Margin="6,0,0,0" Padding="12">
+                                <StackPanel>
+                                    <TextBlock Text="⚡ Temps réel" Foreground="{StaticResource TextMutedBrush}" FontSize="10"/>
+                                    <TextBlock x:Name="KpiRealtime" Text="—" Foreground="{StaticResource GreenBrush}" FontSize="20" FontWeight="Bold"/>
+                                </StackPanel>
+                            </Border>
+                        </UniformGrid>
+
+                        <Grid Grid.Row="1">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="290"/>
@@ -160,6 +198,19 @@
                                             <DropShadowEffect x:Name="MainRingGlow" Color="#22D3E8" BlurRadius="25" ShadowDepth="0" Opacity="0.7"/>
                                         </Ellipse.Effect>
                                     </Ellipse>
+                                    <!-- Nœuds connectés en orbite autour du cœur -->
+                                    <Canvas Width="300" Height="300" RenderTransformOrigin="0.5,0.5">
+                                        <Canvas.RenderTransform>
+                                            <RotateTransform x:Name="OrbitRotate" CenterX="150" CenterY="150"/>
+                                        </Canvas.RenderTransform>
+                                        <Ellipse Width="14" Height="14" Canvas.Left="278" Canvas.Top="143" Fill="{StaticResource AccentBrush}" Opacity="0.85"/>
+                                        <Ellipse Width="14" Height="14" Canvas.Left="210" Canvas.Top="260" Fill="{StaticResource GreenBrush}" Opacity="0.8"/>
+                                        <Ellipse Width="14" Height="14" Canvas.Left="76" Canvas.Top="260" Fill="{StaticResource AccentBrush}" Opacity="0.75"/>
+                                        <Ellipse Width="14" Height="14" Canvas.Left="8" Canvas.Top="143" Fill="{StaticResource AccentDimBrush}" Opacity="0.85"/>
+                                        <Ellipse Width="14" Height="14" Canvas.Left="76" Canvas.Top="26" Fill="{StaticResource GreenBrush}" Opacity="0.8"/>
+                                        <Ellipse Width="14" Height="14" Canvas.Left="210" Canvas.Top="26" Fill="{StaticResource AccentBrush}" Opacity="0.75"/>
+                                    </Canvas>
+
                                     <Grid Width="210" Height="210">
                                         <!-- Halo qui pulse au rythme du cœur -->
                                         <Ellipse x:Name="CoreGlow" Width="210" Height="210" Fill="#1A22D3E8"
@@ -221,7 +272,7 @@
                             </StackPanel>
                         </Grid>
 
-                        <Grid Grid.Row="1" Margin="0,16,0,0">
+                        <Grid Grid.Row="2" Margin="0,16,0,0">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="*"/>
@@ -1666,6 +1717,8 @@
                 <Storyboard>
                     <DoubleAnimation Storyboard.TargetName="RingRotate" Storyboard.TargetProperty="Angle"
                                      From="0" To="360" Duration="0:0:18" RepeatBehavior="Forever"/>
+                    <DoubleAnimation Storyboard.TargetName="OrbitRotate" Storyboard.TargetProperty="Angle"
+                                     From="0" To="360" Duration="0:0:26" RepeatBehavior="Forever"/>
                     <DoubleAnimation Storyboard.TargetName="CoreGlow" Storyboard.TargetProperty="Opacity"
                                      From="0.25" To="0.8" Duration="0:0:1.4" AutoReverse="True"
                                      RepeatBehavior="Forever"/>

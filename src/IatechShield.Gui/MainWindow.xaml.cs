@@ -61,6 +61,7 @@ public partial class MainWindow : Window
             StartHeartbeat();
             _ready = true;
             ShowPage("Dashboard");
+            RefreshDashboardKpis();
         };
     }
 
@@ -167,6 +168,10 @@ public partial class MainWindow : Window
         {
             OnRefreshInvestigation(this, new RoutedEventArgs());
         }
+        else if (page == PageDashboard)
+        {
+            RefreshDashboardKpis();
+        }
     }
 
     // Couleur d'accent propre à chaque onglet.
@@ -205,6 +210,48 @@ public partial class MainWindow : Window
         }
         brush.BeginAnimation(SolidColorBrush.ColorProperty,
             new ColorAnimation(target, TimeSpan.FromMilliseconds(280)) { EasingFunction = new QuadraticEase() });
+    }
+
+    /// <summary>Met à jour les indicateurs animés du tableau de bord (comptage progressif).</summary>
+    private void RefreshDashboardKpis()
+    {
+        if (KpiThreats is null) return;
+        AnimateCount(KpiThreats, _threats.Count);
+        AnimateCount(KpiSignatures, _db?.Signatures.Count ?? 0);
+        try { AnimateCount(KpiDevices, LoadRadarKnown().Count); } catch { }
+
+        bool rt = _monitor is not null;
+        KpiRealtime.Text = rt ? "ACTIF" : "INACTIF";
+        KpiRealtime.Foreground = new SolidColorBrush(rt ? Color.FromRgb(0x34, 0xD3, 0x99) : Color.FromRgb(0x94, 0xA3, 0xB8));
+
+        _ = RefreshScoreKpiAsync();
+    }
+
+    private async Task RefreshScoreKpiAsync()
+    {
+        try
+        {
+            var sec = await SecurityScore.EvaluateAsync(_monitor is not null, TamperEnabled);
+            AnimateCount(KpiScore, sec.Score);
+            KpiScore.Foreground = new SolidColorBrush(ScoreColor(sec.Score));
+        }
+        catch { /* score indisponible */ }
+    }
+
+    /// <summary>Anime un compteur de 0 à la valeur cible (effet « count-up »).</summary>
+    private static void AnimateCount(TextBlock target, int value)
+    {
+        const int frames = 28;
+        int i = 0;
+        var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(22) };
+        timer.Tick += (_, _) =>
+        {
+            i++;
+            double t = i / (double)frames;
+            target.Text = ((int)Math.Round(value * (1 - Math.Pow(1 - t, 3)))).ToString(); // easeOutCubic
+            if (i >= frames) { target.Text = value.ToString(); timer.Stop(); }
+        };
+        timer.Start();
     }
 
     /// <summary>Fait battre le cœur central du tableau de bord (rythme « lub-dub » réaliste).</summary>
