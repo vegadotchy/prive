@@ -2807,39 +2807,24 @@ public partial class MainWindow : Window
 
     // ----------------------------------------------------------- assistant IA -
 
-    private async void OnAiAssistant(object sender, RoutedEventArgs e)
+    private void OnAiAssistant(object sender, RoutedEventArgs e)
     {
         if (!AiAssistant.IsConfigured)
         {
+            // Pas de clé : on emmène l'utilisateur sur le réglage (sans redémarrage).
+            ShowPage("Settings");
+            try { ApiKeyInput.Focus(); } catch { }
             MessageBox.Show(this,
-                "L'assistant IA nécessite une clé Anthropic.\n\nDéfinissez ANTHROPIC_API_KEY puis relancez l'application.",
-                "Assistant IA — configuration requise", MessageBoxButton.OK, MessageBoxImage.Information);
+                "Pour activer l'assistant IA, collez votre clé Anthropic ici, dans « Réglages → Assistant IA », puis cliquez « Enregistrer la clé ».\n\n" +
+                "• La clé s'obtient sur console.anthropic.com (bouton « Obtenir une clé »).\n" +
+                "• Elle est stockée chiffrée sur ce PC — aucun redémarrage nécessaire.",
+                "Assistant IA — clé requise", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
-        int suspect = _registry.ListAutoRuns().Count(a => a.Suspicious);
-        string context =
-            $"État du système : {_threatCount} menace(s) détectée(s), " +
-            $"{suspect} programme(s) suspect(s) au démarrage. " +
-            "Donne un avis de sécurité et les prochaines actions recommandées.";
-
-        AiButton.IsEnabled = false;
-        AiButton.Content = "Analyse…";
-        try
-        {
-            string answer = await new AiAssistant().AskAsync(context);
-            Log("Assistant IA consulté.");
-            MessageBox.Show(this, answer, "Assistant IA — IATECH-SHIELD PRO", MessageBoxButton.OK, MessageBoxImage.Information);
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show(this, $"Assistant IA indisponible : {ex.Message}", "Assistant IA", MessageBoxButton.OK, MessageBoxImage.Warning);
-        }
-        finally
-        {
-            AiButton.IsEnabled = true;
-            AiButton.Content = "Assistant IA";
-        }
+        // Clé présente : on ouvre le Copilote (conversation complète).
+        ShowPage("Copilote");
+        EnsureChatLoaded();
     }
 
     // ------------------------------------------------------------- affichage --
