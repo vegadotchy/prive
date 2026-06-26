@@ -36,7 +36,7 @@ jobs:
           elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
             echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
           else
-            echo "tag=v0.10.1" >> "$GITHUB_OUTPUT"
+            echo "tag=v0.10.2" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Récupérer le code
@@ -91,6 +91,10 @@ jobs:
           generate_release_notes: true
           body: |
             ## IATECH-SHIELD PRO — antivirus Windows
+
+            ### Nouveautés 0.10.2
+            - 🌙 **Écran de veille spectaculaire** : **gros cœur cyan** (style dashboard) entouré de cercles et de nœuds en orbite, **éclairs électriques** qui parcourent l'écran, et le message « Votre ordinateur et votre vie privée sont protégés par IATECH-SHIELD PRO »
+            - 🔐 **Coffre-fort** : le mot de passe est **redemandé à chaque retour** dans l'onglet
 
             ### Nouveautés 0.10.1
             - ⏹ **Arrêt du scan corrigé** : le bouton « Arrêter » interrompt désormais l'analyse **immédiatement**, même pendant l'inventaire d'un disque entier

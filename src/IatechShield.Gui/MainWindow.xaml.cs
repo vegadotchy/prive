@@ -143,6 +143,11 @@ public partial class MainWindow : Window
         };
         page.Visibility = Visibility.Visible;
 
+        // Dès qu'on quitte le coffre-fort, on le re-verrouille : le mot de passe
+        // sera redemandé à chaque retour.
+        if (page != PageVault)
+            _vaultUnlocked = false;
+
         ApplyTabAccent(name);
         AnimatePageIn(page);
 
