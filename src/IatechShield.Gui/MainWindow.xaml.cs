@@ -120,6 +120,7 @@ public partial class MainWindow : Window
         PageCopilot.Visibility = Visibility.Collapsed;
         PageDevice.Visibility = Visibility.Collapsed;
         PageSystem.Visibility = Visibility.Collapsed;
+        PageProcesses.Visibility = Visibility.Collapsed;
         PageSettings.Visibility = Visibility.Collapsed;
         PageLogs.Visibility = Visibility.Collapsed;
 
@@ -140,6 +141,7 @@ public partial class MainWindow : Window
             "Copilote" => PageCopilot,
             "Appareil" => PageDevice,
             "Système" => PageSystem,
+            "Processus" => PageProcesses,
             "Settings" => PageSettings,
             "Logs" => PageLogs,
             _ => PageDashboard
@@ -197,6 +199,150 @@ public partial class MainWindow : Window
         {
             RefreshDashboardKpis();
         }
+        else if (page == PageProcesses)
+        {
+            BuildProcessGraph();
+        }
+    }
+
+    // ----------------------------------------------- Vue système / processus ---
+
+    private void OnRefreshProcesses(object sender, RoutedEventArgs e) => BuildProcessGraph();
+
+    /// <summary>
+    /// Dessine les processus en cours comme des nœuds reliés à un hub central « PC ».
+    /// Taille selon la mémoire, couleur selon la confiance (signé/connu = cyan/vert,
+    /// inconnu/non signé = rouge). Clic = détails. 100 % données réelles.
+    /// </summary>
+    private void BuildProcessGraph()
+    {
+        if (ProcCanvas is null) return;
+        // Au premier affichage, le Canvas n'est pas encore mesuré : on redessine après layout.
+        if (ProcCanvas.ActualWidth <= 1)
+        {
+            Dispatcher.BeginInvoke(new Action(BuildProcessGraph),
+                System.Windows.Threading.DispatcherPriority.Loaded);
+            return;
+        }
+        ProcCanvas.Children.Clear();
+
+        // Top processus par mémoire (les plus significatifs).
+        var procs = System.Diagnostics.Process.GetProcesses()
+            .Select(p =>
+            {
+                try { return (p.ProcessName, Mem: p.WorkingSet64, p.Id); }
+                catch { return ("", 0L, 0); }
+            })
+            .Where(t => t.Mem > 0 && !string.IsNullOrEmpty(t.ProcessName))
+            .GroupBy(t => t.ProcessName)
+            .Select(g => (Name: g.Key, Mem: g.Sum(x => x.Mem), Count: g.Count(), Id: g.First().Id))
+            .OrderByDescending(t => t.Mem)
+            .Take(16)
+            .ToList();
+
+        double w = ProcCanvas.ActualWidth > 0 ? ProcCanvas.ActualWidth : 760;
+        double h = ProcCanvas.ActualHeight > 0 ? ProcCanvas.ActualHeight : 520;
+        double cx = w / 2, cy = h / 2;
+        double radius = Math.Min(w, h) / 2 - 80;
+
+        var accent = Color.FromRgb(0x22, 0xD3, 0xE8);
+        var green = Color.FromRgb(0x2B, 0xE0, 0xA6);
+        var red = Color.FromRgb(0xEF, 0x44, 0x44);
+
+        // Liens hub → nœuds (dessinés d'abord, derrière).
+        for (int i = 0; i < procs.Count; i++)
+        {
+            double angle = 2 * Math.PI * i / Math.Max(1, procs.Count);
+            double nx = cx + radius * Math.Cos(angle);
+            double ny = cy + radius * Math.Sin(angle);
+            var line = new System.Windows.Shapes.Line
+            {
+                X1 = cx, Y1 = cy, X2 = nx, Y2 = ny,
+                Stroke = new SolidColorBrush(Color.FromArgb(0x55, 0x22, 0xD3, 0xE8)),
+                StrokeThickness = 1
+            };
+            ProcCanvas.Children.Add(line);
+        }
+
+        // Hub central « PC ».
+        AddProcNode(cx, cy, 64, accent, "PC", isHub: true, onClick: null);
+
+        for (int i = 0; i < procs.Count; i++)
+        {
+            var p = procs[i];
+            double angle = 2 * Math.PI * i / Math.Max(1, procs.Count);
+            double nx = cx + radius * Math.Cos(angle);
+            double ny = cy + radius * Math.Sin(angle);
+
+            bool trusted = IsLikelyTrusted(p.Name);
+            Color c = trusted ? (i % 3 == 0 ? green : accent) : red;
+            double size = 26 + Math.Min(28, p.Mem / (120L * 1024 * 1024)); // mémoire → taille
+            double memMb = p.Mem / (1024.0 * 1024.0);
+
+            string detail =
+                $"🧩 {p.Name}\n" +
+                $"PID : {p.Id}\n" +
+                $"Instances : {p.Count}\n" +
+                $"Mémoire : {memMb:0} Mo\n" +
+                $"Confiance : {(trusted ? "✓ Connu / signé" : "⚠ Non reconnu")}";
+
+            AddProcNode(nx, ny, size, c, p.Name, isHub: false, onClick: () =>
+            {
+                ProcDetail.Text = detail;
+                ProcDetail.Foreground = new SolidColorBrush(trusted
+                    ? Color.FromRgb(0xE8, 0xF6, 0xFB) : red);
+            });
+        }
+
+        int suspicious = procs.Count(p => !IsLikelyTrusted(p.Name));
+        ProcStatus.Text = $"{procs.Count} processus majeurs · {suspicious} non reconnu(s).";
+    }
+
+    private void AddProcNode(double x, double y, double size, Color color, string label, bool isHub, Action? onClick)
+    {
+        var dot = new System.Windows.Shapes.Ellipse
+        {
+            Width = size, Height = size,
+            Fill = new SolidColorBrush(Color.FromArgb(isHub ? (byte)0x44 : (byte)0x33, color.R, color.G, color.B)),
+            Stroke = new SolidColorBrush(color),
+            StrokeThickness = isHub ? 2.5 : 1.6,
+            Cursor = onClick is null ? Cursors.Arrow : Cursors.Hand,
+            Effect = new System.Windows.Media.Effects.DropShadowEffect
+            { Color = color, BlurRadius = isHub ? 30 : 14, ShadowDepth = 0, Opacity = 0.8 }
+        };
+        Canvas.SetLeft(dot, x - size / 2);
+        Canvas.SetTop(dot, y - size / 2);
+        if (onClick is not null) dot.MouseLeftButtonUp += (_, _) => onClick();
+        ProcCanvas.Children.Add(dot);
+
+        var text = new TextBlock
+        {
+            Text = isHub ? "PC" : (label.Length > 12 ? label[..12] : label),
+            Foreground = new SolidColorBrush(isHub ? color : Color.FromRgb(0xC8, 0xDC, 0xEA)),
+            FontSize = isHub ? 14 : 10,
+            FontWeight = isHub ? FontWeights.Bold : FontWeights.Normal,
+            TextAlignment = TextAlignment.Center,
+            Width = 90
+        };
+        Canvas.SetLeft(text, x - 45);
+        Canvas.SetTop(text, y + size / 2 + 2);
+        ProcCanvas.Children.Add(text);
+    }
+
+    /// <summary>Heuristique simple : processus Windows/éditeurs connus = de confiance.</summary>
+    private static bool IsLikelyTrusted(string name)
+    {
+        string n = name.ToLowerInvariant();
+        string[] known =
+        {
+            "system", "idle", "svchost", "explorer", "csrss", "wininit", "winlogon", "services",
+            "lsass", "smss", "dwm", "fontdrvhost", "taskhostw", "runtimebroker", "sihost",
+            "ctfmon", "searchindexer", "spoolsv", "conhost", "registry", "memcompression",
+            "iatech-shield-gui", "iatech-shield", "msmpeng", "securityhealthservice", "audiodg",
+            "chrome", "msedge", "firefox", "code", "devenv", "explorer", "powershell", "pwsh",
+            "teams", "outlook", "winword", "excel", "onedrive", "discord", "steam", "nvcontainer"
+        };
+        return known.Any(k => n == k || n.StartsWith(k));
     }
 
     // Couleur d'accent propre à chaque onglet.

@@ -72,6 +72,8 @@
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE77B;" Content="Système" Checked="OnNav"/>
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
+                                     Tag="&#xE9D5;" Content="Processus" Checked="OnNav"/>
+                        <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE713;" Content="Settings" Checked="OnNav"/>
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE7C3;" Content="Logs" Checked="OnNav"/>
@@ -1066,6 +1068,40 @@
                                 </Border>
                             </StackPanel>
                         </ScrollViewer>
+                    </Grid>
+
+                    <!-- =============== PAGE : PROCESSUS (graphe temps réel) =============== -->
+                    <Grid x:Name="PageProcesses" Visibility="Collapsed">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="300"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,0,0,8">
+                            <TextBlock Text="Vue système — processus en direct" Style="{StaticResource PageTitle}"/>
+                            <Button x:Name="ProcRefreshButton" Style="{StaticResource GhostButton}" Content="Actualiser"
+                                    Click="OnRefreshProcesses" Margin="14,0,0,0" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="ProcStatus" Text="Chaque nœud = un processus. Rouge = non signé / suspect."
+                                       Foreground="{StaticResource TextMutedBrush}" FontSize="11"
+                                       VerticalAlignment="Center" Margin="14,0,0,0"/>
+                        </StackPanel>
+
+                        <Border Grid.Row="1" Grid.Column="0" Style="{StaticResource Card}" Padding="0">
+                            <Canvas x:Name="ProcCanvas" ClipToBounds="True" Background="Transparent"/>
+                        </Border>
+
+                        <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource Card}" Margin="12,0,0,0">
+                            <StackPanel>
+                                <TextBlock Text="Détails du processus" Foreground="{StaticResource TextPrimaryBrush}"
+                                           FontWeight="SemiBold" FontSize="13" Margin="0,0,0,8"/>
+                                <TextBlock x:Name="ProcDetail" Text="Cliquez un nœud pour voir les détails."
+                                           Foreground="{StaticResource TextMutedBrush}" FontSize="12" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
                     </Grid>
 
                     <!-- =============== PAGE : RADAR RÉSEAU =============== -->
