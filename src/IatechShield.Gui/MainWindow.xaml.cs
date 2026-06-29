@@ -46,6 +46,9 @@ public partial class MainWindow : Window
     private bool _scanning;
     /// <summary>Permet d'arrêter le scan en cours (bouton « Arrêter »).</summary>
     private CancellationTokenSource? _scanCts;
+    /// <summary>Barrière de pause : ouverte = scan actif, fermée = en pause.</summary>
+    private readonly System.Threading.ManualResetEventSlim _scanPauseGate = new(true);
+    private bool _scanPaused;
     private readonly StringBuilder _log = new();
     private readonly ObservableCollection<ThreatItem> _threats = new();
     private readonly ObservableCollection<NetworkDeviceItem> _networkDevices = new();
@@ -2232,13 +2235,36 @@ public partial class MainWindow : Window
         if (_scanning || _scanner is null || !EnsureActivated())
             return;
 
-        var dialog = new OpenFolderDialog { Title = "Choisir le dossier à analyser", InitialDirectory = DefaultScanFolder() };
-        if (dialog.ShowDialog(this) != true)
+        // « Analyse rapide » lance directement l'analyse de TOUT l'ordinateur
+        // (tous les disques fixes/amovibles prêts), sans boîte de dialogue.
+        var targets = AllComputerTargets();
+        if (targets.Count == 0)
+        {
+            ScanStatusText.Text = "Aucun disque accessible à analyser.";
             return;
+        }
 
-        await RunScanAsync(new[] { dialog.FolderName }, status => ScanStatusText.Text = status);
+        ScanStatusText.Text = "Analyse de l'ordinateur en cours…";
+        await RunScanAsync(targets, status => ScanStatusText.Text = status);
         if (_threats.Count > 0)
             ScanStatusText.Text = $"{_threats.Count} menace(s) — voir l'onglet Scan pour agir.";
+    }
+
+    /// <summary>Tous les disques fixes et amovibles prêts (analyse complète de l'ordinateur).</summary>
+    private static List<string> AllComputerTargets()
+    {
+        var targets = new List<string>();
+        foreach (var d in DriveInfo.GetDrives())
+        {
+            try
+            {
+                if (!d.IsReady) continue;
+                if (d.DriveType is DriveType.Fixed or DriveType.Removable)
+                    targets.Add(d.RootDirectory.FullName);
+            }
+            catch { /* disque inaccessible : ignoré */ }
+        }
+        return targets;
     }
 
     // ------------------------------------------------------------ scan complet -
@@ -2350,6 +2376,8 @@ public partial class MainWindow : Window
         _scanning = true;
         _scanCts = new CancellationTokenSource();
         var cancel = _scanCts.Token;
+        _scanPaused = false;
+        _scanPauseGate.Set();              // démarre en position « actif »
         ScanButton.IsEnabled = false;
         if (FullScanButton is not null) FullScanButton.IsEnabled = false;
         ShowStopButtons(true);
@@ -2381,6 +2409,7 @@ public partial class MainWindow : Window
 
                     foreach (string file in files)
                     {
+                        _scanPauseGate.Wait(cancel);   // respecte la pause
                         cancel.ThrowIfCancellationRequested();
                         list.Add(file);
                         if (++seen % 500 == 0)
@@ -2403,6 +2432,8 @@ public partial class MainWindow : Window
             {
                 service.ScanFilesParallel(allFiles, (result, scanned) =>
                 {
+                    _scanPauseGate.Wait(cancel);   // chaque worker se met en pause si demandé
+
                     if (result.IsThreat)
                     {
                         Interlocked.Increment(ref threats);
@@ -2482,12 +2513,42 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>Affiche / masque les boutons « Arrêter » des deux pages de scan.</summary>
+    /// <summary>Met en pause ou reprend le scan en cours.</summary>
+    private void OnPauseScan(object sender, RoutedEventArgs e)
+    {
+        if (!_scanning) return;
+        _scanPaused = !_scanPaused;
+        if (_scanPaused)
+        {
+            _scanPauseGate.Reset();   // ferme la barrière → les workers s'arrêtent
+            Log("Analyse en pause.");
+            if (ScanStatusText is not null) ScanStatusText.Text = "⏸ Analyse en pause.";
+            if (FullScanStatus is not null) FullScanStatus.Text = "⏸ Analyse en pause.";
+        }
+        else
+        {
+            _scanPauseGate.Set();      // rouvre la barrière → reprise
+            Log("Analyse reprise.");
+        }
+        UpdatePauseButtons();
+    }
+
+    private void UpdatePauseButtons()
+    {
+        string label = _scanPaused ? "▶ REPRENDRE" : "⏸ PAUSE";
+        if (PauseScanButton is not null) PauseScanButton.Content = label;
+        if (PauseFullScanButton is not null) PauseFullScanButton.Content = label;
+    }
+
+    /// <summary>Affiche / masque les boutons « Pause » et « Arrêter » des deux pages de scan.</summary>
     private void ShowStopButtons(bool show)
     {
         var vis = show ? Visibility.Visible : Visibility.Collapsed;
         if (StopScanButton is not null) { StopScanButton.Visibility = vis; StopScanButton.IsEnabled = show; }
         if (StopFullScanButton is not null) { StopFullScanButton.Visibility = vis; StopFullScanButton.IsEnabled = show; }
+        if (PauseScanButton is not null) { PauseScanButton.Visibility = vis; PauseScanButton.IsEnabled = show; }
+        if (PauseFullScanButton is not null) { PauseFullScanButton.Visibility = vis; PauseFullScanButton.IsEnabled = show; }
+        if (show) { _scanPaused = false; UpdatePauseButtons(); }
     }
 
     /// <summary>Met à jour les deux barres de progression du scan (rapide + complet).</summary>

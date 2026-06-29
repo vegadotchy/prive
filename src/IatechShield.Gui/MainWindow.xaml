@@ -339,6 +339,9 @@
                                             <TextBlock Text="LANCER L'ANALYSE RAPIDE" VerticalAlignment="Center"/>
                                         </StackPanel>
                                     </Button>
+                                    <Button x:Name="PauseScanButton" Style="{StaticResource GhostButton}" Margin="0,8,0,0"
+                                            Click="OnPauseScan" Visibility="Collapsed" Content="⏸ PAUSE"
+                                            Foreground="{StaticResource GoldBrush}" BorderBrush="{StaticResource GoldBrush}"/>
                                     <Button x:Name="StopScanButton" Style="{StaticResource GhostButton}" Margin="0,8,0,0"
                                             Click="OnStopScan" Visibility="Collapsed"
                                             Foreground="#FF6B6B" BorderBrush="#FF6B6B">
@@ -441,6 +444,9 @@
 
                                 <Button x:Name="FullScanButton" Style="{StaticResource PrimaryButton}" Margin="0,14,0,0"
                                         Click="OnFullScan" Content="LANCER L'ANALYSE"/>
+                                <Button x:Name="PauseFullScanButton" Style="{StaticResource GhostButton}" Margin="0,8,0,0"
+                                        Click="OnPauseScan" Visibility="Collapsed" Content="⏸ PAUSE"
+                                        Foreground="{StaticResource GoldBrush}" BorderBrush="{StaticResource GoldBrush}"/>
                                 <Button x:Name="StopFullScanButton" Style="{StaticResource GhostButton}" Margin="0,8,0,0"
                                         Click="OnStopScan" Visibility="Collapsed" Content="⏹ ARRÊTER LE SCAN"
                                         Foreground="#FF6B6B" BorderBrush="#FF6B6B"/>
