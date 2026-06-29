@@ -377,6 +377,9 @@
                                             <TextBlock Text="ARRÊTER LE SCAN" VerticalAlignment="Center"/>
                                         </StackPanel>
                                     </Button>
+                                    <Button x:Name="SecurityTestButton" Style="{StaticResource GhostButton}" Margin="0,8,0,0"
+                                            Click="OnSecurityTest" Content="🧪 TESTER MA SÉCURITÉ"
+                                            Foreground="{StaticResource GreenBrush}" BorderBrush="{StaticResource GreenBrush}"/>
                                 </StackPanel>
                             </Border>
                             <Border Grid.Column="1" Style="{StaticResource Card}" Margin="8,0,0,0">

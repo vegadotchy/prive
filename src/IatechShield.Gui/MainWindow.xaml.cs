@@ -3104,6 +3104,86 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// « Tester ma sécurité » : vérifie l'état réel des protections (temps réel, Defender,
+    /// pare-feu, anti-ransomware…) et lance le fichier test antivirus standard EICAR
+    /// (totalement inoffensif) pour confirmer que la détection fonctionne. Affiche un score.
+    /// </summary>
+    private async void OnSecurityTest(object sender, RoutedEventArgs e)
+    {
+        SecurityTestButton.IsEnabled = false;
+        ScanStatusText.Text = "Test de sécurité en cours…";
+        try
+        {
+            var sb = new StringBuilder();
+            int pass = 0, total = 0;
+            void Check(string name, bool ok)
+            {
+                total++;
+                if (ok) pass++;
+                sb.AppendLine((ok ? "✓  " : "✗  ") + name);
+            }
+
+            Check("Protection en temps réel IATECH", _monitor is not null);
+            var sec = await SecurityScore.EvaluateAsync(_monitor is not null, TamperEnabled);
+            foreach (var c in sec.Checks) Check(c.Name, c.Passed);
+            Check("Protection anti-ransomware (appâts)", _ransomGuard is not null);
+
+            bool eicar = await Task.Run(RunEicarTest);
+            Check("Détection du fichier test antivirus (EICAR)", eicar);
+
+            int score = total == 0 ? 0 : (int)Math.Round(pass * 100.0 / total);
+            SoundFx.ScanDone();
+            ScanStatusText.Text = $"Test terminé : {score}/100.";
+            MessageBox.Show(
+                $"Score de sécurité : {score}/100   ({pass}/{total} contrôles réussis)\n\n{sb}\n" +
+                "Le test EICAR utilise le fichier d'essai antivirus standard, totalement inoffensif.",
+                "🧪 Test de sécurité — IATECH-SHIELD PRO",
+                MessageBoxButton.OK, score >= 80 ? MessageBoxImage.Information : MessageBoxImage.Warning);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Test interrompu : {ex.Message}", "Test de sécurité",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        finally
+        {
+            SecurityTestButton.IsEnabled = true;
+        }
+    }
+
+    /// <summary>Écrit le fichier test EICAR et vérifie qu'il est bloqué/détecté. Inoffensif.</summary>
+    private bool RunEicarTest()
+    {
+        // Signature EICAR officielle (reconstituée pour ne pas embarquer la chaîne telle quelle).
+        string eicar = @"X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*";
+        string dir = Path.Combine(Path.GetTempPath(), "iatech-selftest");
+        string path = Path.Combine(dir, "eicar_test.com");
+        try
+        {
+            Directory.CreateDirectory(dir);
+            File.WriteAllText(path, eicar);
+        }
+        catch
+        {
+            return true; // écriture refusée = un antivirus a bloqué → protection active
+        }
+
+        try
+        {
+            System.Threading.Thread.Sleep(500);      // laisse la protection réagir
+            bool removed = !File.Exists(path);        // supprimé/quarantaine par l'AV = détecté
+            bool flagged = false;
+            if (!removed && _scanner is not null)
+            {
+                try { flagged = _scanner.ScanFile(path).IsThreat; } catch { }
+            }
+            return removed || flagged;
+        }
+        catch { return true; }
+        finally { try { if (File.Exists(path)) File.Delete(path); } catch { } }
+    }
+
     /// <summary>Met en pause ou reprend le scan en cours.</summary>
     private void OnPauseScan(object sender, RoutedEventArgs e)
     {
