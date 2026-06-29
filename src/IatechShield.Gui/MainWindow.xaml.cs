@@ -124,6 +124,7 @@ public partial class MainWindow : Window
         PageProcesses.Visibility = Visibility.Collapsed;
         PageWorld.Visibility = Visibility.Collapsed;
         PageDna.Visibility = Visibility.Collapsed;
+        PageThreatRadar.Visibility = Visibility.Collapsed;
         PageSettings.Visibility = Visibility.Collapsed;
         PageLogs.Visibility = Visibility.Collapsed;
 
@@ -147,6 +148,7 @@ public partial class MainWindow : Window
             "Processus" => PageProcesses,
             "Mondiale" => PageWorld,
             "ADN" => PageDna,
+            "Menaces" => PageThreatRadar,
             "Settings" => PageSettings,
             "Logs" => PageLogs,
             _ => PageDashboard
@@ -216,6 +218,116 @@ public partial class MainWindow : Window
         {
             _ = BuildDnaAsync();
         }
+        else if (page == PageThreatRadar)
+        {
+            BuildThreatRadar();
+        }
+    }
+
+    // ----------------------------------------------- Radar de menaces ----------
+
+    /// <summary>
+    /// Radar circulaire HUD : cercles concentriques, ligne de balayage qui tourne en
+    /// continu, et un blip par menace détectée / incident. Vert = secteur sûr.
+    /// </summary>
+    private void BuildThreatRadar()
+    {
+        if (ThreatRadarCanvas is null) return;
+        if (ThreatRadarCanvas.ActualWidth <= 1)
+        {
+            Dispatcher.BeginInvoke(new Action(BuildThreatRadar),
+                System.Windows.Threading.DispatcherPriority.Loaded);
+            return;
+        }
+        ThreatRadarCanvas.Children.Clear();
+
+        double w = ThreatRadarCanvas.ActualWidth, h = ThreatRadarCanvas.ActualHeight;
+        double cx = w / 2, cy = h / 2;
+        double r = Math.Min(w, h) / 2 - 20;
+        var accent = Color.FromRgb(0x22, 0xD3, 0xE8);
+        var red = Color.FromRgb(0xEF, 0x44, 0x44);
+
+        // Cercles concentriques + croix.
+        for (int k = 1; k <= 4; k++)
+        {
+            double rr = r * k / 4;
+            var ring = new System.Windows.Shapes.Ellipse
+            {
+                Width = rr * 2, Height = rr * 2,
+                Stroke = new SolidColorBrush(Color.FromArgb(0x44, accent.R, accent.G, accent.B)),
+                StrokeThickness = 1
+            };
+            Canvas.SetLeft(ring, cx - rr); Canvas.SetTop(ring, cy - rr);
+            ThreatRadarCanvas.Children.Add(ring);
+        }
+        ThreatRadarCanvas.Children.Add(new System.Windows.Shapes.Line
+        { X1 = cx - r, Y1 = cy, X2 = cx + r, Y2 = cy, Stroke = new SolidColorBrush(Color.FromArgb(0x33, accent.R, accent.G, accent.B)), StrokeThickness = 0.7 });
+        ThreatRadarCanvas.Children.Add(new System.Windows.Shapes.Line
+        { X1 = cx, Y1 = cy - r, X2 = cx, Y2 = cy + r, Stroke = new SolidColorBrush(Color.FromArgb(0x33, accent.R, accent.G, accent.B)), StrokeThickness = 0.7 });
+
+        // Secteur de balayage (wedge) qui tourne en continu.
+        var sweep = new System.Windows.Shapes.Path
+        {
+            Fill = new RadialGradientBrush(Color.FromArgb(0x55, accent.R, accent.G, accent.B), Colors.Transparent)
+            { Center = new Point(0.5, 0.5), GradientOrigin = new Point(0.5, 0.5), RadiusX = 0.5, RadiusY = 0.5 },
+            Data = SweepWedge(cx, cy, r),
+            RenderTransformOrigin = new Point(0, 0)
+        };
+        var rot = new RotateTransform(0, cx, cy);
+        sweep.RenderTransform = rot;
+        ThreatRadarCanvas.Children.Add(sweep);
+        rot.BeginAnimation(RotateTransform.AngleProperty,
+            new System.Windows.Media.Animation.DoubleAnimation(0, 360, TimeSpan.FromSeconds(3.5))
+            { RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever });
+
+        // Centre.
+        var core = new System.Windows.Shapes.Ellipse
+        {
+            Width = 12, Height = 12, Fill = new SolidColorBrush(accent),
+            Effect = new System.Windows.Media.Effects.DropShadowEffect { Color = accent, BlurRadius = 16, ShadowDepth = 0 }
+        };
+        Canvas.SetLeft(core, cx - 6); Canvas.SetTop(core, cy - 6);
+        ThreatRadarCanvas.Children.Add(core);
+
+        // Blips : une menace détectée = un point rouge.
+        int count = _threats.Count;
+        for (int i = 0; i < count; i++)
+        {
+            double ang = 2 * Math.PI * i / Math.Max(1, count) + (i * 0.7);
+            double dist = r * (0.35 + 0.55 * ((i % 3) / 2.0));
+            double bx = cx + dist * Math.Cos(ang), by = cy + dist * Math.Sin(ang);
+            var blip = new System.Windows.Shapes.Ellipse
+            {
+                Width = 12, Height = 12, Fill = new SolidColorBrush(red),
+                Effect = new System.Windows.Media.Effects.DropShadowEffect { Color = red, BlurRadius = 14, ShadowDepth = 0 },
+                ToolTip = i < _threats.Count ? $"{_threats[i].Name}\n{_threats[i].Path}" : "Menace"
+            };
+            Canvas.SetLeft(blip, bx - 6); Canvas.SetTop(blip, by - 6);
+            // Pulsation du blip.
+            var pulse = new System.Windows.Media.Animation.DoubleAnimation(1, 0.3, TimeSpan.FromSeconds(0.8))
+            { AutoReverse = true, RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever };
+            blip.BeginAnimation(OpacityProperty, pulse);
+            ThreatRadarCanvas.Children.Add(blip);
+        }
+
+        ThreatRadarStatus.Text = count == 0
+            ? "✓ Secteur sûr — aucune menace active."
+            : $"⚠ {count} menace(s) détectée(s) — voir l'onglet Scan pour agir.";
+    }
+
+    private static Geometry SweepWedge(double cx, double cy, double r)
+    {
+        // Un secteur de ~50° partant du centre vers la droite.
+        double a0 = -0.45, a1 = 0.0;
+        var p0 = new Point(cx, cy);
+        var p1 = new Point(cx + r * Math.Cos(a0), cy + r * Math.Sin(a0));
+        var p2 = new Point(cx + r * Math.Cos(a1), cy + r * Math.Sin(a1));
+        var fig = new PathFigure { StartPoint = p0, IsClosed = true };
+        fig.Segments.Add(new LineSegment(p1, true));
+        fig.Segments.Add(new ArcSegment(p2, new Size(r, r), 0, false, SweepDirection.Clockwise, true));
+        var geo = new PathGeometry();
+        geo.Figures.Add(fig);
+        return geo;
     }
 
     // ----------------------------------------------- ADN / indice de confiance -

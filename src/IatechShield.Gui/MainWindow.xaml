@@ -94,6 +94,8 @@
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE8A1;" Content="ADN" Checked="OnNav"/>
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
+                                     Tag="&#xE9A9;" Content="Menaces" Checked="OnNav"/>
+                        <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE713;" Content="Settings" Checked="OnNav"/>
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE7C3;" Content="Logs" Checked="OnNav"/>
@@ -1088,6 +1090,23 @@
                                 </Border>
                             </StackPanel>
                         </ScrollViewer>
+                    </Grid>
+
+                    <!-- =============== PAGE : RADAR DE MENACES =============== -->
+                    <Grid x:Name="PageThreatRadar" Visibility="Collapsed">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+                            <TextBlock Text="Radar de menaces" Style="{StaticResource PageTitle}"/>
+                            <TextBlock x:Name="ThreatRadarStatus" Text="Balayage continu — chaque point est une menace ou un incident."
+                                       Foreground="{StaticResource TextMutedBrush}" FontSize="11"
+                                       VerticalAlignment="Center" Margin="14,0,0,0"/>
+                        </StackPanel>
+                        <Border Grid.Row="1" Style="{StaticResource Card}" Padding="0">
+                            <Canvas x:Name="ThreatRadarCanvas" ClipToBounds="True" Background="Transparent"/>
+                        </Border>
                     </Grid>
 
                     <!-- =============== PAGE : ADN / INDICE DE CONFIANCE =============== -->
