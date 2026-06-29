@@ -243,7 +243,7 @@ public partial class MainWindow : Window
             var events = IncidentLog.Load()
                 .OrderByDescending(e => e.Time)
                 .Take(200)
-                .Select(e => new TimelineItem
+                .Select(e => new SecurityTimelineItem
                 {
                     TimeText = e.Time.ToLocalTime().ToString("dd/MM HH:mm"),
                     Title = e.Title,
@@ -4464,8 +4464,8 @@ public sealed class VaultItem : System.ComponentModel.INotifyPropertyChanged
 }
 
 /// <summary>Un appareil affiché par le radar réseau.</summary>
-/// <summary>Un évènement de la timeline de sécurité.</summary>
-public sealed class TimelineItem
+/// <summary>Un évènement de la timeline de sécurité (page Timeline).</summary>
+public sealed class SecurityTimelineItem
 {
     public string TimeText { get; init; } = "";
     public string Title { get; init; } = "";
