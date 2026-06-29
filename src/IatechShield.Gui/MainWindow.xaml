@@ -90,6 +90,8 @@
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE9D5;" Content="Processus" Checked="OnNav"/>
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
+                                     Tag="&#xE909;" Content="Mondiale" Checked="OnNav"/>
+                        <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE713;" Content="Settings" Checked="OnNav"/>
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE7C3;" Content="Logs" Checked="OnNav"/>
@@ -1084,6 +1086,25 @@
                                 </Border>
                             </StackPanel>
                         </ScrollViewer>
+                    </Grid>
+
+                    <!-- =============== PAGE : CARTE MONDIALE =============== -->
+                    <Grid x:Name="PageWorld" Visibility="Collapsed">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+                            <TextBlock Text="Carte mondiale des connexions" Style="{StaticResource PageTitle}"/>
+                            <Button x:Name="WorldRefreshButton" Style="{StaticResource GhostButton}" Content="Actualiser"
+                                    Click="OnRefreshWorld" Margin="14,0,0,0" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="WorldStatus" Text="Connexions sortantes géolocalisées en direct."
+                                       Foreground="{StaticResource TextMutedBrush}" FontSize="11"
+                                       VerticalAlignment="Center" Margin="14,0,0,0"/>
+                        </StackPanel>
+                        <Border Grid.Row="1" Style="{StaticResource Card}" Padding="0">
+                            <Canvas x:Name="WorldCanvas" ClipToBounds="True" Background="Transparent"/>
+                        </Border>
                     </Grid>
 
                     <!-- =============== PAGE : PROCESSUS (graphe temps réel) =============== -->

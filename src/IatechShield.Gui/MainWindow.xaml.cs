@@ -121,6 +121,7 @@ public partial class MainWindow : Window
         PageDevice.Visibility = Visibility.Collapsed;
         PageSystem.Visibility = Visibility.Collapsed;
         PageProcesses.Visibility = Visibility.Collapsed;
+        PageWorld.Visibility = Visibility.Collapsed;
         PageSettings.Visibility = Visibility.Collapsed;
         PageLogs.Visibility = Visibility.Collapsed;
 
@@ -142,6 +143,7 @@ public partial class MainWindow : Window
             "Appareil" => PageDevice,
             "Système" => PageSystem,
             "Processus" => PageProcesses,
+            "Mondiale" => PageWorld,
             "Settings" => PageSettings,
             "Logs" => PageLogs,
             _ => PageDashboard
@@ -203,6 +205,134 @@ public partial class MainWindow : Window
         {
             BuildProcessGraph();
         }
+        else if (page == PageWorld)
+        {
+            _ = BuildWorldMapAsync();
+        }
+    }
+
+    // ----------------------------------------------- Carte mondiale ------------
+
+    private void OnRefreshWorld(object sender, RoutedEventArgs e) => _ = BuildWorldMapAsync();
+
+    /// <summary>
+    /// Dessine une carte mondiale HUD : graticule lat/lon, position locale, et arcs
+    /// lumineux vers chaque serveur distant réellement contacté (connexions TCP géolocalisées).
+    /// </summary>
+    private async Task BuildWorldMapAsync()
+    {
+        if (WorldCanvas is null) return;
+        if (WorldCanvas.ActualWidth <= 1)
+        {
+            Dispatcher.BeginInvoke(new Action(() => _ = BuildWorldMapAsync()),
+                System.Windows.Threading.DispatcherPriority.Loaded);
+            return;
+        }
+
+        WorldStatus.Text = "Géolocalisation des connexions…";
+        WorldRefreshButton.IsEnabled = false;
+        WorldMapData data;
+        try { data = await WorldConnections.GetAsync(); }
+        catch { data = new WorldMapData(null, Array.Empty<GeoConnection>()); }
+        finally { WorldRefreshButton.IsEnabled = true; }
+
+        double w = WorldCanvas.ActualWidth, h = WorldCanvas.ActualHeight;
+        WorldCanvas.Children.Clear();
+        DrawGraticule(w, h);
+
+        var accent = Color.FromRgb(0x22, 0xD3, 0xE8);
+        var red = Color.FromRgb(0xEF, 0x44, 0x44);
+
+        (double X, double Y) Project(double lat, double lon)
+            => ((lon + 180.0) / 360.0 * w, (90.0 - lat) / 180.0 * h);
+
+        // Position locale.
+        double hx = w / 2, hy = h / 2;
+        if (data.Home is { } home)
+        {
+            var hp = Project(home.Lat, home.Lon);
+            hx = hp.X; hy = hp.Y;
+        }
+
+        // Arcs + points distants.
+        foreach (var c in data.Connections)
+        {
+            var p = Project(c.Lat, c.Lon);
+            bool many = c.Count >= 4;
+            var col = many ? red : accent;
+
+            var arc = new System.Windows.Shapes.Path
+            {
+                Stroke = new SolidColorBrush(Color.FromArgb(0xAA, col.R, col.G, col.B)),
+                StrokeThickness = 1.2,
+                Data = ArcGeometry(hx, hy, p.X, p.Y),
+                Effect = new System.Windows.Media.Effects.DropShadowEffect
+                { Color = col, BlurRadius = 8, ShadowDepth = 0, Opacity = 0.7 }
+            };
+            WorldCanvas.Children.Add(arc);
+
+            var dot = new System.Windows.Shapes.Ellipse
+            {
+                Width = 9, Height = 9, Fill = new SolidColorBrush(col),
+                Effect = new System.Windows.Media.Effects.DropShadowEffect
+                { Color = col, BlurRadius = 10, ShadowDepth = 0, Opacity = 0.9 },
+                ToolTip = $"{c.City} ({c.Country}) — {c.Ip} · {c.Count} connexion(s)"
+            };
+            Canvas.SetLeft(dot, p.X - 4.5);
+            Canvas.SetTop(dot, p.Y - 4.5);
+            WorldCanvas.Children.Add(dot);
+        }
+
+        // Nœud local (au-dessus).
+        var homeDot = new System.Windows.Shapes.Ellipse
+        {
+            Width = 16, Height = 16, Fill = new SolidColorBrush(Color.FromRgb(0x2B, 0xE0, 0xA6)),
+            Effect = new System.Windows.Media.Effects.DropShadowEffect
+            { Color = Color.FromRgb(0x2B, 0xE0, 0xA6), BlurRadius = 20, ShadowDepth = 0, Opacity = 1 },
+            ToolTip = data.Home is { } hh ? $"Vous : {hh.City} ({hh.Country})" : "Position locale"
+        };
+        Canvas.SetLeft(homeDot, hx - 8);
+        Canvas.SetTop(homeDot, hy - 8);
+        WorldCanvas.Children.Add(homeDot);
+
+        int risky = data.Connections.Count(c => c.Count >= 4);
+        WorldStatus.Text = data.Connections.Count == 0
+            ? "Aucune connexion externe géolocalisée (ou hors-ligne)."
+            : $"{data.Connections.Count} serveur(s) distant(s) · {data.Connections.Select(c => c.Country).Distinct().Count()} pays.";
+    }
+
+    private void DrawGraticule(double w, double h)
+    {
+        var grid = new SolidColorBrush(Color.FromArgb(0x33, 0x22, 0xD3, 0xE8));
+        for (int lon = -180; lon <= 180; lon += 30)
+        {
+            double x = (lon + 180.0) / 360.0 * w;
+            WorldCanvas.Children.Add(new System.Windows.Shapes.Line
+            { X1 = x, Y1 = 0, X2 = x, Y2 = h, Stroke = grid, StrokeThickness = 0.5 });
+        }
+        for (int lat = -90; lat <= 90; lat += 30)
+        {
+            double y = (90.0 - lat) / 180.0 * h;
+            WorldCanvas.Children.Add(new System.Windows.Shapes.Line
+            { X1 = 0, Y1 = y, X2 = w, Y2 = y, Stroke = grid, StrokeThickness = 0.5 });
+        }
+    }
+
+    /// <summary>Arc courbé (quadratique) entre deux points pour un effet « réseau ».</summary>
+    private static Geometry ArcGeometry(double x1, double y1, double x2, double y2)
+    {
+        double mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+        double dx = x2 - x1, dy = y2 - y1;
+        double len = Math.Sqrt(dx * dx + dy * dy);
+        // Point de contrôle décalé perpendiculairement (courbure proportionnelle).
+        double off = Math.Min(120, len * 0.25);
+        double cx = mx - dy / (len == 0 ? 1 : len) * off;
+        double cy = my + dx / (len == 0 ? 1 : len) * off;
+        var fig = new PathFigure { StartPoint = new Point(x1, y1) };
+        fig.Segments.Add(new QuadraticBezierSegment(new Point(cx, cy), new Point(x2, y2), true));
+        var geo = new PathGeometry();
+        geo.Figures.Add(fig);
+        return geo;
     }
 
     // ----------------------------------------------- Vue système / processus ---
