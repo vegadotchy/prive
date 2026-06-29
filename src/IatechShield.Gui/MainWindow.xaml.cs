@@ -1652,6 +1652,29 @@ public partial class MainWindow : Window
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "IatechShield", "radar-known.json");
 
+    /// <summary>
+    /// Score de sécurité d'un appareil réseau (imprimante, caméra IP, NAS, objet connecté…) :
+    /// part de 100 et retire des points selon les ports dangereux et les risques détectés.
+    /// </summary>
+    private static int DeviceSecurityScore(RadarDevice d)
+    {
+        int score = 100;
+        bool Has(int port) => d.OpenPorts.Any(p => p.Number == port);
+
+        if (Has(23)) score -= 30;                 // Telnet : très exposé
+        if (Has(21)) score -= 18;                 // FTP en clair
+        if (Has(3389)) score -= 18;               // RDP exposé
+        if (Has(445)) score -= 12;                // SMB exposé
+        if (Has(80) && !Has(443)) score -= 8;     // admin web non chiffrée
+
+        // Caméras et imprimantes accessibles sans HTTPS = risque de creds par défaut.
+        if (d.Type is LanDeviceType.CameraIp or LanDeviceType.Imprimante && Has(80) && !Has(443))
+            score -= 10;
+
+        score -= Math.Min(20, d.Risks.Count * 6);  // chaque risque détecté pèse
+        return Math.Clamp(score, 5, 100);
+    }
+
     private async void OnRadarScan(object sender, RoutedEventArgs e)
     {
         if (!_radarBound) { RadarList.ItemsSource = _radar; _radarBound = true; }
@@ -1677,6 +1700,9 @@ public partial class MainWindow : Window
                 bool http = d.OpenPorts.Any(p => p.Number is 80 or 8080);
                 string adminUrl = https ? $"https://{d.Ip}" : http ? $"http://{d.Ip}" : $"http://{d.Ip}";
 
+                int score = DeviceSecurityScore(d);
+                var scoreColor = new SolidColorBrush(ScoreColor(score));
+
                 _radar.Add(new RadarItem
                 {
                     Ip = d.Ip,
@@ -1689,6 +1715,8 @@ public partial class MainWindow : Window
                     Risks = d.Risks.ToList(),
                     RisksText = string.Join(" ", d.Risks),
                     AdminUrl = adminUrl,
+                    ScoreText = $"Sécurité {score}%",
+                    ScoreColor = scoreColor,
                     ActionsVisibility = d.Risks.Count > 0 ? Visibility.Visible : Visibility.Collapsed,
                     IsNew = isNew,
                     NewVisibility = isNew ? Visibility.Visible : Visibility.Collapsed,
@@ -4110,6 +4138,10 @@ public sealed class RadarItem
     public string RisksText { get; init; } = "";
     /// <summary>Affiche la barre d'actions seulement si l'appareil présente un risque.</summary>
     public Visibility ActionsVisibility { get; init; } = Visibility.Collapsed;
+
+    /// <summary>Score de sécurité de l'appareil (ex. « Sécurité 72% »).</summary>
+    public string ScoreText { get; init; } = "";
+    public Brush ScoreColor { get; init; } = Brushes.Gray;
 }
 
 /// <summary>Un message dans la conversation du copilote IA.</summary>

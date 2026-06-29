@@ -6,7 +6,7 @@
 ; ============================================================================
 
 #define MyAppName "IATECH-SHIELD PRO"
-#define MyAppVersion "0.11.1"
+#define MyAppVersion "0.11.2"
 #define MyAppPublisher "IATECHFUTUR"
 #define MyAppUrl "https://github.com/vegadotchy/prive"
 #define MyGuiExe "iatech-shield-gui.exe"
