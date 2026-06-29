@@ -4,8 +4,8 @@
     <Application.Resources>
 
         <!-- ============================ Palette ============================ -->
-        <Color x:Key="BgTopColor">#0B1A2A</Color>
-        <Color x:Key="BgBottomColor">#06101B</Color>
+        <Color x:Key="BgTopColor">#0A1422</Color>
+        <Color x:Key="BgBottomColor">#05070A</Color>
         <SolidColorBrush x:Key="AccentBrush" Color="#22D3E8"/>
         <SolidColorBrush x:Key="AccentDimBrush" Color="#1A8FA0"/>
         <SolidColorBrush x:Key="GreenBrush" Color="#2BE0A6"/>
@@ -36,10 +36,16 @@
         </LinearGradientBrush>
 
         <!-- Effet « glass » : translucide avec un léger dégradé de lumière en haut. -->
-        <LinearGradientBrush x:Key="CardBackground" StartPoint="0,0" EndPoint="0,1">
-            <GradientStop Color="#2BFFFFFF" Offset="0"/>
-            <GradientStop Color="#12FFFFFF" Offset="0.5"/>
-            <GradientStop Color="#1A0B1A2A" Offset="1"/>
+        <LinearGradientBrush x:Key="CardBackground" StartPoint="0,0" EndPoint="0.3,1">
+            <GradientStop Color="#30224A6A" Offset="0"/>
+            <GradientStop Color="#180E2233" Offset="0.5"/>
+            <GradientStop Color="#220A1422" Offset="1"/>
+        </LinearGradientBrush>
+
+        <!-- Contour dégradé cyan→violet pour les cartes (effet HUD). -->
+        <LinearGradientBrush x:Key="CardStroke" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#5522D3E8" Offset="0"/>
+            <GradientStop Color="#338B5CF6" Offset="1"/>
         </LinearGradientBrush>
 
         <LinearGradientBrush x:Key="AccentButton" StartPoint="0,0" EndPoint="1,1">
@@ -51,13 +57,13 @@
         <!-- ============================ Carte ============================= -->
         <Style x:Key="Card" TargetType="Border">
             <Setter Property="Background" Value="{StaticResource CardBackground}"/>
-            <Setter Property="BorderBrush" Value="#3355D8E8"/>
+            <Setter Property="BorderBrush" Value="{StaticResource CardStroke}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="14"/>
             <Setter Property="Padding" Value="18"/>
             <Setter Property="Effect">
                 <Setter.Value>
-                    <DropShadowEffect Color="#0622D3E8" BlurRadius="24" ShadowDepth="0" Opacity="0.45"/>
+                    <DropShadowEffect Color="#1022D3E8" BlurRadius="30" ShadowDepth="0" Opacity="0.55"/>
                 </Setter.Value>
             </Setter>
         </Style>
@@ -71,22 +77,44 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="RadioButton">
-                        <Border x:Name="bd" Background="Transparent" CornerRadius="10" Padding="10,10">
-                            <StackPanel HorizontalAlignment="Center">
-                                <TextBlock Text="{TemplateBinding Tag}" FontFamily="Segoe MDL2 Assets"
-                                           FontSize="18" HorizontalAlignment="Center"
-                                           Foreground="{TemplateBinding Foreground}"/>
-                                <ContentPresenter HorizontalAlignment="Center" Margin="0,4,0,0"/>
-                            </StackPanel>
-                        </Border>
+                        <Grid>
+                            <!-- Barre d'accent lumineuse à gauche (onglet actif). -->
+                            <Border x:Name="accent" Width="3" HorizontalAlignment="Left" CornerRadius="2"
+                                    Margin="2,8" Background="{StaticResource AccentBrush}" Opacity="0">
+                                <Border.Effect>
+                                    <DropShadowEffect Color="#22D3E8" BlurRadius="10" ShadowDepth="0" Opacity="0.9"/>
+                                </Border.Effect>
+                            </Border>
+                            <Border x:Name="bd" Background="Transparent" CornerRadius="10" Padding="10,10" Margin="4,0,0,0">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock x:Name="ic" Text="{TemplateBinding Tag}" FontFamily="Segoe MDL2 Assets"
+                                               FontSize="18" HorizontalAlignment="Center"
+                                               Foreground="{TemplateBinding Foreground}"/>
+                                    <ContentPresenter HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="#10243A"/>
+                                <Setter TargetName="bd" Property="Background" Value="#14283F"/>
                                 <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
                             </Trigger>
                             <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="#102A40"/>
+                                <Setter TargetName="bd" Property="Background">
+                                    <Setter.Value>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                            <GradientStop Color="#2622D3E8" Offset="0"/>
+                                            <GradientStop Color="#268B5CF6" Offset="1"/>
+                                        </LinearGradientBrush>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter TargetName="accent" Property="Opacity" Value="1"/>
                                 <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
+                                <Setter TargetName="ic" Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect Color="#22D3E8" BlurRadius="14" ShadowDepth="0" Opacity="0.9"/>
+                                    </Setter.Value>
+                                </Setter>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>

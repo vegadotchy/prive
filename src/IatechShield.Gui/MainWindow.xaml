@@ -26,6 +26,22 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
+            <!-- Fond grille HUD (derrière tout le contenu) -->
+            <Rectangle Grid.RowSpan="2" Grid.ColumnSpan="2" IsHitTestVisible="False" Opacity="0.5"
+                       RadiusX="16" RadiusY="16">
+                <Rectangle.Fill>
+                    <DrawingBrush TileMode="Tile" Viewport="0,0,46,46" ViewportUnits="Absolute">
+                        <DrawingBrush.Drawing>
+                            <GeometryDrawing Geometry="M0,0 L46,0 M0,0 L0,46">
+                                <GeometryDrawing.Pen>
+                                    <Pen Thickness="1" Brush="#0E2A3F"/>
+                                </GeometryDrawing.Pen>
+                            </GeometryDrawing>
+                        </DrawingBrush.Drawing>
+                    </DrawingBrush>
+                </Rectangle.Fill>
+            </Rectangle>
+
             <!-- ======================= BARRE LATÉRALE ======================= -->
             <Border Grid.Column="0" Grid.Row="0" Background="#0A1726" CornerRadius="16,0,0,0">
                 <DockPanel Margin="0,18">
