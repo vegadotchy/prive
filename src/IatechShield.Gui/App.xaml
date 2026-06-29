@@ -258,13 +258,15 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="ProgressBar">
                         <Border CornerRadius="6" Background="{TemplateBinding Background}" ClipToBounds="True">
-                            <Border x:Name="PART_Track"/>
-                            <Border x:Name="PART_Indicator" CornerRadius="6" HorizontalAlignment="Left"
-                                    Background="{TemplateBinding Foreground}">
-                                <Border.Effect>
-                                    <DropShadowEffect Color="#22D3E8" BlurRadius="12" ShadowDepth="0" Opacity="0.6"/>
-                                </Border.Effect>
-                            </Border>
+                            <Grid>
+                                <Border x:Name="PART_Track"/>
+                                <Border x:Name="PART_Indicator" CornerRadius="6" HorizontalAlignment="Left"
+                                        Background="{TemplateBinding Foreground}">
+                                    <Border.Effect>
+                                        <DropShadowEffect Color="#22D3E8" BlurRadius="12" ShadowDepth="0" Opacity="0.6"/>
+                                    </Border.Effect>
+                                </Border>
+                            </Grid>
                         </Border>
                     </ControlTemplate>
                 </Setter.Value>
