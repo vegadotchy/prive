@@ -247,5 +247,29 @@
             </Setter>
         </Style>
 
+        <!-- ===================== Jauge / barre animée ==================== -->
+        <Style x:Key="Meter" TargetType="ProgressBar">
+            <Setter Property="Height" Value="10"/>
+            <Setter Property="Maximum" Value="100"/>
+            <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
+            <Setter Property="Background" Value="#0E2233"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ProgressBar">
+                        <Border CornerRadius="6" Background="{TemplateBinding Background}" ClipToBounds="True">
+                            <Border x:Name="PART_Track"/>
+                            <Border x:Name="PART_Indicator" CornerRadius="6" HorizontalAlignment="Left"
+                                    Background="{TemplateBinding Foreground}">
+                                <Border.Effect>
+                                    <DropShadowEffect Color="#22D3E8" BlurRadius="12" ShadowDepth="0" Opacity="0.6"/>
+                                </Border.Effect>
+                            </Border>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
     </Application.Resources>
 </Application>

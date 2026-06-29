@@ -1673,6 +1673,29 @@
                                     <Button x:Name="IntegrityRefreshButton" Style="{StaticResource GhostButton}" Content="Actualiser" Click="OnRefreshIntegrity" VerticalAlignment="Center"/>
                                     <TextBlock x:Name="IntegrityStatus" Text="Santé globale du PC en temps réel." Foreground="{StaticResource TextMutedBrush}" FontSize="11" VerticalAlignment="Center" Margin="14,0,0,0"/>
                                 </StackPanel>
+                                <!-- ====== NIVEAU DE SÉCURITÉ (animé, données réelles) ====== -->
+                                <Border Style="{StaticResource Card}" Margin="0,0,0,14" Padding="22">
+                                    <StackPanel>
+                                        <TextBlock Text="NIVEAU DE SÉCURITÉ" Foreground="{StaticResource TextMutedBrush}"
+                                                   FontSize="11" FontWeight="SemiBold"/>
+                                        <Grid Margin="0,8,0,2">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <ProgressBar x:Name="SecGlobalMeter" Grid.Column="0" Style="{StaticResource Meter}"
+                                                         Height="20" VerticalAlignment="Center"/>
+                                            <TextBlock x:Name="SecGlobalPct" Grid.Column="1" Text="—"
+                                                       Foreground="{StaticResource AccentBrush}" FontSize="30" FontWeight="Bold"
+                                                       Margin="16,0,0,0" VerticalAlignment="Center"/>
+                                        </Grid>
+                                        <StackPanel x:Name="SecBars" Margin="0,14,0,0"/>
+                                        <TextBlock x:Name="SecThreatLine" Text="✓ Aucune menace active"
+                                                   Foreground="{StaticResource GreenBrush}" FontSize="14" FontWeight="SemiBold"
+                                                   Margin="0,14,0,0"/>
+                                    </StackPanel>
+                                </Border>
+
                                 <ItemsControl x:Name="IntegrityList">
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate>

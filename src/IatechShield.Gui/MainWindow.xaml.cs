@@ -1114,6 +1114,81 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>Remplit le panneau « Niveau de sécurité » animé à partir de mesures réelles.</summary>
+    private void PopulateSecurityLevel(IntegrityReport report)
+    {
+        if (SecGlobalMeter is null) return;
+
+        SecGlobalPct.Text = report.Overall + "%";
+        SecGlobalPct.Foreground = new SolidColorBrush(ScoreColor(report.Overall));
+        AnimateMeter(SecGlobalMeter, report.Overall);
+
+        SecBars.Children.Clear();
+        foreach (var p in report.Pillars)
+        {
+            int score = p.Available ? p.Score : 0;
+            var row = new Grid { Margin = new Thickness(0, 0, 0, 11) };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(160) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(52) });
+
+            var label = new TextBlock
+            {
+                Text = p.Name,
+                Foreground = (Brush)FindResource("TextPrimaryBrush"),
+                FontSize = 12,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(label, 0);
+            row.Children.Add(label);
+
+            var bar = new ProgressBar
+            {
+                Style = (Style)FindResource("Meter"),
+                Height = 10,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 10, 0)
+            };
+            Grid.SetColumn(bar, 1);
+            row.Children.Add(bar);
+
+            var val = new TextBlock
+            {
+                Text = p.Available ? score + "%" : "N/A",
+                Foreground = new SolidColorBrush(p.Available ? ScoreColor(score) : Color.FromRgb(0x64, 0x74, 0x8B)),
+                FontSize = 13,
+                FontWeight = FontWeights.SemiBold,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(val, 2);
+            row.Children.Add(val);
+
+            SecBars.Children.Add(row);
+            if (p.Available) AnimateMeter(bar, score);
+        }
+
+        int threats = _threats.Count;
+        SecThreatLine.Text = threats == 0 ? "✓ Aucune menace active" : $"⚠ {threats} menace(s) active(s)";
+        SecThreatLine.Foreground = new SolidColorBrush(threats == 0
+            ? Color.FromRgb(0x2B, 0xE0, 0xA6)
+            : Color.FromRgb(0xEF, 0x44, 0x44));
+    }
+
+    /// <summary>Anime le remplissage d'une jauge de 0 à la valeur cible (effet organique).</summary>
+    private void AnimateMeter(ProgressBar bar, int target)
+    {
+        bar.Foreground = new SolidColorBrush(ScoreColor(target));
+        var anim = new System.Windows.Media.Animation.DoubleAnimation(0, target, TimeSpan.FromMilliseconds(900))
+        {
+            EasingFunction = new System.Windows.Media.Animation.CubicEase
+            {
+                EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut
+            }
+        };
+        bar.BeginAnimation(System.Windows.Controls.Primitives.RangeBase.ValueProperty, anim);
+    }
+
     private async void OnRefreshIntegrity(object sender, RoutedEventArgs e)
     {
         IntegrityRefreshButton.IsEnabled = false;
@@ -1133,6 +1208,7 @@ public partial class MainWindow : Window
                 Color = new SolidColorBrush(p.Available ? ScoreColor(p.Score) : Color.FromRgb(0x64, 0x74, 0x8B))
             }).ToList();
             IntegrityStatus.Text = $"Santé globale : {report.Overall}/100.";
+            PopulateSecurityLevel(report);
             Log($"Tableau d'intégrité : {report.Overall}/100.");
         }
         catch (Exception ex)
