@@ -75,6 +75,7 @@ public partial class MainWindow : Window
             _ready = true;
             ShowPage("Dashboard");
             RefreshDashboardKpis();
+            SoundFx.ReactorStartup();   // démarrage « réacteur » à l'ouverture du dashboard
             _ = InitCloudAsync();
         };
     }
@@ -122,6 +123,7 @@ public partial class MainWindow : Window
         PageSystem.Visibility = Visibility.Collapsed;
         PageProcesses.Visibility = Visibility.Collapsed;
         PageWorld.Visibility = Visibility.Collapsed;
+        PageDna.Visibility = Visibility.Collapsed;
         PageSettings.Visibility = Visibility.Collapsed;
         PageLogs.Visibility = Visibility.Collapsed;
 
@@ -144,6 +146,7 @@ public partial class MainWindow : Window
             "Système" => PageSystem,
             "Processus" => PageProcesses,
             "Mondiale" => PageWorld,
+            "ADN" => PageDna,
             "Settings" => PageSettings,
             "Logs" => PageLogs,
             _ => PageDashboard
@@ -208,6 +211,57 @@ public partial class MainWindow : Window
         else if (page == PageWorld)
         {
             _ = BuildWorldMapAsync();
+        }
+        else if (page == PageDna)
+        {
+            _ = BuildDnaAsync();
+        }
+    }
+
+    // ----------------------------------------------- ADN / indice de confiance -
+
+    private void OnRefreshDna(object sender, RoutedEventArgs e) => _ = BuildDnaAsync();
+
+    /// <summary>Construit le profil de confiance de chaque programme au démarrage.</summary>
+    private async Task BuildDnaAsync()
+    {
+        if (DnaList is null) return;
+        DnaStatus.Text = "Analyse des programmes…";
+        DnaRefreshButton.IsEnabled = false;
+        try
+        {
+            var items = await Task.Run(() =>
+            {
+                var list = new List<DnaItem>();
+                foreach (var entry in _registry.ListAutoRuns())
+                {
+                    string exe = ExtractExePath(entry.Command);
+                    var prof = TrustIndex.Evaluate(entry.Name, exe, autostart: true);
+                    var color = ScoreColor(prof.Score);
+                    list.Add(new DnaItem
+                    {
+                        Name = string.IsNullOrWhiteSpace(prof.Name) ? System.IO.Path.GetFileName(exe) : prof.Name,
+                        Publisher = $"{prof.Signature} · {prof.Publisher}",
+                        Line = $"{prof.Location} · âge : {prof.Age} · {prof.Behavior}\n{exe}",
+                        Score = prof.Score,
+                        ScoreText = prof.Score + "%",
+                        ScoreColor = new SolidColorBrush(color)
+                    });
+                }
+                return list.OrderBy(i => i.Score).ToList();
+            });
+
+            DnaList.ItemsSource = items;
+            int risky = items.Count(i => i.Score < 50);
+            DnaStatus.Text = $"{items.Count} programme(s) au démarrage · {risky} à surveiller.";
+        }
+        catch (Exception ex)
+        {
+            DnaStatus.Text = $"Erreur : {ex.Message}";
+        }
+        finally
+        {
+            DnaRefreshButton.IsEnabled = true;
         }
     }
 
@@ -1863,6 +1917,7 @@ public partial class MainWindow : Window
             Log($"Radar réseau : {devices.Count} appareils, {newCount} nouveaux, {riskCount} à risque.");
             if (newCount > 0 || riskCount > 0)
             {
+                if (newCount > 0) SoundFx.NewDevice();
                 Notify("Radar réseau", $"{newCount} nouvel(s) appareil(s), {riskCount} à risque détecté(s).", "Radar");
                 if (riskCount > 0)
                     CopilotAlert($"Le radar réseau a trouvé {riskCount} appareil(s) présentant des risques (ports exposés). Consultez l'onglet Radar.");
@@ -3200,6 +3255,8 @@ public partial class MainWindow : Window
         }
         catch { /* affichage impossible : on enchaîne quand même sur le verrou */ }
 
+        SoundFx.Welcome();   // petit accueil sonore au réveil
+
         // Au réveil : verrouillage IATECH (sinon, rien — l'utilisateur revient au dashboard).
         LoadLockConfig();
         if (LockConfigured)
@@ -3570,6 +3627,7 @@ public partial class MainWindow : Window
     private async void AutoScanDrive(string drive)
     {
         if (_scanner is null) return;
+        SoundFx.NewDevice();   // matériel détecté
         ScanStatusText.Text = $"Clé USB détectée ({drive}) — analyse automatique…";
         Log($"Clé USB détectée : {drive} — analyse automatique.");
         var service = new ScanService(_scanner, _quarantine);
@@ -4250,6 +4308,17 @@ public sealed class VaultItem : System.ComponentModel.INotifyPropertyChanged
 }
 
 /// <summary>Un appareil affiché par le radar réseau.</summary>
+/// <summary>Profil ADN d'un programme affiché dans la liste.</summary>
+public sealed class DnaItem
+{
+    public string Name { get; init; } = "";
+    public string Publisher { get; init; } = "";
+    public string Line { get; init; } = "";
+    public int Score { get; init; }
+    public string ScoreText { get; init; } = "";
+    public Brush ScoreColor { get; init; } = Brushes.Gray;
+}
+
 public sealed class RadarItem
 {
     public string Ip { get; init; } = "";
@@ -4383,10 +4452,29 @@ internal static class SoundFx
 {
     public static bool Muted { get; set; }
 
-    public static void ScanStart() => Safe(() => SystemSounds.Asterisk.Play());
-    public static void ScanDone() => Safe(() => SystemSounds.Asterisk.Play());
-    public static void Threat() => Safe(() => SystemSounds.Exclamation.Play());
-    public static void Danger() => Safe(() => SystemSounds.Hand.Play());
+    // Chaque alerte a sa propre signature sonore (séquences de bips, non bloquantes).
+    public static void ScanStart() => Play((400, 60), (560, 60), (720, 60), (900, 90)); // balayage montant
+    public static void ScanDone() => Play((760, 90), (1020, 140));                       // fin agréable
+    public static void Threat() => Play((880, 120), (500, 120), (880, 120), (500, 160)); // menace urgente
+    public static void Danger() => Play((300, 200), (300, 200), (300, 260));             // danger grave
+    public static void NewDevice() => Play((680, 70), (1040, 110));                       // nouveau matériel
+    public static void Alert() => Play((720, 90), (720, 120));                            // alerte générique
 
-    private static void Safe(Action a) { if (Muted) return; try { a(); } catch { } }
+    /// <summary>Démarrage du dashboard : montée « réacteur » qui s'allume.</summary>
+    public static void ReactorStartup() =>
+        Play((180, 90), (240, 90), (320, 90), (430, 100), (570, 110), (760, 130), (1015, 220));
+
+    /// <summary>Réveil après la mise en veille : petit accueil « bienvenue ».</summary>
+    public static void Welcome() => Play((640, 110), (810, 110), (1080, 200));
+
+    private static void Play(params (int Freq, int Dur)[] notes)
+    {
+        if (Muted) return;
+        // Console.Beep est bloquant : on joue la séquence sur un thread d'arrière-plan.
+        System.Threading.Tasks.Task.Run(() =>
+        {
+            try { foreach (var (f, d) in notes) Console.Beep(f, d); }
+            catch { try { SystemSounds.Asterisk.Play(); } catch { } }
+        });
+    }
 }

@@ -92,6 +92,8 @@
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE909;" Content="Mondiale" Checked="OnNav"/>
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
+                                     Tag="&#xE8A1;" Content="ADN" Checked="OnNav"/>
+                        <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE713;" Content="Settings" Checked="OnNav"/>
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE7C3;" Content="Logs" Checked="OnNav"/>
@@ -1085,6 +1087,48 @@
                                     </StackPanel>
                                 </Border>
                             </StackPanel>
+                        </ScrollViewer>
+                    </Grid>
+
+                    <!-- =============== PAGE : ADN / INDICE DE CONFIANCE =============== -->
+                    <Grid x:Name="PageDna" Visibility="Collapsed">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+                            <TextBlock Text="ADN des programmes — indice de confiance" Style="{StaticResource PageTitle}"/>
+                            <Button x:Name="DnaRefreshButton" Style="{StaticResource GhostButton}" Content="Actualiser"
+                                    Click="OnRefreshDna" Margin="14,0,0,0" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="DnaStatus" Text="Profil de chaque programme au démarrage : signature, éditeur, emplacement, âge."
+                                       Foreground="{StaticResource TextMutedBrush}" FontSize="11"
+                                       VerticalAlignment="Center" Margin="14,0,0,0"/>
+                        </StackPanel>
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                            <ItemsControl x:Name="DnaList">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Style="{StaticResource Card}" Margin="0,0,0,10" Padding="16">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="170"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0">
+                                                    <TextBlock Text="{Binding Name}" Foreground="{StaticResource TextPrimaryBrush}" FontSize="14" FontWeight="SemiBold"/>
+                                                    <TextBlock Text="{Binding Publisher}" Foreground="{StaticResource AccentBrush}" FontSize="11" Margin="0,2,0,0"/>
+                                                    <TextBlock Text="{Binding Line}" Foreground="{StaticResource TextMutedBrush}" FontSize="10" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding ScoreText}" Foreground="{Binding ScoreColor}" FontSize="22" FontWeight="Bold" HorizontalAlignment="Right"/>
+                                                    <ProgressBar Style="{StaticResource Meter}" Height="8" Maximum="100" Value="{Binding Score}"
+                                                                 Foreground="{Binding ScoreColor}" Margin="0,4,0,0"/>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
                         </ScrollViewer>
                     </Grid>
 
