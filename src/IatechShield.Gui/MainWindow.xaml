@@ -96,6 +96,8 @@
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE9A9;" Content="Menaces" Checked="OnNav"/>
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
+                                     Tag="&#xE81C;" Content="Timeline" Checked="OnNav"/>
+                        <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE713;" Content="Settings" Checked="OnNav"/>
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE7C3;" Content="Logs" Checked="OnNav"/>
@@ -1089,6 +1091,54 @@
                                     </StackPanel>
                                 </Border>
                             </StackPanel>
+                        </ScrollViewer>
+                    </Grid>
+
+                    <!-- =============== PAGE : TIMELINE DE SÉCURITÉ =============== -->
+                    <Grid x:Name="PageTimeline" Visibility="Collapsed">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+                            <TextBlock Text="Timeline de sécurité" Style="{StaticResource PageTitle}"/>
+                            <Button x:Name="TimelineRefreshButton" Style="{StaticResource GhostButton}" Content="Actualiser"
+                                    Click="OnRefreshTimeline" Margin="14,0,0,0" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="TimelineStatus" Text="Historique de mission : chaque évènement de sécurité, du plus récent au plus ancien."
+                                       Foreground="{StaticResource TextMutedBrush}" FontSize="11"
+                                       VerticalAlignment="Center" Margin="14,0,0,0"/>
+                        </StackPanel>
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                            <ItemsControl x:Name="TimelineList">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,0,0,2">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="90"/>
+                                                <ColumnDefinition Width="28"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="{Binding TimeText}" Foreground="{StaticResource TextMutedBrush}"
+                                                       FontSize="11" FontFamily="Consolas" VerticalAlignment="Top" Margin="0,8,0,0"/>
+                                            <!-- Rail + point -->
+                                            <Grid Grid.Column="1">
+                                                <Border Width="2" Background="#1E3A52" HorizontalAlignment="Center"/>
+                                                <Ellipse Width="12" Height="12" Fill="{Binding Dot}" VerticalAlignment="Top" Margin="0,8,0,0">
+                                                    <Ellipse.Effect>
+                                                        <DropShadowEffect Color="#22D3E8" BlurRadius="8" ShadowDepth="0" Opacity="0.5"/>
+                                                    </Ellipse.Effect>
+                                                </Ellipse>
+                                            </Grid>
+                                            <Border Grid.Column="2" Style="{StaticResource Card}" Margin="6,4,0,8" Padding="12">
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding Title}" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="13"/>
+                                                    <TextBlock Text="{Binding Sub}" Foreground="{StaticResource TextMutedBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
                         </ScrollViewer>
                     </Grid>
 

@@ -125,6 +125,7 @@ public partial class MainWindow : Window
         PageWorld.Visibility = Visibility.Collapsed;
         PageDna.Visibility = Visibility.Collapsed;
         PageThreatRadar.Visibility = Visibility.Collapsed;
+        PageTimeline.Visibility = Visibility.Collapsed;
         PageSettings.Visibility = Visibility.Collapsed;
         PageLogs.Visibility = Visibility.Collapsed;
 
@@ -149,6 +150,7 @@ public partial class MainWindow : Window
             "Mondiale" => PageWorld,
             "ADN" => PageDna,
             "Menaces" => PageThreatRadar,
+            "Timeline" => PageTimeline,
             "Settings" => PageSettings,
             "Logs" => PageLogs,
             _ => PageDashboard
@@ -221,6 +223,48 @@ public partial class MainWindow : Window
         else if (page == PageThreatRadar)
         {
             BuildThreatRadar();
+        }
+        else if (page == PageTimeline)
+        {
+            BuildTimeline();
+        }
+    }
+
+    // ----------------------------------------------- Timeline de sécurité ------
+
+    private void OnRefreshTimeline(object sender, RoutedEventArgs e) => BuildTimeline();
+
+    /// <summary>Construit la frise chronologique des incidents de sécurité (du + récent au + ancien).</summary>
+    private void BuildTimeline()
+    {
+        if (TimelineList is null) return;
+        try
+        {
+            var events = IncidentLog.Load()
+                .OrderByDescending(e => e.Time)
+                .Take(200)
+                .Select(e => new TimelineItem
+                {
+                    TimeText = e.Time.ToLocalTime().ToString("dd/MM HH:mm"),
+                    Title = e.Title,
+                    Sub = $"{e.Category} · {e.Detail}",
+                    Dot = new SolidColorBrush(e.Severity switch
+                    {
+                        IncidentSeverity.Critical => Color.FromRgb(0xEF, 0x44, 0x44),
+                        IncidentSeverity.Warning => Color.FromRgb(0xF5, 0x9E, 0x0B),
+                        _ => Color.FromRgb(0x22, 0xD3, 0xE8)
+                    })
+                })
+                .ToList();
+
+            TimelineList.ItemsSource = events;
+            TimelineStatus.Text = events.Count == 0
+                ? "Aucun évènement enregistré pour l'instant."
+                : $"{events.Count} évènement(s) — du plus récent au plus ancien.";
+        }
+        catch (Exception ex)
+        {
+            TimelineStatus.Text = $"Erreur : {ex.Message}";
         }
     }
 
@@ -4420,6 +4464,15 @@ public sealed class VaultItem : System.ComponentModel.INotifyPropertyChanged
 }
 
 /// <summary>Un appareil affiché par le radar réseau.</summary>
+/// <summary>Un évènement de la timeline de sécurité.</summary>
+public sealed class TimelineItem
+{
+    public string TimeText { get; init; } = "";
+    public string Title { get; init; } = "";
+    public string Sub { get; init; } = "";
+    public Brush Dot { get; init; } = Brushes.Gray;
+}
+
 /// <summary>Profil ADN d'un programme affiché dans la liste.</summary>
 public sealed class DnaItem
 {
