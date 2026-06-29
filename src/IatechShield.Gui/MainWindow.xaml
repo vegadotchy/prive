@@ -64,6 +64,8 @@
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE83D;" Content="Firewall" Checked="OnNav"/>
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
+                                     Tag="&#xEC4A;" Content="Optimisation" Checked="OnNav"/>
+                        <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE72E;" Content="Outils" Checked="OnNav"/>
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE968;" Content="Réseau" Checked="OnNav"/>
@@ -1099,6 +1101,29 @@
                                         </StackPanel>
                                     </StackPanel>
                                 </Border>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Grid>
+
+                    <!-- =============== PAGE : OPTIMISATION =============== -->
+                    <Grid x:Name="PageOptimize" Visibility="Collapsed">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+                            <TextBlock Text="Optimisation du système" Style="{StaticResource PageTitle}"/>
+                            <TextBlock x:Name="OptimizeStatus" Text="Nettoyage, accélération et outils Windows intégrés."
+                                       Foreground="{StaticResource TextMutedBrush}" FontSize="11"
+                                       VerticalAlignment="Center" Margin="14,0,0,0"/>
+                        </StackPanel>
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                            <StackPanel>
+                                <Button Style="{StaticResource PrimaryButton}" Height="50" Margin="0,0,0,12"
+                                        Click="OnOptimize" Tag="boost" Content="⚡  OPTIMISATION RAPIDE (RAM + temp + DNS + corbeille)"/>
+                                <WrapPanel x:Name="OptimizeGrid">
+                                    <!-- Les boutons d'options sont générés ici par le code. -->
+                                </WrapPanel>
                             </StackPanel>
                         </ScrollViewer>
                     </Grid>

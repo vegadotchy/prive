@@ -36,7 +36,7 @@ jobs:
           elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
             echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
           else
-            echo "tag=v0.12.1" >> "$GITHUB_OUTPUT"
+            echo "tag=v0.12.2" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Récupérer le code
@@ -91,6 +91,10 @@ jobs:
           generate_release_notes: true
           body: |
             ## IATECH-SHIELD PRO — antivirus Windows
+
+            ### Nouveautés 0.12.2
+            - 🚀 **Onglet Optimisation** : 18 actions (accélérer la RAM, vider temp/DNS/corbeille/cache miniatures, renouveler le bail Internet, défragmenter, nettoyage de disque, mode hautes performances, Winsock, + accès direct aux outils Windows) et un bouton **Optimisation rapide** tout-en-un
+            - ⚙️ **Top 3 RAM + Top 3 CPU** sur le dashboard avec **arrêt en 1 clic**
 
             ### Nouveautés 0.11.0
             - 🧠 **Vue système temps réel** : nouvel onglet **Processus** — graphe HUD des processus reliés à un hub central, taille selon la mémoire, **rouge si non reconnu/suspect**, clic = détails (PID, mémoire, confiance)

@@ -126,6 +126,7 @@ public partial class MainWindow : Window
         PageDna.Visibility = Visibility.Collapsed;
         PageThreatRadar.Visibility = Visibility.Collapsed;
         PageTimeline.Visibility = Visibility.Collapsed;
+        PageOptimize.Visibility = Visibility.Collapsed;
         PageSettings.Visibility = Visibility.Collapsed;
         PageLogs.Visibility = Visibility.Collapsed;
 
@@ -151,6 +152,7 @@ public partial class MainWindow : Window
             "ADN" => PageDna,
             "Menaces" => PageThreatRadar,
             "Timeline" => PageTimeline,
+            "Optimisation" => PageOptimize,
             "Settings" => PageSettings,
             "Logs" => PageLogs,
             _ => PageDashboard
@@ -227,6 +229,210 @@ public partial class MainWindow : Window
         else if (page == PageTimeline)
         {
             BuildTimeline();
+        }
+        else if (page == PageOptimize)
+        {
+            BuildOptimizeButtons();
+        }
+    }
+
+    // ----------------------------------------------- Optimisation système -----
+
+    [System.Runtime.InteropServices.DllImport("psapi.dll")]
+    private static extern bool EmptyWorkingSet(IntPtr hProcess);
+
+    private static readonly (string Key, string Icon, string Label)[] OptimizeActions =
+    {
+        ("ram",        "🧠", "Accélérer la RAM"),
+        ("temp",       "🗑️", "Effacer fichiers temporaires"),
+        ("dns",        "🌐", "Vider le cache DNS"),
+        ("recyclebin", "♻️", "Vider la corbeille"),
+        ("renewip",    "📶", "Renouveler le bail Internet"),
+        ("defrag",     "💽", "Défragmenter / optimiser les disques"),
+        ("cleanmgr",   "🧹", "Nettoyage de disque Windows"),
+        ("taskmgr",    "📊", "Gestionnaire des tâches"),
+        ("resmon",     "📈", "Moniteur de ressources"),
+        ("thumbs",     "🖼️", "Vider le cache des miniatures"),
+        ("wsreset",    "🛒", "Vider le cache du Windows Store"),
+        ("perf",       "🚀", "Mode hautes performances"),
+        ("startup",    "▶️", "Programmes au démarrage"),
+        ("appwiz",     "📦", "Désinstaller des programmes"),
+        ("update",     "⬆️", "Mises à jour Windows"),
+        ("diskmgmt",   "🗂️", "Gestion des disques"),
+        ("msinfo",     "ℹ️", "Informations système"),
+        ("winsock",    "🔌", "Réinitialiser Winsock (réseau)"),
+    };
+
+    private void BuildOptimizeButtons()
+    {
+        if (OptimizeGrid is null || OptimizeGrid.Children.Count > 0) return;
+        foreach (var (key, icon, label) in OptimizeActions)
+        {
+            var btn = new Button
+            {
+                Style = (Style)FindResource("GhostButton"),
+                Width = 250,
+                Height = 46,
+                Margin = new Thickness(0, 0, 10, 10),
+                HorizontalContentAlignment = HorizontalAlignment.Left,
+                Tag = key,
+                Content = $"{icon}   {label}"
+            };
+            btn.Click += OnOptimize;
+            OptimizeGrid.Children.Add(btn);
+        }
+    }
+
+    private async void OnOptimize(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: string key }) return;
+        OptimizeStatus.Text = "Action en cours…";
+        try
+        {
+            switch (key)
+            {
+                case "boost":
+                    int freed = TrimWorkingSets();
+                    await RunHiddenAsync("cmd.exe", "/c ipconfig /flushdns");
+                    CleanTempFiles();
+                    EmptyRecycleBin();
+                    OptimizeStatus.Text = $"✓ Optimisation rapide terminée — RAM allégée ({freed} processus), temp + DNS + corbeille nettoyés.";
+                    SoundFx.ScanDone();
+                    break;
+                case "ram":
+                    int n = TrimWorkingSets();
+                    OptimizeStatus.Text = $"✓ RAM allégée : mémoire de travail vidée pour {n} processus.";
+                    break;
+                case "temp":
+                    int del = CleanTempFiles();
+                    OptimizeStatus.Text = $"✓ Fichiers temporaires : {del} élément(s) supprimé(s).";
+                    break;
+                case "dns":
+                    await RunHiddenAsync("cmd.exe", "/c ipconfig /flushdns");
+                    OptimizeStatus.Text = "✓ Cache DNS vidé.";
+                    break;
+                case "recyclebin":
+                    EmptyRecycleBin();
+                    OptimizeStatus.Text = "✓ Corbeille vidée.";
+                    break;
+                case "renewip":
+                    await RunHiddenAsync("cmd.exe", "/c ipconfig /release & ipconfig /renew");
+                    OptimizeStatus.Text = "✓ Bail Internet renouvelé.";
+                    break;
+                case "defrag":   LaunchTool("dfrgui.exe"); break;
+                case "cleanmgr": LaunchTool("cleanmgr.exe"); break;
+                case "taskmgr":  LaunchTool("taskmgr.exe"); break;
+                case "resmon":   LaunchTool("resmon.exe"); break;
+                case "wsreset":  LaunchTool("wsreset.exe"); break;
+                case "appwiz":   LaunchTool("appwiz.cpl"); break;
+                case "msinfo":   LaunchTool("msinfo32.exe"); break;
+                case "diskmgmt": LaunchTool("diskmgmt.msc"); break;
+                case "startup":  LaunchTool("ms-settings:startupapps"); break;
+                case "update":   LaunchTool("ms-settings:windowsupdate"); break;
+                case "thumbs":
+                    int t = CleanThumbnailCache();
+                    OptimizeStatus.Text = $"✓ Cache des miniatures vidé ({t} fichier(s)).";
+                    break;
+                case "perf":
+                    await RunHiddenAsync("cmd.exe", "/c powercfg /setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c");
+                    OptimizeStatus.Text = "✓ Mode hautes performances activé.";
+                    break;
+                case "winsock":
+                    await RunHiddenAsync("cmd.exe", "/c netsh winsock reset");
+                    OptimizeStatus.Text = "✓ Winsock réinitialisé — redémarrez pour finaliser.";
+                    break;
+                default:
+                    OptimizeStatus.Text = "Action inconnue.";
+                    break;
+            }
+            Log($"Optimisation : {key}.");
+        }
+        catch (Exception ex)
+        {
+            OptimizeStatus.Text = $"Échec : {ex.Message}";
+        }
+    }
+
+    /// <summary>Vide la mémoire de travail de tous les processus accessibles (« accélérer la RAM »).</summary>
+    private static int TrimWorkingSets()
+    {
+        int n = 0;
+        foreach (var p in System.Diagnostics.Process.GetProcesses())
+        {
+            try { if (EmptyWorkingSet(p.Handle)) n++; } catch { }
+            finally { try { p.Dispose(); } catch { } }
+        }
+        return n;
+    }
+
+    private static int CleanTempFiles()
+    {
+        int count = 0;
+        string[] dirs = { Path.GetTempPath(), Environment.GetEnvironmentVariable("TEMP") ?? "",
+                          Path.Combine(Environment.GetEnvironmentVariable("SystemRoot") ?? @"C:\Windows", "Temp") };
+        foreach (var dir in dirs.Distinct())
+        {
+            if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) continue;
+            foreach (var f in Directory.EnumerateFileSystemEntries(dir))
+            {
+                try
+                {
+                    if (File.Exists(f)) { File.Delete(f); count++; }
+                    else if (Directory.Exists(f)) { Directory.Delete(f, true); count++; }
+                }
+                catch { /* fichier en cours d'utilisation : ignoré */ }
+            }
+        }
+        return count;
+    }
+
+    private static int CleanThumbnailCache()
+    {
+        int n = 0;
+        string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Microsoft", "Windows", "Explorer");
+        if (!Directory.Exists(dir)) return 0;
+        foreach (var f in Directory.EnumerateFiles(dir, "thumbcache_*.db"))
+        {
+            try { File.Delete(f); n++; } catch { }
+        }
+        return n;
+    }
+
+    private static void EmptyRecycleBin()
+    {
+        try
+        {
+            var psi = new System.Diagnostics.ProcessStartInfo("powershell.exe",
+                "-NoProfile -Command \"Clear-RecycleBin -Force -ErrorAction SilentlyContinue\"")
+            { CreateNoWindow = true, UseShellExecute = false, WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden };
+            System.Diagnostics.Process.Start(psi);
+        }
+        catch { }
+    }
+
+    private static Task RunHiddenAsync(string file, string args) => Task.Run(() =>
+    {
+        try
+        {
+            var psi = new System.Diagnostics.ProcessStartInfo(file, args)
+            { CreateNoWindow = true, UseShellExecute = false, WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden };
+            using var p = System.Diagnostics.Process.Start(psi);
+            p?.WaitForExit(15000);
+        }
+        catch { }
+    });
+
+    private void LaunchTool(string file)
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(file) { UseShellExecute = true });
+            OptimizeStatus.Text = $"✓ Ouverture de l'outil Windows : {file}";
+        }
+        catch (Exception ex)
+        {
+            OptimizeStatus.Text = $"Impossible d'ouvrir {file} : {ex.Message}";
         }
     }
 
