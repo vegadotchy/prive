@@ -3789,8 +3789,20 @@ public partial class MainWindow : Window
     {
         _notifyTarget = target;
         if (_gamerMode) return; // notifications suspendues en mode Gamer
-        try { _tray?.ShowBalloonTip(4000, title, message, System.Windows.Forms.ToolTipIcon.Warning); }
-        catch { }
+        try
+        {
+            // Notification « maison » futuriste (fond noir, triangle rouge, bordure cyan).
+            Dispatcher.Invoke(() =>
+            {
+                var toast = new ToastWindow(title, message, () =>
+                {
+                    ShowFromTray();
+                    if (_ready && target is { Length: > 0 }) ShowPage(target);
+                });
+                toast.Show();
+            });
+        }
+        catch { /* repli silencieux */ }
     }
 
     protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
