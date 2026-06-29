@@ -751,9 +751,94 @@ public partial class MainWindow : Window
     private void StartMetricsTimer()
     {
         _metricsTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-        _metricsTimer.Tick += (_, _) => { UpdateMetrics(); UpdateLicenseCountdown(); };
+        _metricsTimer.Tick += (_, _) =>
+        {
+            UpdateMetrics();
+            UpdateLicenseCountdown();
+            if (_ramProcTick++ % 3 == 0) UpdateTopRamProcs();   // top RAM toutes les 3 s
+        };
         _metricsTimer.Start();
         UpdateMetrics();
+        UpdateTopRamProcs();
+    }
+
+    private int _ramProcTick;
+
+    /// <summary>Affiche les 3 processus les plus gourmands en RAM, avec un bouton « tuer » par ligne.</summary>
+    private void UpdateTopRamProcs()
+    {
+        if (TopRamProcs is null) return;
+        List<(string Name, long Mem, int Id)> top;
+        try
+        {
+            top = System.Diagnostics.Process.GetProcesses()
+                .Select(p => { try { return (Name: p.ProcessName, Mem: p.WorkingSet64, Id: p.Id); } catch { return (Name: "", Mem: 0L, Id: 0); } })
+                .Where(t => t.Mem > 0 && !string.IsNullOrEmpty(t.Name))
+                .OrderByDescending(t => t.Mem)
+                .Take(3)
+                .ToList();
+        }
+        catch { return; }
+
+        TopRamProcs.Children.Clear();
+        var muted = (Brush)FindResource("TextPrimaryBrush");
+        foreach (var t in top)
+        {
+            var row = new Grid { Margin = new Thickness(0, 0, 0, 3) };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var lbl = new TextBlock
+            {
+                Text = $"{(t.Name.Length > 11 ? t.Name[..11] : t.Name)}  {t.Mem / (1024 * 1024)} Mo",
+                Foreground = muted,
+                FontSize = 10,
+                VerticalAlignment = VerticalAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis
+            };
+            Grid.SetColumn(lbl, 0);
+            row.Children.Add(lbl);
+
+            var kill = new Button
+            {
+                Content = "✕",
+                Tag = t.Id,
+                Width = 22,
+                Height = 18,
+                FontSize = 11,
+                Padding = new Thickness(0),
+                Cursor = Cursors.Hand,
+                Foreground = new SolidColorBrush(Color.FromRgb(0xFF, 0x6B, 0x6B)),
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0),
+                ToolTip = $"Arrêter {t.Name} (PID {t.Id})"
+            };
+            kill.Click += OnKillRamProc;
+            Grid.SetColumn(kill, 1);
+            row.Children.Add(kill);
+
+            TopRamProcs.Children.Add(row);
+        }
+    }
+
+    /// <summary>Arrête le processus sélectionné (1 clic).</summary>
+    private void OnKillRamProc(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: int pid }) return;
+        try
+        {
+            using var p = System.Diagnostics.Process.GetProcessById(pid);
+            string name = p.ProcessName;
+            p.Kill();
+            Log($"Processus arrêté : {name} (PID {pid}).");
+            UpdateTopRamProcs();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Impossible d'arrêter ce processus : {ex.Message}\n" +
+                            "(certains processus système sont protégés)",
+                "Arrêter le processus", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
     }
 
     private static ulong Ft(FileTimeRaw f) => ((ulong)f.High << 32) | f.Low;

@@ -216,12 +216,15 @@
 
                             <Grid Grid.Column="0">
                                 <!-- RAM en temps réel (gauche du cœur) -->
-                                <Border Style="{StaticResource Card}" HorizontalAlignment="Left" VerticalAlignment="Center" Width="130" Padding="12">
+                                <Border Style="{StaticResource Card}" HorizontalAlignment="Left" VerticalAlignment="Center" Width="210" Padding="12">
                                     <StackPanel>
                                         <TextBlock Text="🧠 RAM" Foreground="{StaticResource TextMutedBrush}" FontSize="11" FontWeight="SemiBold"/>
                                         <TextBlock x:Name="RamPercent" Text="—" Foreground="{StaticResource AccentBrush}" FontSize="28" FontWeight="Bold"/>
                                         <ProgressBar x:Name="RamBar" Height="6" Minimum="0" Maximum="100" Foreground="{StaticResource AccentBrush}" Background="#1A2740" BorderThickness="0" Margin="0,2,0,4"/>
                                         <TextBlock x:Name="RamDetail" Text="—" Foreground="{StaticResource TextMutedBrush}" FontSize="10"/>
+                                        <Border Height="1" Background="{StaticResource PanelStrokeBrush}" Margin="0,8,0,6"/>
+                                        <TextBlock Text="Top 3 RAM" Foreground="{StaticResource TextMutedBrush}" FontSize="9" FontWeight="SemiBold"/>
+                                        <StackPanel x:Name="TopRamProcs" Margin="0,4,0,0"/>
                                     </StackPanel>
                                 </Border>
 
