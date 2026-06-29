@@ -230,11 +230,11 @@ public partial class MainWindow : Window
         var procs = System.Diagnostics.Process.GetProcesses()
             .Select(p =>
             {
-                try { return (p.ProcessName, Mem: p.WorkingSet64, p.Id); }
-                catch { return ("", 0L, 0); }
+                try { return (Name: p.ProcessName, Mem: p.WorkingSet64, Id: p.Id); }
+                catch { return (Name: "", Mem: 0L, Id: 0); }
             })
-            .Where(t => t.Mem > 0 && !string.IsNullOrEmpty(t.ProcessName))
-            .GroupBy(t => t.ProcessName)
+            .Where(t => t.Mem > 0 && !string.IsNullOrEmpty(t.Name))
+            .GroupBy(t => t.Name)
             .Select(g => (Name: g.Key, Mem: g.Sum(x => x.Mem), Count: g.Count(), Id: g.First().Id))
             .OrderByDescending(t => t.Mem)
             .Take(16)
