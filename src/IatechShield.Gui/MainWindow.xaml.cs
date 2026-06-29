@@ -755,7 +755,7 @@ public partial class MainWindow : Window
         {
             UpdateMetrics();
             UpdateLicenseCountdown();
-            if (_ramProcTick++ % 3 == 0) UpdateTopRamProcs();   // top RAM toutes les 3 s
+            if (_ramProcTick++ % 3 == 0) { UpdateTopRamProcs(); UpdateTopCpuProcs(); }   // top RAM/CPU toutes les 3 s
         };
         _metricsTimer.Start();
         UpdateMetrics();
@@ -820,6 +820,75 @@ public partial class MainWindow : Window
             TopRamProcs.Children.Add(row);
         }
     }
+
+    private Dictionary<int, TimeSpan> _prevCpuTimes = new();
+    private DateTime _prevCpuStamp = DateTime.UtcNow;
+
+    /// <summary>Affiche les 3 processus les plus gourmands en CPU (entre 2 mesures), avec kill.</summary>
+    private void UpdateTopCpuProcs()
+    {
+        if (TopCpuProcs is null) return;
+        DateTime now = DateTime.UtcNow;
+        double elapsed = (now - _prevCpuStamp).TotalSeconds;
+        var cur = new Dictionary<int, TimeSpan>();
+        var rows = new List<(string Name, int Id, double Cpu)>();
+
+        try
+        {
+            foreach (var p in System.Diagnostics.Process.GetProcesses())
+            {
+                try
+                {
+                    var t = p.TotalProcessorTime;
+                    cur[p.Id] = t;
+                    if (elapsed > 0.1 && _prevCpuTimes.TryGetValue(p.Id, out var prev))
+                    {
+                        double pct = (t - prev).TotalSeconds / (elapsed * Environment.ProcessorCount) * 100.0;
+                        if (pct >= 0.1) rows.Add((p.ProcessName, p.Id, Math.Min(100, pct)));
+                    }
+                }
+                catch { /* processus protégé : ignoré */ }
+            }
+        }
+        catch { return; }
+
+        _prevCpuTimes = cur;
+        _prevCpuStamp = now;
+
+        var top = rows.OrderByDescending(r => r.Cpu).Take(3).ToList();
+        TopCpuProcs.Children.Clear();
+        var fg = (Brush)FindResource("TextPrimaryBrush");
+        foreach (var t in top)
+        {
+            var row = new Grid { Margin = new Thickness(0, 0, 0, 3) };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            row.Children.Add(Col0(new TextBlock
+            {
+                Text = $"{(t.Name.Length > 11 ? t.Name[..11] : t.Name)}  {t.Cpu:0}%",
+                Foreground = fg, FontSize = 10,
+                VerticalAlignment = VerticalAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis
+            }));
+
+            var kill = new Button
+            {
+                Content = "✕", Tag = t.Id, Width = 22, Height = 18, FontSize = 11,
+                Padding = new Thickness(0), Cursor = Cursors.Hand,
+                Foreground = new SolidColorBrush(Color.FromRgb(0xFF, 0x6B, 0x6B)),
+                Background = Brushes.Transparent, BorderThickness = new Thickness(0),
+                ToolTip = $"Arrêter {t.Name} (PID {t.Id})"
+            };
+            kill.Click += OnKillRamProc;
+            Grid.SetColumn(kill, 1);
+            row.Children.Add(kill);
+
+            TopCpuProcs.Children.Add(row);
+        }
+    }
+
+    private static UIElement Col0(UIElement el) { Grid.SetColumn(el, 0); return el; }
 
     /// <summary>Arrête le processus sélectionné (1 clic).</summary>
     private void OnKillRamProc(object sender, RoutedEventArgs e)

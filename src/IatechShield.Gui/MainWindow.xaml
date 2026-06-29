@@ -229,12 +229,15 @@
                                 </Border>
 
                                 <!-- CPU en temps réel (droite du cœur) -->
-                                <Border Style="{StaticResource Card}" HorizontalAlignment="Right" VerticalAlignment="Center" Width="130" Padding="12">
+                                <Border Style="{StaticResource Card}" HorizontalAlignment="Right" VerticalAlignment="Center" Width="210" Padding="12">
                                     <StackPanel>
                                         <TextBlock Text="⚙️ CPU" Foreground="{StaticResource TextMutedBrush}" FontSize="11" FontWeight="SemiBold"/>
                                         <TextBlock x:Name="CpuPercent" Text="—" Foreground="{StaticResource GreenBrush}" FontSize="28" FontWeight="Bold"/>
                                         <ProgressBar x:Name="CpuBar" Height="6" Minimum="0" Maximum="100" Foreground="{StaticResource GreenBrush}" Background="#1A2740" BorderThickness="0" Margin="0,2,0,4"/>
                                         <TextBlock x:Name="CpuDetail" Text="charge processeur" Foreground="{StaticResource TextMutedBrush}" FontSize="10"/>
+                                        <Border Height="1" Background="{StaticResource PanelStrokeBrush}" Margin="0,8,0,6"/>
+                                        <TextBlock Text="Top 3 CPU" Foreground="{StaticResource TextMutedBrush}" FontSize="9" FontWeight="SemiBold"/>
+                                        <StackPanel x:Name="TopCpuProcs" Margin="0,4,0,0"/>
                                     </StackPanel>
                                 </Border>
 
