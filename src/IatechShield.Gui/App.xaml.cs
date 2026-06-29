@@ -15,12 +15,23 @@ public partial class App : Application
 
         var main = new MainWindow();
 
+        // Lancé via le menu contextuel « Scanner avec IATECHSHIELD PRO » (clic droit
+        // sur un fichier, dossier, disque ou clé USB) : on récupère le chemin ciblé.
+        string? shellScanPath = null;
+        foreach (var arg in e.Args)
+        {
+            if (string.Equals(arg, "--scan", StringComparison.OrdinalIgnoreCase)) continue;
+            if (System.IO.File.Exists(arg) || System.IO.Directory.Exists(arg)) { shellScanPath = arg; break; }
+        }
+
         var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2.3) };
         timer.Tick += (_, _) =>
         {
             timer.Stop();
             main.Show();
             splash.Close();
+            if (shellScanPath is not null)
+                main.RequestShellScan(shellScanPath);
         };
         timer.Start();
     }

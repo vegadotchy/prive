@@ -6,7 +6,7 @@
 ; ============================================================================
 
 #define MyAppName "IATECH-SHIELD PRO"
-#define MyAppVersion "0.12.2"
+#define MyAppVersion "0.12.3"
 #define MyAppPublisher "IATECHFUTUR"
 #define MyAppUrl "https://github.com/vegadotchy/prive"
 #define MyGuiExe "iatech-shield-gui.exe"
@@ -68,6 +68,24 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyGuiExe}"; Tasks: deskto
 Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environment"; \
     ValueType: expandsz; ValueName: "Path"; ValueData: "{olddata};{app}"; \
     Check: NeedsAddPath('{app}'); Tasks: addtopath
+
+; --- Menu contextuel (clic droit) « Scanner avec IATECHSHIELD PRO » ---------
+; Fichiers
+Root: HKCR; Subkey: "*\shell\IatechShieldScan"; ValueType: string; ValueName: ""; ValueData: "Scanner avec IATECHSHIELD PRO"; Flags: uninsdeletekey
+Root: HKCR; Subkey: "*\shell\IatechShieldScan"; ValueType: string; ValueName: "Icon"; ValueData: "{app}\{#MyGuiExe},0"
+Root: HKCR; Subkey: "*\shell\IatechShieldScan\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyGuiExe}"" --scan ""%1"""
+; Dossiers
+Root: HKCR; Subkey: "Directory\shell\IatechShieldScan"; ValueType: string; ValueName: ""; ValueData: "Scanner avec IATECHSHIELD PRO"; Flags: uninsdeletekey
+Root: HKCR; Subkey: "Directory\shell\IatechShieldScan"; ValueType: string; ValueName: "Icon"; ValueData: "{app}\{#MyGuiExe},0"
+Root: HKCR; Subkey: "Directory\shell\IatechShieldScan\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyGuiExe}"" --scan ""%1"""
+; Arrière-plan d'un dossier ouvert
+Root: HKCR; Subkey: "Directory\Background\shell\IatechShieldScan"; ValueType: string; ValueName: ""; ValueData: "Scanner avec IATECHSHIELD PRO"; Flags: uninsdeletekey
+Root: HKCR; Subkey: "Directory\Background\shell\IatechShieldScan"; ValueType: string; ValueName: "Icon"; ValueData: "{app}\{#MyGuiExe},0"
+Root: HKCR; Subkey: "Directory\Background\shell\IatechShieldScan\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyGuiExe}"" --scan ""%V"""
+; Disques durs, partitions et clés USB / disques externes
+Root: HKCR; Subkey: "Drive\shell\IatechShieldScan"; ValueType: string; ValueName: ""; ValueData: "Scanner avec IATECHSHIELD PRO"; Flags: uninsdeletekey
+Root: HKCR; Subkey: "Drive\shell\IatechShieldScan"; ValueType: string; ValueName: "Icon"; ValueData: "{app}\{#MyGuiExe},0"
+Root: HKCR; Subkey: "Drive\shell\IatechShieldScan\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyGuiExe}"" --scan ""%1"""
 
 [Run]
 Filename: "{app}\{#MyGuiExe}"; Description: "Lancer {#MyAppName}"; Flags: postinstall skipifsilent nowait runascurrentuser

@@ -127,6 +127,7 @@ public partial class MainWindow : Window
         PageThreatRadar.Visibility = Visibility.Collapsed;
         PageTimeline.Visibility = Visibility.Collapsed;
         PageOptimize.Visibility = Visibility.Collapsed;
+        PageDevices.Visibility = Visibility.Collapsed;
         PageSettings.Visibility = Visibility.Collapsed;
         PageLogs.Visibility = Visibility.Collapsed;
 
@@ -153,6 +154,7 @@ public partial class MainWindow : Window
             "Menaces" => PageThreatRadar,
             "Timeline" => PageTimeline,
             "Optimisation" => PageOptimize,
+            "Périphériques" => PageDevices,
             "Settings" => PageSettings,
             "Logs" => PageLogs,
             _ => PageDashboard
@@ -233,6 +235,10 @@ public partial class MainWindow : Window
         else if (page == PageOptimize)
         {
             BuildOptimizeButtons();
+        }
+        else if (page == PageDevices)
+        {
+            BuildDevices();
         }
     }
 
@@ -433,6 +439,195 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             OptimizeStatus.Text = $"Impossible d'ouvrir {file} : {ex.Message}";
+        }
+    }
+
+    // ----------------------------------------------- Périphériques -------------
+
+    /// <summary>Élément de liste « imprimante installée ».</summary>
+    public sealed class PrinterItem
+    {
+        public string Name { get; set; } = "";
+        public string Sub { get; set; } = "";
+    }
+
+    /// <summary>Élément de liste « disque / périphérique de stockage ».</summary>
+    public sealed class DriveItem
+    {
+        public string Name { get; set; } = "";
+        public string Sub { get; set; } = "";
+        public string Path { get; set; } = "";
+        public double UsedPct { get; set; }
+        public System.Windows.Media.Brush Color { get; set; } = System.Windows.Media.Brushes.Cyan;
+    }
+
+    // Accès rapides : recherche / ajout de périphériques + outils Windows.
+    private static readonly (string Icon, string Label, string Target)[] DeviceTools =
+    {
+        ("➕", "Ajouter une imprimante",      "ms-settings:printers"),
+        ("➕", "Ajouter un appareil (Bluetooth/USB)", "ms-settings:connecteddevices"),
+        ("🖨️", "Imprimantes & scanners",      "ms-settings:printers"),
+        ("📷", "Numériser (scanner)",          "wiaacmgr.exe"),
+        ("🧰", "Gestionnaire de périphériques", "devmgmt.msc"),
+        ("💽", "Gestion des disques",          "diskmgmt.msc"),
+        ("🔵", "Bluetooth & appareils",        "ms-settings:bluetooth"),
+        ("🔌", "Appareils USB",                "ms-settings:usb"),
+        ("🔊", "Périphériques audio",          "mmsys.cpl"),
+        ("🖥️", "Paramètres d'affichage",       "ms-settings:display"),
+    };
+
+    private void BuildDevices()
+    {
+        BuildDeviceTools();
+        BuildPrinters();
+        BuildDrives();
+    }
+
+    private void BuildDeviceTools()
+    {
+        if (DeviceToolsGrid is null || DeviceToolsGrid.Children.Count > 0) return;
+        foreach (var (icon, label, target) in DeviceTools)
+        {
+            var btn = new Button
+            {
+                Style = (Style)FindResource("GhostButton"),
+                Width = 250,
+                Height = 46,
+                Margin = new Thickness(0, 0, 10, 10),
+                HorizontalContentAlignment = HorizontalAlignment.Left,
+                Tag = target,
+                Content = $"{icon}   {label}"
+            };
+            btn.Click += OnDeviceTool;
+            DeviceToolsGrid.Children.Add(btn);
+        }
+    }
+
+    private void OnDeviceTool(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: string target }) return;
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(target) { UseShellExecute = true });
+            if (DevicesStatus is not null) DevicesStatus.Text = $"✓ Ouverture : {target}";
+        }
+        catch (Exception ex)
+        {
+            if (DevicesStatus is not null) DevicesStatus.Text = $"Impossible d'ouvrir : {ex.Message}";
+        }
+    }
+
+    private void BuildPrinters()
+    {
+        if (PrintersList is null) return;
+        var items = new List<PrinterItem>();
+        try
+        {
+            string? defaultName = null;
+            try { defaultName = new System.Drawing.Printing.PrinterSettings().PrinterName; } catch { }
+            foreach (string name in System.Drawing.Printing.PrinterSettings.InstalledPrinters)
+            {
+                bool isDefault = string.Equals(name, defaultName, StringComparison.OrdinalIgnoreCase);
+                items.Add(new PrinterItem
+                {
+                    Name = isDefault ? $"{name}   ★ par défaut" : name,
+                    Sub = "Imprimante installée — cliquez « File d'attente » pour gérer les impressions."
+                });
+            }
+        }
+        catch { }
+        if (items.Count == 0)
+            items.Add(new PrinterItem { Name = "Aucune imprimante installée", Sub = "Cliquez « ➕ Ajouter une imprimante » ci-dessus pour en installer une." });
+        PrintersList.ItemsSource = items;
+    }
+
+    private void BuildDrives()
+    {
+        if (DrivesList is null) return;
+        var items = new List<DriveItem>();
+        try
+        {
+            foreach (var d in System.IO.DriveInfo.GetDrives())
+            {
+                try
+                {
+                    if (!d.IsReady) { continue; }
+                    double total = d.TotalSize;
+                    double used = total - d.AvailableFreeSpace;
+                    double pct = total > 0 ? used / total * 100.0 : 0;
+                    string kind = d.DriveType switch
+                    {
+                        System.IO.DriveType.Removable => "Périphérique amovible (USB / carte)",
+                        System.IO.DriveType.Network   => "Lecteur réseau",
+                        System.IO.DriveType.CDRom     => "Lecteur optique",
+                        System.IO.DriveType.Ram       => "Disque RAM",
+                        _                              => "Disque fixe"
+                    };
+                    string label = string.IsNullOrWhiteSpace(d.VolumeLabel) ? "Volume" : d.VolumeLabel;
+                    var color = pct >= 90 ? System.Windows.Media.Brushes.OrangeRed
+                              : pct >= 75 ? System.Windows.Media.Brushes.Gold
+                              : System.Windows.Media.Brushes.Cyan;
+                    items.Add(new DriveItem
+                    {
+                        Name = $"{d.Name}  {label}",
+                        Sub = $"{kind} • {GoBytes(used)} utilisés sur {GoBytes(total)} ({GoBytes(d.AvailableFreeSpace)} libres)",
+                        Path = d.RootDirectory.FullName,
+                        UsedPct = pct,
+                        Color = color
+                    });
+                }
+                catch { }
+            }
+        }
+        catch { }
+        if (items.Count == 0)
+            items.Add(new DriveItem { Name = "Aucun disque détecté", Sub = "Branchez un périphérique puis cliquez « Actualiser ».", Path = "" });
+        DrivesList.ItemsSource = items;
+    }
+
+    private static string GoBytes(double bytes)
+    {
+        string[] u = { "o", "Ko", "Mo", "Go", "To" };
+        int i = 0;
+        while (bytes >= 1024 && i < u.Length - 1) { bytes /= 1024; i++; }
+        return $"{bytes:0.#} {u[i]}";
+    }
+
+    private void OnRefreshDevices(object sender, RoutedEventArgs e)
+    {
+        // Force la reconstruction (outils déjà en place ; on rafraîchit listes).
+        BuildPrinters();
+        BuildDrives();
+        if (DevicesStatus is not null) DevicesStatus.Text = "✓ Liste des périphériques actualisée.";
+    }
+
+    private void OnOpenPrinterQueue(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: string name }) return;
+        try
+        {
+            // Ouvre directement la file d'attente de l'imprimante choisie.
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("rundll32.exe",
+                $"printui.dll,PrintUIEntry /o /n \"{name}\"") { UseShellExecute = true });
+            if (DevicesStatus is not null) DevicesStatus.Text = $"✓ File d'attente : {name}";
+        }
+        catch
+        {
+            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("ms-settings:printers") { UseShellExecute = true }); } catch { }
+        }
+    }
+
+    private void OnOpenDrive(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: string path } || string.IsNullOrEmpty(path)) return;
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", $"\"{path}\"") { UseShellExecute = true });
+            if (DevicesStatus is not null) DevicesStatus.Text = $"✓ Ouverture de {path} dans l'Explorateur.";
+        }
+        catch (Exception ex)
+        {
+            if (DevicesStatus is not null) DevicesStatus.Text = $"Impossible d'ouvrir {path} : {ex.Message}";
         }
     }
 
@@ -3239,6 +3434,33 @@ public partial class MainWindow : Window
             SchedulePower("/s", "extinction");
         else if (PostRestart.IsChecked == true)
             SchedulePower("/r", "redémarrage");
+    }
+
+    /// <summary>Chemin transmis par le menu contextuel « Scanner avec IATECHSHIELD PRO » (clic droit).</summary>
+    private string? _pendingShellScan;
+
+    /// <summary>Appelé au démarrage quand l'app est lancée via le clic droit de l'Explorateur.</summary>
+    public void RequestShellScan(string path)
+    {
+        _pendingShellScan = path;
+        if (_ready) RunPendingShellScan();
+    }
+
+    private async void RunPendingShellScan()
+    {
+        var path = _pendingShellScan;
+        _pendingShellScan = null;
+        if (string.IsNullOrEmpty(path)) return;
+        if (!File.Exists(path) && !Directory.Exists(path)) return;
+        if (_scanning || _scanner is null) return;
+        if (!EnsureActivated()) return;
+
+        // Bascule sur la page d'analyse et lance le scan ciblé immédiatement.
+        if (NavScan is not null) NavScan.IsChecked = true;
+        ShowPage("Scan");
+        Activate();
+        SoundFx.ScanStart();
+        await RunScanAsync(new[] { path }, status => { if (FullScanStatus is not null) FullScanStatus.Text = status; });
     }
 
     private List<string> BuildScanTargets()

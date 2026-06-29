@@ -59,12 +59,14 @@
                                      Tag="&#xE80F;" IsChecked="True" Content="Dashboard" Checked="OnNav"/>
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE72E;" Content="Protection" Checked="OnNav"/>
-                        <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
+                        <RadioButton x:Name="NavScan" Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE721;" Content="Scan" Checked="OnNav"/>
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE83D;" Content="Firewall" Checked="OnNav"/>
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xEC4A;" Content="Optimisation" Checked="OnNav"/>
+                        <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
+                                     Tag="&#xE772;" Content="Périphériques" Checked="OnNav"/>
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE72E;" Content="Outils" Checked="OnNav"/>
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
@@ -1101,6 +1103,81 @@
                                         </StackPanel>
                                     </StackPanel>
                                 </Border>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Grid>
+
+                    <!-- =============== PAGE : PÉRIPHÉRIQUES =============== -->
+                    <Grid x:Name="PageDevices" Visibility="Collapsed">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+                            <TextBlock Text="Périphériques" Style="{StaticResource PageTitle}"/>
+                            <Button x:Name="DevicesRefreshButton" Style="{StaticResource GhostButton}" Content="Actualiser"
+                                    Click="OnRefreshDevices" Margin="14,0,0,0" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="DevicesStatus" Text="Imprimantes, scanners, disques, USB — et accès aux outils Windows."
+                                       Foreground="{StaticResource TextMutedBrush}" FontSize="11"
+                                       VerticalAlignment="Center" Margin="14,0,0,0"/>
+                        </StackPanel>
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                            <StackPanel>
+                                <!-- Rechercher / ajouter + accès rapides -->
+                                <TextBlock Text="Rechercher &amp; ajouter / Outils Windows" Foreground="{StaticResource TextPrimaryBrush}"
+                                           FontWeight="SemiBold" FontSize="13" Margin="0,0,0,8"/>
+                                <WrapPanel x:Name="DeviceToolsGrid" Margin="0,0,0,16"/>
+
+                                <!-- Imprimantes -->
+                                <TextBlock Text="🖨️ Imprimantes installées" Foreground="{StaticResource TextPrimaryBrush}"
+                                           FontWeight="SemiBold" FontSize="13" Margin="0,0,0,6"/>
+                                <ItemsControl x:Name="PrintersList" Margin="0,0,0,16">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Style="{StaticResource Card}" Margin="0,0,0,8" Padding="14">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <StackPanel Grid.Column="0">
+                                                        <TextBlock Text="{Binding Name}" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="13"/>
+                                                        <TextBlock Text="{Binding Sub}" Foreground="{StaticResource TextMutedBrush}" FontSize="11" Margin="0,2,0,0"/>
+                                                    </StackPanel>
+                                                    <Button Grid.Column="1" Content="File d'attente" Style="{StaticResource GhostButton}"
+                                                            Click="OnOpenPrinterQueue" Tag="{Binding Name}" VerticalAlignment="Center"/>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <!-- Disques & USB -->
+                                <TextBlock Text="💽 Disques &amp; périphériques de stockage (USB inclus)" Foreground="{StaticResource TextPrimaryBrush}"
+                                           FontWeight="SemiBold" FontSize="13" Margin="0,0,0,6"/>
+                                <ItemsControl x:Name="DrivesList">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Style="{StaticResource Card}" Margin="0,0,0,8" Padding="14">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="160"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding Name}" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="13"/>
+                                                        <TextBlock Text="{Binding Sub}" Foreground="{StaticResource TextMutedBrush}" FontSize="11" Margin="0,2,0,0"/>
+                                                    </StackPanel>
+                                                    <ProgressBar Grid.Column="1" Style="{StaticResource Meter}" Height="8" Maximum="100"
+                                                                 Value="{Binding UsedPct}" Foreground="{Binding Color}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                                    <Button Grid.Column="2" Content="Ouvrir" Style="{StaticResource GhostButton}"
+                                                            Click="OnOpenDrive" Tag="{Binding Path}" VerticalAlignment="Center"/>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
                             </StackPanel>
                         </ScrollViewer>
                     </Grid>
