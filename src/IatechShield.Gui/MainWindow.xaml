@@ -1111,6 +1111,7 @@
                                     <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                                         <TextBlock Text="👥 Utilisateurs Windows" Foreground="{StaticResource GoldBrush}" FontWeight="SemiBold" FontSize="14"/>
                                         <Button Content="➕ Ajouter un utilisateur" Style="{StaticResource GhostButton}" Click="OnAddUser" Margin="14,0,0,0"/>
+                                        <Button Content="🔒 Verrouillage après X erreurs" Style="{StaticResource GhostButton}" Click="OnSetLockoutPolicy" Margin="8,0,0,0"/>
                                         <Button Content="Actualiser" Style="{StaticResource GhostButton}" Click="OnRefreshUsers" Margin="8,0,0,0"/>
                                     </StackPanel>
                                     <TextBlock Text="Créez des sessions (avec code PIN/mot de passe), changez le rôle Administrateur/Standard, ou supprimez un compte — directement depuis IATECH-SHIELD."
@@ -1134,11 +1135,13 @@
                                                             </StackPanel>
                                                             <TextBlock Text="{Binding StatusText}" Foreground="{StaticResource TextMutedBrush}" FontSize="10" Margin="0,2,0,0"/>
                                                         </StackPanel>
-                                                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                                            <Button Content="{Binding ToggleRoleLabel}" Style="{StaticResource GhostButton}" Height="30" Click="OnToggleUserRole" Tag="{Binding}" Margin="0,0,6,0"/>
-                                                            <Button Content="Code PIN" Style="{StaticResource GhostButton}" Height="30" Click="OnSetUserPin" Tag="{Binding}" Margin="0,0,6,0"/>
-                                                            <Button Content="Supprimer" Style="{StaticResource GhostButton}" Height="30" Click="OnDeleteUser" Tag="{Binding}"/>
-                                                        </StackPanel>
+                                                        <WrapPanel Grid.Column="1" VerticalAlignment="Center" MaxWidth="430">
+                                                            <Button Content="{Binding ToggleRoleLabel}" Style="{StaticResource GhostButton}" Height="28" Click="OnToggleUserRole" Tag="{Binding}" Margin="0,0,6,4"/>
+                                                            <Button Content="{Binding ToggleEnabledLabel}" Style="{StaticResource GhostButton}" Height="28" Click="OnToggleUserEnabled" Tag="{Binding}" Margin="0,0,6,4"/>
+                                                            <Button Content="Mot de passe" Style="{StaticResource GhostButton}" Height="28" Click="OnSetUserPin" Tag="{Binding}" Margin="0,0,6,4"/>
+                                                            <Button Content="Forcer MDP" Style="{StaticResource GhostButton}" Height="28" Click="OnForcePwdChange" Tag="{Binding}" Margin="0,0,6,4"/>
+                                                            <Button Content="Supprimer" Style="{StaticResource GhostButton}" Height="28" Click="OnDeleteUser" Tag="{Binding}" Margin="0,0,0,4"/>
+                                                        </WrapPanel>
                                                     </Grid>
                                                 </Border>
                                             </DataTemplate>

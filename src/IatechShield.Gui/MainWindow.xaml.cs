@@ -4948,6 +4948,7 @@ public partial class MainWindow : Window
             new SolidColorBrush(IsAdmin ? Color.FromRgb(0xFB, 0xBF, 0x24) : Color.FromRgb(0x22, 0xD3, 0xE8));
         public string StatusText => Enabled ? "Compte actif" : "Compte désactivé";
         public string ToggleRoleLabel => IsAdmin ? "Rétrograder standard" : "Promouvoir admin";
+        public string ToggleEnabledLabel => Enabled ? "Désactiver" : "Activer";
     }
 
     // SID bien connu du groupe Administrateurs (indépendant de la langue de Windows).
@@ -5069,6 +5070,51 @@ public partial class MainWindow : Window
         }
         else if (UsersStatus is not null) UsersStatus.Text = $"Échec : {res}";
         await BuildUsersAsync();
+    }
+
+    private async void OnToggleUserEnabled(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: UserAccountItem u }) return;
+        string n = u.Name.Replace("'", "''");
+        string cmd = u.Enabled
+            ? $"Disable-LocalUser -Name '{n}' -ErrorAction Stop"
+            : $"Enable-LocalUser -Name '{n}' -ErrorAction Stop";
+        string res = await RunPs(cmd + "; if($?){'OK'}");
+        if (res.Contains("OK"))
+            Log($"Compte {u.Name} {(u.Enabled ? "désactivé" : "activé")}.");
+        else if (UsersStatus is not null) UsersStatus.Text = $"Échec : {res}";
+        await BuildUsersAsync();
+    }
+
+    private async void OnForcePwdChange(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: UserAccountItem u }) return;
+        // « net user … /logonpasswordchg:yes » force le changement à la prochaine connexion.
+        string res = await RunPs($"net user '{u.Name.Replace("'", "''")}' /logonpasswordchg:yes; if($?){{'OK'}}");
+        if (UsersStatus is not null)
+            UsersStatus.Text = res.Contains("OK")
+                ? $"✓ {u.Name} devra changer son mot de passe à la prochaine connexion."
+                : $"Échec : {res}";
+        if (res.Contains("OK")) Log($"Changement de mot de passe forcé pour {u.Name}.");
+    }
+
+    private async void OnSetLockoutPolicy(object sender, RoutedEventArgs e)
+    {
+        var dlg = new PromptWindow("Verrouillage de compte",
+            "Verrouiller un compte après combien de tentatives erronées ? (0 = désactivé)", "Appliquer") { Owner = this };
+        if (dlg.ShowDialog() != true) return;
+        if (!int.TryParse(dlg.Value.Trim(), out int n) || n < 0 || n > 999)
+        {
+            if (UsersStatus is not null) UsersStatus.Text = "Valeur invalide (0 à 999).";
+            return;
+        }
+        // Politique globale Windows : seuil de verrouillage (+ durée 30 min si activé).
+        string res = await RunPs($"net accounts /lockoutthreshold:{n} /lockoutduration:30 /lockoutwindow:30; if($?){{'OK'}}");
+        if (UsersStatus is not null)
+            UsersStatus.Text = res.Contains("OK")
+                ? (n == 0 ? "✓ Verrouillage après erreurs désactivé." : $"✓ Comptes verrouillés après {n} tentatives erronées (30 min).")
+                : $"Échec : {res}";
+        if (res.Contains("OK")) Log($"Politique de verrouillage : seuil {n}.");
     }
 
     // ------------------------------------------------- Accès à distance --------
