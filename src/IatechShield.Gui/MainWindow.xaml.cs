@@ -267,6 +267,46 @@ public partial class MainWindow : Window
         ("diskmgmt",   "🗂️", "Gestion des disques"),
         ("msinfo",     "ℹ️", "Informations système"),
         ("winsock",    "🔌", "Réinitialiser Winsock (réseau)"),
+        // --- Nettoyage & réparation supplémentaires ---
+        ("prefetch",   "⚡", "Vider le dossier Prefetch"),
+        ("flushall",   "🧽", "Vider tous les caches temp (système + user)"),
+        ("explorer",   "🔄", "Redémarrer l'Explorateur Windows"),
+        ("sfc",        "🩹", "Réparer les fichiers système (SFC)"),
+        ("dism",       "🛠️", "Réparer l'image Windows (DISM)"),
+        ("chkdsk",     "🔎", "Vérifier le disque (CHKDSK)"),
+        ("gpupdate",   "📜", "Actualiser les stratégies de groupe"),
+        ("resetnet",   "🌐", "Réinitialiser la pile réseau (TCP/IP)"),
+        ("optimizeall","💾", "Optimiser tous les disques (TRIM/défrag)"),
+        ("storagesense","🧯", "Assistant de stockage"),
+        // --- Diagnostics & moniteurs ---
+        ("perfmon",    "📉", "Analyseur de performances"),
+        ("eventvwr",   "📋", "Observateur d'événements"),
+        ("memdiag",    "🧪", "Diagnostic de la mémoire (RAM)"),
+        ("dxdiag",     "🎮", "Diagnostic DirectX (carte graphique)"),
+        ("reliability","🧾", "Moniteur de fiabilité"),
+        ("batteryrep", "🔋", "Rapport de batterie (HTML)"),
+        // --- Outils & consoles système ---
+        ("services",   "⚙️", "Services Windows"),
+        ("msconfig",   "🧰", "Configuration système (msconfig)"),
+        ("taskschd",   "⏰", "Planificateur de tâches"),
+        ("compmgmt",   "🖥️", "Gestion de l'ordinateur"),
+        ("devmgmt",    "🔧", "Gestionnaire de périphériques"),
+        ("sysprop",    "🏷️", "Propriétés système"),
+        ("visualfx",   "🎨", "Effets visuels / performances"),
+        ("power",      "🔌", "Options d'alimentation"),
+        ("regedit",    "🗝️", "Éditeur du registre"),
+        ("control",    "🎛️", "Panneau de configuration"),
+        ("env",        "🌱", "Variables d'environnement"),
+        // --- Réseau & sécurité ---
+        ("ncpa",       "📡", "Connexions réseau"),
+        ("firewall",   "🛡️", "Pare-feu Windows"),
+        ("defender",   "🦠", "Sécurité Windows (Defender)"),
+        ("inetcpl",    "🌍", "Options Internet"),
+        // --- Réglages Windows ---
+        ("storage",    "📦", "Stockage (Réglages)"),
+        ("apps",       "🗃️", "Applications installées (Réglages)"),
+        ("gaming",     "🕹️", "Mode Jeu (Réglages)"),
+        ("about",      "💻", "À propos du PC (Réglages)"),
     };
 
     private void BuildOptimizeButtons()
@@ -347,6 +387,86 @@ public partial class MainWindow : Window
                     await RunHiddenAsync("cmd.exe", "/c netsh winsock reset");
                     OptimizeStatus.Text = "✓ Winsock réinitialisé — redémarrez pour finaliser.";
                     break;
+
+                // --- Nettoyage & réparation supplémentaires ---
+                case "prefetch":
+                    int pf = CleanPrefetch();
+                    OptimizeStatus.Text = $"✓ Prefetch vidé ({pf} fichier(s)) — le 1er démarrage des apps sera un peu plus lent, puis ré-optimisé.";
+                    break;
+                case "flushall":
+                    int all = CleanTempFiles() + CleanThumbnailCache() + CleanPrefetch();
+                    await RunHiddenAsync("cmd.exe", "/c ipconfig /flushdns");
+                    OptimizeStatus.Text = $"✓ Tous les caches vidés ({all} éléments) + DNS.";
+                    SoundFx.ScanDone();
+                    break;
+                case "explorer":
+                    await RunHiddenAsync("cmd.exe", "/c taskkill /f /im explorer.exe & start explorer.exe");
+                    OptimizeStatus.Text = "✓ Explorateur Windows redémarré.";
+                    break;
+                case "sfc":
+                    OptimizeStatus.Text = "🩹 Vérification SFC lancée dans une fenêtre… (peut durer plusieurs minutes)";
+                    LaunchAdmin("cmd.exe", "/k sfc /scannow");
+                    break;
+                case "dism":
+                    OptimizeStatus.Text = "🛠️ Réparation DISM lancée dans une fenêtre… (peut durer plusieurs minutes)";
+                    LaunchAdmin("cmd.exe", "/k DISM /Online /Cleanup-Image /RestoreHealth");
+                    break;
+                case "chkdsk":
+                    OptimizeStatus.Text = "🔎 Vérification du disque lancée dans une fenêtre…";
+                    LaunchAdmin("cmd.exe", "/k chkdsk C: /scan");
+                    break;
+                case "gpupdate":
+                    await RunHiddenAsync("cmd.exe", "/c gpupdate /force");
+                    OptimizeStatus.Text = "✓ Stratégies de groupe actualisées.";
+                    break;
+                case "resetnet":
+                    LaunchAdmin("cmd.exe", "/k netsh int ip reset & netsh winsock reset & ipconfig /flushdns");
+                    OptimizeStatus.Text = "🌐 Réinitialisation réseau lancée — redémarrez ensuite.";
+                    break;
+                case "optimizeall":
+                    LaunchAdmin("cmd.exe", "/k defrag /C /O /U /V");
+                    OptimizeStatus.Text = "💾 Optimisation de tous les disques lancée (TRIM SSD / défrag HDD).";
+                    break;
+
+                // --- Diagnostics & moniteurs ---
+                case "perfmon":     LaunchTool("perfmon.exe"); break;
+                case "eventvwr":    LaunchTool("eventvwr.msc"); break;
+                case "memdiag":     LaunchTool("mdsched.exe"); break;
+                case "dxdiag":      LaunchTool("dxdiag.exe"); break;
+                case "reliability": LaunchToolArgs("perfmon.exe", "/rel"); break;
+                case "batteryrep":
+                    string rep = Path.Combine(Path.GetTempPath(), "iatech-battery-report.html");
+                    await RunHiddenAsync("cmd.exe", $"/c powercfg /batteryreport /output \"{rep}\"");
+                    if (File.Exists(rep)) { LaunchTool(rep); OptimizeStatus.Text = "✓ Rapport de batterie généré et ouvert."; }
+                    else OptimizeStatus.Text = "Aucune batterie détectée (PC fixe ?).";
+                    break;
+
+                // --- Outils & consoles système ---
+                case "services":  LaunchTool("services.msc"); break;
+                case "msconfig":  LaunchTool("msconfig.exe"); break;
+                case "taskschd":  LaunchTool("taskschd.msc"); break;
+                case "compmgmt":  LaunchTool("compmgmt.msc"); break;
+                case "devmgmt":   LaunchTool("devmgmt.msc"); break;
+                case "sysprop":   LaunchTool("sysdm.cpl"); break;
+                case "visualfx":  LaunchTool("SystemPropertiesPerformance.exe"); break;
+                case "power":     LaunchTool("powercfg.cpl"); break;
+                case "regedit":   LaunchTool("regedit.exe"); break;
+                case "control":   LaunchTool("control.exe"); break;
+                case "env":       LaunchToolArgs("rundll32.exe", "sysdm.cpl,EditEnvironmentVariables"); break;
+
+                // --- Réseau & sécurité ---
+                case "ncpa":      LaunchTool("ncpa.cpl"); break;
+                case "firewall":  LaunchTool("firewall.cpl"); break;
+                case "defender":  LaunchTool("windowsdefender:"); break;
+                case "inetcpl":   LaunchTool("inetcpl.cpl"); break;
+
+                // --- Réglages Windows ---
+                case "storage":   LaunchTool("ms-settings:storagesense"); break;
+                case "storagesense": LaunchTool("ms-settings:storagepolicies"); break;
+                case "apps":      LaunchTool("ms-settings:appsfeatures"); break;
+                case "gaming":    LaunchTool("ms-settings:gaming-gamemode"); break;
+                case "about":     LaunchTool("ms-settings:about"); break;
+
                 default:
                     OptimizeStatus.Text = "Action inconnue.";
                     break;
@@ -440,6 +560,47 @@ public partial class MainWindow : Window
         {
             OptimizeStatus.Text = $"Impossible d'ouvrir {file} : {ex.Message}";
         }
+    }
+
+    /// <summary>Ouvre un outil Windows avec des arguments (sans élévation).</summary>
+    private void LaunchToolArgs(string file, string args)
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(file, args) { UseShellExecute = true });
+            OptimizeStatus.Text = $"✓ Ouverture de l'outil Windows : {file}";
+        }
+        catch (Exception ex)
+        {
+            OptimizeStatus.Text = $"Impossible d'ouvrir {file} : {ex.Message}";
+        }
+    }
+
+    /// <summary>Lance un outil avec élévation administrateur (UAC).</summary>
+    private void LaunchAdmin(string file, string args)
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(file, args)
+            { UseShellExecute = true, Verb = "runas" });
+        }
+        catch (Exception ex)
+        {
+            OptimizeStatus.Text = $"Action annulée ou refusée : {ex.Message}";
+        }
+    }
+
+    /// <summary>Vide le dossier Prefetch de Windows (caches de pré-chargement).</summary>
+    private static int CleanPrefetch()
+    {
+        int n = 0;
+        string dir = Path.Combine(Environment.GetEnvironmentVariable("SystemRoot") ?? @"C:\Windows", "Prefetch");
+        if (!Directory.Exists(dir)) return 0;
+        foreach (var f in Directory.EnumerateFiles(dir))
+        {
+            try { File.Delete(f); n++; } catch { /* fichier verrouillé : ignoré */ }
+        }
+        return n;
     }
 
     // ----------------------------------------------- Périphériques -------------
