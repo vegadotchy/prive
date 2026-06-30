@@ -47,16 +47,56 @@
             <Border Grid.Column="0" Grid.Row="0" Background="#0A1726" CornerRadius="16,0,0,0">
                 <DockPanel Margin="0,18">
                     <StackPanel DockPanel.Dock="Top" HorizontalAlignment="Center" Margin="0,0,0,24">
-                        <!-- Logo bouclier « or 3D » : glyphe doré bombé + ombre portée + halo. -->
+                        <!-- Logo bouclier « or 3D » : glyphe doré bombé + ombre portée + halo,
+                             avec une tête de loup (yeux rouges, crocs apparents) au centre. -->
                         <Grid HorizontalAlignment="Center">
-                            <TextBlock Text="&#xEA18;" FontFamily="Segoe MDL2 Assets" FontSize="34"
+                            <TextBlock Text="&#xEA18;" FontFamily="Segoe MDL2 Assets" FontSize="44"
                                        HorizontalAlignment="Center" Margin="1.6,2,0,0" Foreground="#90000000"/>
-                            <TextBlock Text="&#xEA18;" FontFamily="Segoe MDL2 Assets" FontSize="34"
+                            <TextBlock Text="&#xEA18;" FontFamily="Segoe MDL2 Assets" FontSize="44"
                                        HorizontalAlignment="Center" Foreground="{StaticResource GoldIconBright}">
                                 <TextBlock.Effect>
                                     <DropShadowEffect Color="#FBBF24" BlurRadius="18" ShadowDepth="0" Opacity="0.75"/>
                                 </TextBlock.Effect>
                             </TextBlock>
+                            <!-- Tête de loup vectorielle, centrée dans le bouclier. -->
+                            <Viewbox Width="26" Height="26" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,3,0,0">
+                                <Canvas Width="100" Height="100">
+                                    <!-- Oreilles -->
+                                    <Polygon Points="20,12 40,44 26,48" Fill="#1B1B1F" Stroke="#3A3A40" StrokeThickness="1.5"/>
+                                    <Polygon Points="80,12 60,44 74,48" Fill="#1B1B1F" Stroke="#3A3A40" StrokeThickness="1.5"/>
+                                    <Polygon Points="26,18 38,42 30,44" Fill="#7F1D1D"/>
+                                    <Polygon Points="74,18 62,42 70,44" Fill="#7F1D1D"/>
+                                    <!-- Crâne / silhouette de la tête -->
+                                    <Polygon Points="34,40 66,40 78,54 64,72 50,86 36,72 22,54"
+                                             Stroke="#3A3A40" StrokeThickness="1.5">
+                                        <Polygon.Fill>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                <GradientStop Color="#3B3B42" Offset="0"/>
+                                                <GradientStop Color="#1B1B1F" Offset="1"/>
+                                            </LinearGradientBrush>
+                                        </Polygon.Fill>
+                                    </Polygon>
+                                    <!-- Museau plus sombre -->
+                                    <Polygon Points="40,60 60,60 50,86" Fill="#141417"/>
+                                    <!-- Yeux rouges menaçants (lueur) -->
+                                    <Polygon Points="31,50 46,47 44,56 33,57" Fill="#FF1E1E">
+                                        <Polygon.Effect>
+                                            <DropShadowEffect Color="#FF0000" BlurRadius="9" ShadowDepth="0" Opacity="1"/>
+                                        </Polygon.Effect>
+                                    </Polygon>
+                                    <Polygon Points="69,50 54,47 56,56 67,57" Fill="#FF1E1E">
+                                        <Polygon.Effect>
+                                            <DropShadowEffect Color="#FF0000" BlurRadius="9" ShadowDepth="0" Opacity="1"/>
+                                        </Polygon.Effect>
+                                    </Polygon>
+                                    <!-- Truffe -->
+                                    <Polygon Points="45,64 55,64 50,71" Fill="#0A0A0C"/>
+                                    <!-- Crocs / dents blanches apparentes -->
+                                    <Polygon Points="42,72 47,72 44,84" Fill="#FFFFFF"/>
+                                    <Polygon Points="53,72 58,72 56,84" Fill="#FFFFFF"/>
+                                    <Polygon Points="47,73 53,73 50,80" Fill="#E5E5E5"/>
+                                </Canvas>
+                            </Viewbox>
                         </Grid>
                         <TextBlock Text="IATECH" Foreground="{StaticResource GoldIconBright}"
                                    FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,6,0,0"/>
