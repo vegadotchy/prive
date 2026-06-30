@@ -1684,7 +1684,27 @@
                             <TextBlock x:Name="RadarStatus" Text="Détecte appareils, ports ouverts, caméras IP, NAS et objets connectés vulnérables."
                                        Foreground="{StaticResource TextMutedBrush}" FontSize="11" VerticalAlignment="Center" Margin="14,0,0,0" TextWrapping="Wrap"/>
                         </StackPanel>
-                        <Border Grid.Row="2" Style="{StaticResource Card}">
+                        <Grid Grid.Row="2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Écran radar « tour de contrôle » -->
+                            <Border Grid.Column="0" Width="440" Margin="0,0,10,0" CornerRadius="14"
+                                    Background="#02160B" BorderBrush="#0C5" BorderThickness="1">
+                                <Border.Effect>
+                                    <DropShadowEffect Color="#11FF66" BlurRadius="28" ShadowDepth="0" Opacity="0.5"/>
+                                </Border.Effect>
+                                <Grid>
+                                    <Canvas x:Name="NetRadarCanvas" ClipToBounds="True" Background="Transparent"/>
+                                    <TextBlock x:Name="NetRadarLegend" Text="🟢 connu / sûr   🔴 nouveau ou à risque"
+                                               Foreground="#66FF99" FontSize="11" FontFamily="Consolas"
+                                               HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,10"/>
+                                </Grid>
+                            </Border>
+
+                            <Border Grid.Column="1" Style="{StaticResource Card}">
                             <ListBox x:Name="RadarList" Background="Transparent" BorderThickness="0"
                                      Foreground="{StaticResource TextPrimaryBrush}" FontSize="12"
                                      HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
@@ -1744,7 +1764,8 @@
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
                             </ListBox>
-                        </Border>
+                            </Border>
+                        </Grid>
                     </Grid>
 
                     <!-- ===================== PAGE : VPN ==================== -->

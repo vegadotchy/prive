@@ -233,6 +233,10 @@ public partial class MainWindow : Window
         {
             BuildThreatRadar();
         }
+        else if (page == PageRadar)
+        {
+            DrawNetworkRadar();
+        }
         else if (page == PageTimeline)
         {
             BuildTimeline();
@@ -947,6 +951,142 @@ public partial class MainWindow : Window
         var geo = new PathGeometry();
         geo.Figures.Add(fig);
         return geo;
+    }
+
+    // ----------------------------------------- Radar réseau « tour de contrôle » -
+
+    /// <summary>
+    /// Dessine un radar d'aviation (style tour de contrôle, phosphore vert) avec un
+    /// balayage tournant. Chaque appareil du réseau est un point : vert = connu/sûr,
+    /// rouge = nouvellement détecté ou présentant un risque.
+    /// </summary>
+    private void DrawNetworkRadar()
+    {
+        if (NetRadarCanvas is null) return;
+        if (NetRadarCanvas.ActualWidth <= 1)
+        {
+            Dispatcher.BeginInvoke(new Action(DrawNetworkRadar),
+                System.Windows.Threading.DispatcherPriority.Loaded);
+            return;
+        }
+        NetRadarCanvas.Children.Clear();
+
+        double w = NetRadarCanvas.ActualWidth, h = NetRadarCanvas.ActualHeight;
+        double cx = w / 2, cy = h / 2;
+        double r = Math.Min(w, h) / 2 - 24;
+        var green = Color.FromRgb(0x33, 0xFF, 0x66);
+        var greenDim = Color.FromArgb(0x55, 0x33, 0xFF, 0x66);
+        var red = Color.FromRgb(0xFF, 0x33, 0x33);
+
+        SolidColorBrush GB(byte a) => new(Color.FromArgb(a, green.R, green.G, green.B));
+
+        // Cercles concentriques.
+        for (int k = 1; k <= 4; k++)
+        {
+            double rr = r * k / 4;
+            var ring = new System.Windows.Shapes.Ellipse
+            { Width = rr * 2, Height = rr * 2, Stroke = GB((byte)(0x40 + k * 8)), StrokeThickness = 1 };
+            Canvas.SetLeft(ring, cx - rr); Canvas.SetTop(ring, cy - rr);
+            NetRadarCanvas.Children.Add(ring);
+        }
+
+        // Croix + diagonales (rose des azimuts).
+        for (int a = 0; a < 8; a++)
+        {
+            double ang = a * Math.PI / 4;
+            NetRadarCanvas.Children.Add(new System.Windows.Shapes.Line
+            {
+                X1 = cx, Y1 = cy, X2 = cx + r * Math.Cos(ang), Y2 = cy + r * Math.Sin(ang),
+                Stroke = GB(0x22), StrokeThickness = 0.7
+            });
+        }
+
+        // Graduations sur le cercle extérieur.
+        for (int a = 0; a < 36; a++)
+        {
+            double ang = a * Math.PI / 18;
+            double r0 = r - (a % 9 == 0 ? 10 : 5);
+            NetRadarCanvas.Children.Add(new System.Windows.Shapes.Line
+            {
+                X1 = cx + r0 * Math.Cos(ang), Y1 = cy + r0 * Math.Sin(ang),
+                X2 = cx + r * Math.Cos(ang), Y2 = cy + r * Math.Sin(ang),
+                Stroke = GB(0x55), StrokeThickness = 1
+            });
+        }
+
+        // Secteur de balayage tournant + ligne de tête lumineuse.
+        var sweep = new System.Windows.Shapes.Path
+        {
+            Fill = new RadialGradientBrush(Color.FromArgb(0x66, green.R, green.G, green.B), Colors.Transparent)
+            { Center = new Point(0.5, 0.5), GradientOrigin = new Point(0.5, 0.5), RadiusX = 0.5, RadiusY = 0.5 },
+            Data = SweepWedge(cx, cy, r),
+            RenderTransformOrigin = new Point(0, 0)
+        };
+        var rot = new RotateTransform(0, cx, cy);
+        sweep.RenderTransform = rot;
+        NetRadarCanvas.Children.Add(sweep);
+
+        var lead = new System.Windows.Shapes.Line
+        {
+            X1 = cx, Y1 = cy, X2 = cx + r, Y2 = cy,
+            Stroke = GB(0xDD), StrokeThickness = 2,
+            Effect = new System.Windows.Media.Effects.DropShadowEffect { Color = green, BlurRadius = 10, ShadowDepth = 0 },
+            RenderTransformOrigin = new Point(0, 0)
+        };
+        var rot2 = new RotateTransform(0, cx, cy);
+        lead.RenderTransform = rot2;
+        NetRadarCanvas.Children.Add(lead);
+
+        var spin = new System.Windows.Media.Animation.DoubleAnimation(0, 360, TimeSpan.FromSeconds(4))
+        { RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever };
+        rot.BeginAnimation(RotateTransform.AngleProperty, spin);
+        rot2.BeginAnimation(RotateTransform.AngleProperty,
+            new System.Windows.Media.Animation.DoubleAnimation(0, 360, TimeSpan.FromSeconds(4))
+            { RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever });
+
+        // Centre (ce PC).
+        var core = new System.Windows.Shapes.Ellipse
+        {
+            Width = 12, Height = 12, Fill = GB(0xFF),
+            Effect = new System.Windows.Media.Effects.DropShadowEffect { Color = green, BlurRadius = 16, ShadowDepth = 0 }
+        };
+        Canvas.SetLeft(core, cx - 6); Canvas.SetTop(core, cy - 6);
+        NetRadarCanvas.Children.Add(core);
+
+        // Blips : un appareil = un point. Vert = sûr ; rouge = nouveau ou à risque.
+        int count = _radar.Count;
+        for (int i = 0; i < count; i++)
+        {
+            var item = _radar[i];
+            bool danger = item.IsNew || (item.Risks?.Count ?? 0) > 0;
+            var col = danger ? red : green;
+
+            // Position déterministe : angle d'après l'IP, distance d'après l'index.
+            int hash = Math.Abs((item.Ip ?? i.ToString()).GetHashCode());
+            double ang = (hash % 360) * Math.PI / 180.0;
+            double dist = r * (0.30 + 0.60 * ((hash / 360 % 100) / 100.0));
+            double bx = cx + dist * Math.Cos(ang), by = cy + dist * Math.Sin(ang);
+
+            double size = danger ? 13 : 10;
+            var blip = new System.Windows.Shapes.Ellipse
+            {
+                Width = size, Height = size, Fill = new SolidColorBrush(col),
+                Effect = new System.Windows.Media.Effects.DropShadowEffect { Color = col, BlurRadius = 14, ShadowDepth = 0 },
+                ToolTip = $"{item.Ip} — {item.TypeLabel}" + (danger ? (item.IsNew ? "  (NOUVEAU)" : "  (À RISQUE)") : "  (sûr)")
+            };
+            Canvas.SetLeft(blip, bx - size / 2); Canvas.SetTop(blip, by - size / 2);
+            // Les appareils à risque clignotent.
+            if (danger)
+                blip.BeginAnimation(OpacityProperty,
+                    new System.Windows.Media.Animation.DoubleAnimation(1, 0.25, TimeSpan.FromSeconds(0.7))
+                    { AutoReverse = true, RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever });
+            NetRadarCanvas.Children.Add(blip);
+        }
+
+        if (NetRadarLegend is not null)
+            NetRadarLegend.Text = count == 0
+                ? "Cliquez « LANCER LE RADAR » pour scanner le réseau"
+                : "🟢 connu / sûr      🔴 nouveau ou à risque";
     }
 
     // ----------------------------------------------- ADN / indice de confiance -
@@ -2797,6 +2937,7 @@ public partial class MainWindow : Window
             }
 
             SaveRadarKnown(devices.Select(d => d.Mac is not ("—" or "") ? d.Mac : d.Ip));
+            DrawNetworkRadar();
 
             RadarStatus.Text = $"{devices.Count} appareil(s) — {newCount} nouveau(x), {riskCount} à risque.";
             Log($"Radar réseau : {devices.Count} appareils, {newCount} nouveaux, {riskCount} à risque.");
