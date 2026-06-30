@@ -78,6 +78,7 @@ public partial class MainWindow : Window
             SoundFx.ReactorStartup();   // démarrage « réacteur » à l'ouverture du dashboard
             IatechShield.Tools.AccessLog.Record("Connexion", "Session Windows", Environment.UserName, "Ouverture d'IATECH-SHIELD PRO");
             StartCardRemovalWatcher();
+            LoadShutdownLock();   // le veto d'arrêt doit être actif dès le démarrage
             _ = InitCloudAsync();
         };
         Closing += (_, _) =>
@@ -273,6 +274,11 @@ public partial class MainWindow : Window
         else if (page == PageIdRegister)
         {
             StartIdRegisterTicker();
+        }
+        else if (page == PageControl)
+        {
+            StopIdRegisterTicker();
+            RefreshShutdownLockUi();
         }
         else
         {
@@ -4523,8 +4529,18 @@ public partial class MainWindow : Window
                 LoadLockConfig();
                 if (LockConfigured)
                 {
-                    Log("Carte d'identité retirée : verrouillage automatique.");
-                    ShowLockScreen();
+                    Log("Carte d'identité retirée : alarme + verrouillage automatique.");
+                    // Alarme sonore continue : ne s'arrête qu'au déverrouillage (code PIN).
+                    SoundFx.StartAlarm();
+                    Notify("⚠️ Carte retirée", "Carte d'identité retirée du lecteur. Entrez le code PIN pour arrêter l'alarme.", "Contrôle");
+                    try
+                    {
+                        ShowLockScreen();   // modal : bloque jusqu'au déverrouillage par code PIN
+                    }
+                    finally
+                    {
+                        SoundFx.StopAlarm();   // déverrouillé (code PIN saisi) : on coupe l'alarme
+                    }
                 }
             }
             else
@@ -4558,7 +4574,11 @@ public partial class MainWindow : Window
                 BuildAccessLog();
         }
         catch { /* en cas d'échec d'affichage, on ne bloque pas l'utilisateur */ }
-        finally { _lockShowing = false; }
+        finally
+        {
+            _lockShowing = false;
+            try { SoundFx.StopAlarm(); } catch { }   // filet de sécurité : jamais d'alarme persistante
+        }
     }
 
     /// <summary>
@@ -5277,6 +5297,208 @@ public partial class MainWindow : Window
         catch { }
     }
 
+    // --- Verrou d'extinction & redémarrage (code PIN) -------------------------
+
+    private bool _shutdownLockEnabled;
+    private string? _shutdownPinHash;
+    private bool _allowShutdownOnce;   // autorise UNE seule fermeture de session (action légitime via l'app)
+    private bool _shutdownLockLoaded;
+
+    /// <summary>Charge l'état du verrou d'extinction depuis le coffre DPAPI.</summary>
+    private void LoadShutdownLock()
+    {
+        if (_shutdownLockLoaded) return;
+        try
+        {
+            var cfg = SecretVault.Load("shutdownlock");
+            _shutdownPinHash = cfg.GetValueOrDefault("pin");
+            _shutdownLockEnabled = cfg.GetValueOrDefault("enabled") == "1" && !string.IsNullOrEmpty(_shutdownPinHash);
+        }
+        catch { }
+        _shutdownLockLoaded = true;
+    }
+
+    /// <summary>Met à jour l'interface (interrupteur + texte d'état) du verrou.</summary>
+    private void RefreshShutdownLockUi()
+    {
+        LoadShutdownLock();
+        if (ShutdownLockSwitch is not null)
+        {
+            ShutdownLockSwitch.Checked -= OnShutdownLockToggled;
+            ShutdownLockSwitch.Unchecked -= OnShutdownLockToggled;
+            ShutdownLockSwitch.IsChecked = _shutdownLockEnabled;
+            ShutdownLockSwitch.Checked += OnShutdownLockToggled;
+            ShutdownLockSwitch.Unchecked += OnShutdownLockToggled;
+        }
+        if (ShutdownLockStatus is not null)
+        {
+            if (string.IsNullOrEmpty(_shutdownPinHash))
+                ShutdownLockStatus.Text = "Aucun code PIN défini — cliquez sur « Définir / changer le code PIN ».";
+            else
+                ShutdownLockStatus.Text = _shutdownLockEnabled
+                    ? "🔒 Verrou ACTIF : arrêt/redémarrage bloqués sans code PIN."
+                    : "🔓 Verrou inactif (code PIN défini).";
+        }
+    }
+
+    /// <summary>Active / désactive le verrou. Toute désactivation exige le code PIN.</summary>
+    private async void OnShutdownLockToggled(object sender, RoutedEventArgs e)
+    {
+        LoadShutdownLock();
+        bool wantOn = ShutdownLockSwitch?.IsChecked == true;
+
+        if (wantOn)
+        {
+            if (string.IsNullOrEmpty(_shutdownPinHash))
+            {
+                // Pas de PIN : on en demande un avant d'armer le verrou.
+                if (!SetShutdownPin()) { RefreshShutdownLockUi(); return; }
+            }
+            _shutdownLockEnabled = true;
+            SaveShutdownLock();
+            await ApplyShutdownHardeningAsync(true);
+            if (ShutdownLockStatus is not null)
+                ShutdownLockStatus.Text = "🔒 Verrou ACTIF : arrêt/redémarrage bloqués sans code PIN.";
+            Log("Verrou d'extinction activé.");
+        }
+        else
+        {
+            // Désactivation : on exige le code PIN.
+            if (!PromptShutdownPin("Désactiver le verrou — entrez le code PIN."))
+            {
+                RefreshShutdownLockUi();   // remet l'interrupteur sur ON
+                return;
+            }
+            _shutdownLockEnabled = false;
+            SaveShutdownLock();
+            await ApplyShutdownHardeningAsync(false);
+            if (ShutdownLockStatus is not null)
+                ShutdownLockStatus.Text = "🔓 Verrou désactivé.";
+            Log("Verrou d'extinction désactivé.");
+        }
+    }
+
+    private void OnSetShutdownPin(object sender, RoutedEventArgs e)
+    {
+        SetShutdownPin();
+        RefreshShutdownLockUi();
+    }
+
+    /// <summary>Définit ou change le code PIN du verrou. Renvoie true si défini.</summary>
+    private bool SetShutdownPin()
+    {
+        // Si un PIN existe déjà, on exige l'ancien avant d'en fixer un nouveau.
+        if (!string.IsNullOrEmpty(_shutdownPinHash) &&
+            !PromptShutdownPin("Code PIN actuel requis pour le changer."))
+            return false;
+
+        var p1 = new PromptWindow("Verrou d'extinction",
+            "Nouveau code PIN (4 chiffres ou plus) :", "Continuer") { Owner = this };
+        if (p1.ShowDialog() != true || p1.Value.Trim().Length < 4)
+        {
+            if (ShutdownLockStatus is not null) ShutdownLockStatus.Text = "Code PIN trop court (4 caractères minimum).";
+            return false;
+        }
+        var p2 = new PromptWindow("Verrou d'extinction",
+            "Confirmez le code PIN :", "Enregistrer") { Owner = this };
+        if (p2.ShowDialog() != true || p2.Value.Trim() != p1.Value.Trim())
+        {
+            if (ShutdownLockStatus is not null) ShutdownLockStatus.Text = "Les codes ne correspondent pas.";
+            return false;
+        }
+        _shutdownPinHash = SecretHash.Hash(p1.Value.Trim());
+        SaveShutdownLock();
+        if (ShutdownLockStatus is not null) ShutdownLockStatus.Text = "✓ Code PIN enregistré.";
+        Log("Code PIN du verrou d'extinction défini.");
+        return true;
+    }
+
+    /// <summary>Demande le code PIN et le vérifie. Renvoie true si correct.</summary>
+    private bool PromptShutdownPin(string message)
+    {
+        LoadShutdownLock();
+        if (string.IsNullOrEmpty(_shutdownPinHash)) return true;   // aucun PIN configuré
+        var prompt = new PromptWindow("Verrou d'extinction", message, "Valider") { Owner = this };
+        if (prompt.ShowDialog() != true) return false;
+        if (!SecretHash.Verify(prompt.Value.Trim(), _shutdownPinHash))
+        {
+            try { SoundFx.Alert(); } catch { }
+            if (ShutdownLockStatus is not null) ShutdownLockStatus.Text = "❌ Code PIN incorrect.";
+            return false;
+        }
+        return true;
+    }
+
+    private void SaveShutdownLock()
+    {
+        try
+        {
+            SecretVault.Save("shutdownlock", new Dictionary<string, string>
+            {
+                ["pin"] = _shutdownPinHash ?? "",
+                ["enabled"] = _shutdownLockEnabled ? "1" : "0",
+            });
+        }
+        catch { }
+    }
+
+    /// <summary>
+    /// Durcissement système : empêche l'arrêt/redémarrage hors de l'application.
+    /// On masque les boutons d'arrêt du menu Démarrer/Ctrl-Alt-Suppr (NoClose) et on
+    /// reconfigure les boutons d'alimentation pour « ne rien faire ».
+    /// </summary>
+    private async Task ApplyShutdownHardeningAsync(bool on)
+    {
+        try
+        {
+            string explorer = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer";
+            string system   = "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System";
+            if (on)
+            {
+                // Retire les commandes d'arrêt de l'interface (Démarrer + écran de verrouillage).
+                await RunHiddenAsync("cmd.exe", $"/c reg add \"{explorer}\" /v NoClose /t REG_DWORD /d 1 /f");
+                await RunHiddenAsync("cmd.exe", $"/c reg add \"{system}\" /v shutdownwithoutlogon /t REG_DWORD /d 0 /f");
+                // Boutons d'alimentation / fermeture du capot : « ne rien faire » (secteur + batterie).
+                await RunHiddenAsync("cmd.exe", "/c powercfg -setacvalueindex SCHEME_CURRENT SUB_BUTTONS PBUTTONACTION 0");
+                await RunHiddenAsync("cmd.exe", "/c powercfg -setdcvalueindex SCHEME_CURRENT SUB_BUTTONS PBUTTONACTION 0");
+                await RunHiddenAsync("cmd.exe", "/c powercfg -setacvalueindex SCHEME_CURRENT SUB_BUTTONS LIDACTION 0");
+                await RunHiddenAsync("cmd.exe", "/c powercfg -setdcvalueindex SCHEME_CURRENT SUB_BUTTONS LIDACTION 0");
+                await RunHiddenAsync("cmd.exe", "/c powercfg -setactive SCHEME_CURRENT");
+            }
+            else
+            {
+                await RunHiddenAsync("cmd.exe", $"/c reg add \"{explorer}\" /v NoClose /t REG_DWORD /d 0 /f");
+                // Boutons d'alimentation : arrêt par défaut (valeur 3 = arrêter).
+                await RunHiddenAsync("cmd.exe", "/c powercfg -setacvalueindex SCHEME_CURRENT SUB_BUTTONS PBUTTONACTION 3");
+                await RunHiddenAsync("cmd.exe", "/c powercfg -setdcvalueindex SCHEME_CURRENT SUB_BUTTONS PBUTTONACTION 3");
+                await RunHiddenAsync("cmd.exe", "/c powercfg -setactive SCHEME_CURRENT");
+            }
+            // Recharge les stratégies Explorer pour application immédiate.
+            await RunHiddenAsync("cmd.exe", "/c taskkill /f /im explorer.exe & start explorer.exe");
+        }
+        catch { /* droits insuffisants : le veto logiciel (WM_QUERYENDSESSION) reste actif */ }
+    }
+
+    /// <summary>Redémarrage autorisé : exige le code PIN puis lève le veto une fois.</summary>
+    private void OnLockedRestart(object sender, RoutedEventArgs e)
+    {
+        if (!PromptShutdownPin("Code PIN requis pour redémarrer.")) return;
+        _allowShutdownOnce = true;
+        if (ShutdownLockStatus is not null) ShutdownLockStatus.Text = "🔁 Redémarrage autorisé dans 3 s…";
+        Log("Redémarrage autorisé par code PIN.");
+        RunHidden("shutdown.exe", "/r /t 3 /c \"IATECH-SHIELD — redémarrage autorisé\"");
+    }
+
+    /// <summary>Arrêt autorisé : exige le code PIN puis lève le veto une fois.</summary>
+    private void OnLockedShutdown(object sender, RoutedEventArgs e)
+    {
+        if (!PromptShutdownPin("Code PIN requis pour éteindre.")) return;
+        _allowShutdownOnce = true;
+        if (ShutdownLockStatus is not null) ShutdownLockStatus.Text = "⏻ Arrêt autorisé dans 3 s…";
+        Log("Arrêt autorisé par code PIN.");
+        RunHidden("shutdown.exe", "/s /t 3 /c \"IATECH-SHIELD — arrêt autorisé\"");
+    }
+
     // --- Contrôle USB ---
 
     private async void OnUsbControl(object sender, RoutedEventArgs e)
@@ -5956,8 +6178,23 @@ public partial class MainWindow : Window
     [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
     private static extern bool AddClipboardFormatListener(IntPtr hwnd);
 
+    private const int WM_QUERYENDSESSION = 0x0011;
+
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
+        // Verrou d'extinction : on oppose un veto à toute tentative d'arrêt/redémarrage
+        // tant que le code PIN n'a pas autorisé l'opération via l'app.
+        if (msg == WM_QUERYENDSESSION && _shutdownLockEnabled && !_allowShutdownOnce)
+        {
+            handled = true;
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                Notify("Arrêt bloqué", "IATECH-SHIELD empêche l'arrêt/redémarrage. Utilisez « Éteindre/Redémarrer (avec code) » dans l'onglet Contrôle.", "Contrôle");
+                try { SoundFx.Alert(); } catch { }
+            }));
+            return IntPtr.Zero;   // FALSE = annule la fermeture de session
+        }
+
         if (msg == WM_DEVICECHANGE && wParam.ToInt32() == DBT_DEVICEARRIVAL)
             foreach (string drive in GetReadyRemovableDrives())
                 if (_knownDrives.Add(drive))
@@ -6828,6 +7065,51 @@ internal static class SoundFx
 
     /// <summary>Réveil après la mise en veille : petit accueil « bienvenue ».</summary>
     public static void Welcome() => Play((640, 110), (810, 110), (1080, 200));
+
+    // --- Alarme continue (carte d'identité retirée) ---------------------------
+    // Sirène montante/descendante qui tourne en boucle jusqu'à StopAlarm().
+    private static System.Threading.CancellationTokenSource? _alarmCts;
+
+    /// <summary>Déclenche une sirène d'alarme en boucle (jusqu'à <see cref="StopAlarm"/>).</summary>
+    public static void StartAlarm()
+    {
+        if (_alarmCts is not null) return;          // déjà en cours
+        var cts = new System.Threading.CancellationTokenSource();
+        _alarmCts = cts;
+        var token = cts.Token;
+        System.Threading.Tasks.Task.Run(() =>
+        {
+            try
+            {
+                while (!token.IsCancellationRequested)
+                {
+                    try
+                    {
+                        for (int f = 700; f <= 1100 && !token.IsCancellationRequested; f += 100)
+                            Console.Beep(f, 110);
+                        for (int f = 1100; f >= 700 && !token.IsCancellationRequested; f -= 100)
+                            Console.Beep(f, 110);
+                    }
+                    catch
+                    {
+                        try { SystemSounds.Hand.Play(); } catch { }
+                        try { System.Threading.Thread.Sleep(400); } catch { }
+                    }
+                }
+            }
+            catch { }
+        });
+    }
+
+    /// <summary>Arrête la sirène d'alarme si elle tourne.</summary>
+    public static void StopAlarm()
+    {
+        try { _alarmCts?.Cancel(); } catch { }
+        _alarmCts = null;
+    }
+
+    /// <summary>Indique si l'alarme est en cours.</summary>
+    public static bool AlarmActive => _alarmCts is not null;
 
     private static void Play(params (int Freq, int Dur)[] notes)
     {

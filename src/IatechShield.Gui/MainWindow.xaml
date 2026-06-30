@@ -1355,6 +1355,30 @@
                                     </StackPanel>
                                 </Border>
 
+                                <!-- ===== Verrou d'extinction / redémarrage ===== -->
+                                <TextBlock Text="🔐 Verrou d'extinction &amp; redémarrage (code PIN)" Foreground="{StaticResource GoldBrush}" FontWeight="SemiBold" FontSize="14" Margin="0,18,0,8"/>
+                                <Border Style="{StaticResource Card}">
+                                    <StackPanel>
+                                        <Grid Margin="0,0,0,8">
+                                            <StackPanel>
+                                                <TextBlock Text="Empêcher l'arrêt et le redémarrage sans code PIN" Foreground="{StaticResource TextPrimaryBrush}" FontSize="13"/>
+                                                <TextBlock Text="Une fois activé, le PC ne peut plus être éteint ni redémarré (menu Démarrer, commande shutdown, bouton d'alimentation…) sans saisir le code PIN défini ici."
+                                                           Foreground="{StaticResource TextMutedBrush}" FontSize="10" TextWrapping="Wrap"/>
+                                            </StackPanel>
+                                            <ToggleButton x:Name="ShutdownLockSwitch" Style="{StaticResource Switch}" HorizontalAlignment="Right" VerticalAlignment="Top"
+                                                          IsChecked="False" Checked="OnShutdownLockToggled" Unchecked="OnShutdownLockToggled"/>
+                                        </Grid>
+                                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                            <Button Content="🔑 Définir / changer le code PIN" Style="{StaticResource GhostButton}" Click="OnSetShutdownPin" Margin="0,0,8,0"/>
+                                            <Button Content="🔁 Redémarrer (avec code)" Style="{StaticResource GhostButton}" Click="OnLockedRestart" Margin="0,0,8,0"/>
+                                            <Button Content="⏻ Éteindre (avec code)" Style="{StaticResource GhostButton}" Click="OnLockedShutdown"/>
+                                        </StackPanel>
+                                        <TextBlock x:Name="ShutdownLockStatus" Text="" Foreground="{StaticResource GoldBrush}" FontSize="11" Margin="0,8,0,0" TextWrapping="Wrap"/>
+                                        <TextBlock Text="ℹ️ Un appui maintenu (5 s) sur le bouton physique coupe l'alimentation au niveau matériel : aucun logiciel au monde ne peut bloquer cela. Toutes les autres méthodes d'arrêt sont verrouillées."
+                                                   Foreground="{StaticResource TextMutedBrush}" FontSize="9" Margin="0,8,0,0" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </Border>
+
                                 <!-- ===== USB ===== -->
                                 <TextBlock Text="🔌 Contrôle USB" Foreground="{StaticResource GoldBrush}" FontWeight="SemiBold" FontSize="14" Margin="0,18,0,8"/>
                                 <Border Style="{StaticResource Card}">
