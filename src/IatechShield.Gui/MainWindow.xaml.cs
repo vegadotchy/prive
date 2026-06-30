@@ -1185,6 +1185,7 @@ public partial class MainWindow : Window
         double w = WorldCanvas.ActualWidth, h = WorldCanvas.ActualHeight;
         WorldCanvas.Children.Clear();
         DrawGraticule(w, h);
+        DrawContinents(w, h);
 
         var accent = Color.FromRgb(0x22, 0xD3, 0xE8);
         var red = Color.FromRgb(0xEF, 0x44, 0x44);
@@ -1229,17 +1230,50 @@ public partial class MainWindow : Window
             WorldCanvas.Children.Add(dot);
         }
 
-        // Nœud local (au-dessus).
+        // Nœud local : « Vous êtes ici » — anneau qui pulse + point + étiquette.
+        var green = Color.FromRgb(0x2B, 0xE0, 0xA6);
+        var ring = new System.Windows.Shapes.Ellipse
+        {
+            Width = 40, Height = 40, Stroke = new SolidColorBrush(green), StrokeThickness = 2,
+            Fill = System.Windows.Media.Brushes.Transparent
+        };
+        Canvas.SetLeft(ring, hx - 20); Canvas.SetTop(ring, hy - 20);
+        WorldCanvas.Children.Add(ring);
+        var grow = new System.Windows.Media.Animation.DoubleAnimation(14, 46, TimeSpan.FromSeconds(1.8))
+        { RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever };
+        var fade = new System.Windows.Media.Animation.DoubleAnimation(0.9, 0, TimeSpan.FromSeconds(1.8))
+        { RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever };
+        ring.BeginAnimation(System.Windows.Shapes.Ellipse.WidthProperty, grow);
+        ring.BeginAnimation(System.Windows.Shapes.Ellipse.HeightProperty,
+            new System.Windows.Media.Animation.DoubleAnimation(14, 46, TimeSpan.FromSeconds(1.8)) { RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever });
+        ring.BeginAnimation(OpacityProperty, fade);
+
         var homeDot = new System.Windows.Shapes.Ellipse
         {
-            Width = 16, Height = 16, Fill = new SolidColorBrush(Color.FromRgb(0x2B, 0xE0, 0xA6)),
+            Width = 16, Height = 16, Fill = new SolidColorBrush(green),
             Effect = new System.Windows.Media.Effects.DropShadowEffect
-            { Color = Color.FromRgb(0x2B, 0xE0, 0xA6), BlurRadius = 20, ShadowDepth = 0, Opacity = 1 },
+            { Color = green, BlurRadius = 20, ShadowDepth = 0, Opacity = 1 },
             ToolTip = data.Home is { } hh ? $"Vous : {hh.City} ({hh.Country})" : "Position locale"
         };
         Canvas.SetLeft(homeDot, hx - 8);
         Canvas.SetTop(homeDot, hy - 8);
         WorldCanvas.Children.Add(homeDot);
+
+        // Étiquette « 📍 Vous êtes ici » + ville/pays + coordonnées.
+        string here = data.Home is { } hm
+            ? $"📍 Vous êtes ici — {hm.City}, {hm.Country}  ({hm.Lat:0.00}, {hm.Lon:0.00})"
+            : "📍 Position locale (géolocalisation indisponible)";
+        var label = new TextBlock
+        {
+            Text = here, Foreground = new SolidColorBrush(green), FontSize = 12, FontWeight = FontWeights.SemiBold,
+            Background = new SolidColorBrush(Color.FromArgb(0xCC, 0x05, 0x0B, 0x14)), Padding = new Thickness(6, 2, 6, 2),
+            Effect = new System.Windows.Media.Effects.DropShadowEffect { Color = green, BlurRadius = 8, ShadowDepth = 0, Opacity = 0.6 }
+        };
+        label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        double lx = Math.Clamp(hx + 14, 4, w - label.DesiredSize.Width - 4);
+        double ly = Math.Clamp(hy - 28, 4, h - 24);
+        Canvas.SetLeft(label, lx); Canvas.SetTop(label, ly);
+        WorldCanvas.Children.Add(label);
 
         int risky = data.Connections.Count(c => c.Count >= 4);
         WorldStatus.Text = data.Connections.Count == 0
@@ -1261,6 +1295,40 @@ public partial class MainWindow : Window
             double y = (90.0 - lat) / 180.0 * h;
             WorldCanvas.Children.Add(new System.Windows.Shapes.Line
             { X1 = 0, Y1 = y, X2 = w, Y2 = y, Stroke = grid, StrokeThickness = 0.5 });
+        }
+    }
+
+    // Contours simplifiés des continents (paires lon,lat), projection équirectangulaire.
+    private static readonly double[][] Continents =
+    {
+        // Amérique du Nord
+        new double[] { -168,65, -160,71, -130,70, -95,70, -82,73, -60,60, -55,52, -65,45, -70,42, -75,35, -81,25, -97,26, -105,22, -110,30, -117,33, -124,40, -125,48, -135,58, -150,60, -168,65 },
+        // Amérique du Sud
+        new double[] { -80,8, -70,11, -60,5, -50,0, -35,-5, -35,-23, -48,-25, -58,-35, -65,-42, -70,-50, -75,-52, -73,-45, -70,-35, -71,-20, -78,-10, -81,-5, -80,8 },
+        // Afrique
+        new double[] { -17,21, -10,27, 0,32, 10,34, 20,32, 32,31, 43,12, 51,12, 42,-2, 40,-15, 35,-22, 20,-35, 18,-30, 12,-17, 8,4, -8,5, -17,14, -17,21 },
+        // Europe
+        new double[] { -10,37, -9,44, -2,49, 2,51, 0,58, 10,58, 13,55, 20,55, 28,60, 30,52, 28,45, 20,42, 15,40, 8,44, 3,43, -2,37, -10,37 },
+        // Asie
+        new double[] { 28,60, 40,68, 60,70, 75,73, 100,78, 140,73, 160,69, 170,66, 178,62, 160,55, 140,52, 135,45, 130,35, 122,30, 120,22, 108,18, 100,8, 95,15, 88,22, 80,8, 77,8, 72,20, 60,25, 48,28, 43,40, 35,45, 28,45, 28,60 },
+        // Océanie / Australie
+        new double[] { 113,-22, 122,-18, 130,-12, 137,-12, 142,-11, 146,-18, 150,-25, 153,-28, 150,-37, 143,-39, 135,-35, 129,-32, 120,-34, 115,-30, 113,-22 },
+    };
+
+    /// <summary>Dessine les contours des continents (carte du monde) sur le canvas.</summary>
+    private void DrawContinents(double w, double h)
+    {
+        var stroke = new SolidColorBrush(Color.FromArgb(0xAA, 0x3D, 0x9A, 0xC0));
+        var fill = new SolidColorBrush(Color.FromArgb(0x1E, 0x22, 0xD3, 0xE8));
+        foreach (var land in Continents)
+        {
+            var poly = new System.Windows.Shapes.Polygon { Stroke = stroke, StrokeThickness = 1, Fill = fill };
+            for (int i = 0; i + 1 < land.Length; i += 2)
+            {
+                double lon = land[i], lat = land[i + 1];
+                poly.Points.Add(new Point((lon + 180.0) / 360.0 * w, (90.0 - lat) / 180.0 * h));
+            }
+            WorldCanvas.Children.Add(poly);
         }
     }
 
