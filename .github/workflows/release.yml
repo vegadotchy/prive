@@ -68,12 +68,55 @@ jobs:
           -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
           -o keygen
 
+      - name: Signer les exécutables de l'application (si certificat configuré)
+        shell: pwsh
+        env:
+          PFX_B64: ${{ secrets.CODE_SIGN_PFX_BASE64 }}
+          PFX_PWD: ${{ secrets.CODE_SIGN_PASSWORD }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:PFX_B64)) {
+            Write-Host "Aucun certificat (secret CODE_SIGN_PFX_BASE64 absent) — exécutables NON signés."
+            exit 0
+          }
+          $pfx = Join-Path $env:RUNNER_TEMP "iatech-codesign.pfx"
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:PFX_B64))
+          $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" |
+                      Sort-Object FullName | Select-Object -Last 1
+          $files = Get-ChildItem -Path dist,keygen -Filter *.exe -Recurse | ForEach-Object { $_.FullName }
+          foreach ($f in $files) {
+            & $signtool.FullName sign /f $pfx /p $env:PFX_PWD /fd SHA256 `
+              /tr http://timestamp.digicert.com /td SHA256 /d "IATECH-SHIELD PRO" $f
+          }
+          Remove-Item $pfx -Force
+          Write-Host "Exécutables signés."
+
       - name: Installer Inno Setup
         run: choco install innosetup --no-progress -y
 
       - name: Construire l'installateur .exe
         run: >
           & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" installer\iatech-shield.iss
+
+      - name: Signer l'installateur (si certificat configuré)
+        shell: pwsh
+        env:
+          PFX_B64: ${{ secrets.CODE_SIGN_PFX_BASE64 }}
+          PFX_PWD: ${{ secrets.CODE_SIGN_PASSWORD }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:PFX_B64)) {
+            Write-Host "Aucun certificat — installateur NON signé (Windows affichera « éditeur inconnu »)."
+            exit 0
+          }
+          $pfx = Join-Path $env:RUNNER_TEMP "iatech-codesign.pfx"
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:PFX_B64))
+          $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" |
+                      Sort-Object FullName | Select-Object -Last 1
+          foreach ($f in (Get-ChildItem installer\Output\*.exe | ForEach-Object { $_.FullName })) {
+            & $signtool.FullName sign /f $pfx /p $env:PFX_PWD /fd SHA256 `
+              /tr http://timestamp.digicert.com /td SHA256 /d "IATECH-SHIELD PRO" $f
+          }
+          Remove-Item $pfx -Force
+          Write-Host "Installateur signé."
 
       - name: Compresser l'application autonome
         run: Compress-Archive -Path dist\* -DestinationPath IatechShield-App-win-x64.zip -Force
