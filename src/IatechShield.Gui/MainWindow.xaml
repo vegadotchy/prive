@@ -122,6 +122,8 @@
                                      Tag="&#xE703;" Content="Accès distant" Checked="OnNav"/>
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE77B;" Content="Registre ID" Checked="OnNav"/>
+                        <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
+                                     Tag="&#xE9F5;" Content="Contrôle" Checked="OnNav"/>
                     </StackPanel>
                     </ScrollViewer>
                 </DockPanel>
@@ -1314,6 +1316,137 @@
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
+                        </ScrollViewer>
+                    </Grid>
+
+                    <!-- ==================== PAGE : CONTRÔLE (USB / Services / Réseau) ==================== -->
+                    <Grid x:Name="PageControl" Visibility="Collapsed">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel>
+                                <TextBlock Text="Contrôle système" Style="{StaticResource PageTitle}"/>
+                                <TextBlock Text="Contrôle avancé : périphériques USB, services Windows et réseau."
+                                           Foreground="{StaticResource TextMutedBrush}" FontSize="12" Margin="0,0,0,14" TextWrapping="Wrap"/>
+
+                                <!-- ===== Contrôle Windows (alimentation, réparation, scripts) ===== -->
+                                <TextBlock Text="🖥️ Contrôle de Windows" Foreground="{StaticResource GoldBrush}" FontWeight="SemiBold" FontSize="14" Margin="0,0,0,8"/>
+                                <Border Style="{StaticResource Card}">
+                                    <StackPanel>
+                                        <WrapPanel>
+                                            <Button Content="🔒 Verrouiller" Style="{StaticResource GhostButton}" Tag="lock" Click="OnWinControl" Margin="0,0,8,8"/>
+                                            <Button Content="🔁 Redémarrer" Style="{StaticResource GhostButton}" Tag="restart" Click="OnWinControl" Margin="0,0,8,8"/>
+                                            <Button Content="⏻ Arrêter" Style="{StaticResource GhostButton}" Tag="shutdown" Click="OnWinControl" Margin="0,0,8,8"/>
+                                            <Button Content="🌙 Mettre en veille" Style="{StaticResource GhostButton}" Tag="sleep" Click="OnWinControl" Margin="0,0,8,8"/>
+                                            <Button Content="💾 Point de restauration" Style="{StaticResource GhostButton}" Tag="restorepoint" Click="OnWinControl" Margin="0,0,8,8"/>
+                                            <Button Content="↩️ Restauration système" Style="{StaticResource GhostButton}" Tag="restore" Click="OnWinControl" Margin="0,0,8,8"/>
+                                            <Button Content="🩹 Réparer Windows (SFC)" Style="{StaticResource GhostButton}" Tag="sfc" Click="OnWinControl" Margin="0,0,8,8"/>
+                                            <Button Content="🛠️ Réparer l'image (DISM)" Style="{StaticResource GhostButton}" Tag="dism" Click="OnWinControl" Margin="0,0,8,8"/>
+                                            <Button Content="🗑️ Vider fichiers temporaires" Style="{StaticResource GhostButton}" Tag="temp" Click="OnWinControl" Margin="0,0,8,8"/>
+                                            <Button Content="🧹 Nettoyer les journaux" Style="{StaticResource GhostButton}" Tag="clearlogs" Click="OnWinControl" Margin="0,0,8,8"/>
+                                            <Button Content="▶️ Optimiser le démarrage" Style="{StaticResource GhostButton}" Tag="startup" Click="OnWinControl" Margin="0,0,8,8"/>
+                                            <Button Content="⬛ Invite de commandes (CMD)" Style="{StaticResource GhostButton}" Tag="cmd" Click="OnWinControl" Margin="0,0,8,8"/>
+                                            <Button Content="🔷 PowerShell" Style="{StaticResource GhostButton}" Tag="powershell" Click="OnWinControl" Margin="0,0,8,8"/>
+                                            <Button Content="📜 Lancer un script…" Style="{StaticResource GhostButton}" Tag="script" Click="OnWinControl" Margin="0,0,8,8"/>
+                                        </WrapPanel>
+                                        <TextBlock x:Name="WinControlStatus" Text="" Foreground="{StaticResource GoldBrush}" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- ===== USB ===== -->
+                                <TextBlock Text="🔌 Contrôle USB" Foreground="{StaticResource GoldBrush}" FontWeight="SemiBold" FontSize="14" Margin="0,18,0,8"/>
+                                <Border Style="{StaticResource Card}">
+                                    <StackPanel>
+                                        <TextBlock Text="Bloquer le stockage USB, imposer la lecture seule (anti-copie), bloquer les téléphones/appareils. (Droits administrateur requis.)"
+                                                   Foreground="{StaticResource TextMutedBrush}" FontSize="11" Margin="0,0,0,8" TextWrapping="Wrap"/>
+                                        <WrapPanel>
+                                            <Button Content="🚫 Bloquer les clés/disques USB" Style="{StaticResource GhostButton}" Tag="usb-block" Click="OnUsbControl" Margin="0,0,8,8"/>
+                                            <Button Content="✅ Autoriser les clés USB" Style="{StaticResource GhostButton}" Tag="usb-allow" Click="OnUsbControl" Margin="0,0,8,8"/>
+                                            <Button Content="🔒 Lecture seule (anti-copie)" Style="{StaticResource GhostButton}" Tag="usb-ro" Click="OnUsbControl" Margin="0,0,8,8"/>
+                                            <Button Content="🔓 Désactiver lecture seule" Style="{StaticResource GhostButton}" Tag="usb-rw" Click="OnUsbControl" Margin="0,0,8,8"/>
+                                            <Button Content="📵 Bloquer téléphones/appareils (WPD)" Style="{StaticResource GhostButton}" Tag="wpd-block" Click="OnUsbControl" Margin="0,0,8,8"/>
+                                            <Button Content="📱 Autoriser téléphones" Style="{StaticResource GhostButton}" Tag="wpd-allow" Click="OnUsbControl" Margin="0,0,8,8"/>
+                                            <Button Content="⏏️ Désactiver l'exécution auto" Style="{StaticResource GhostButton}" Tag="autorun-off" Click="OnUsbControl" Margin="0,0,8,8"/>
+                                        </WrapPanel>
+                                        <TextBlock x:Name="UsbControlStatus" Text="" Foreground="{StaticResource GoldBrush}" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- ===== Services ===== -->
+                                <TextBlock Text="⚙️ Services Windows" Foreground="{StaticResource GoldBrush}" FontWeight="SemiBold" FontSize="14" Margin="0,18,0,8"/>
+                                <Border Style="{StaticResource Card}">
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                            <TextBox x:Name="ServiceSearch" Width="240" Background="#0E2233" Foreground="{StaticResource TextPrimaryBrush}"
+                                                     BorderBrush="{StaticResource PanelStrokeBrush}" BorderThickness="1" Padding="7" FontSize="12"/>
+                                            <Button Content="🔍 Rechercher" Style="{StaticResource GhostButton}" Click="OnSearchServices" Margin="8,0,0,0"/>
+                                            <Button Content="Services en cours" Style="{StaticResource GhostButton}" Click="OnRunningServices" Margin="8,0,0,0"/>
+                                            <Button Content="🛡️ Surveiller nouveaux services" Style="{StaticResource GhostButton}" Click="OnSnapshotServices" Margin="8,0,0,0"/>
+                                        </StackPanel>
+                                        <TextBlock Text="Tapez un nom de service puis « Rechercher » (ex : spooler, telnet, defender)."
+                                                   Foreground="{StaticResource TextMutedBrush}" FontSize="10" Margin="0,0,0,8" TextWrapping="Wrap"/>
+                                        <ItemsControl x:Name="ServicesList">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Background="#0E2233" CornerRadius="8" Padding="12" Margin="0,0,0,6"
+                                                            BorderBrush="{Binding StateColor}" BorderThickness="1">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                                <TextBlock Text="{Binding Display}" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                                                                <TextBlock Text="{Binding Sub}" Foreground="{StaticResource TextMutedBrush}" FontSize="10" Margin="0,2,0,0"/>
+                                                            </StackPanel>
+                                                            <WrapPanel Grid.Column="1" VerticalAlignment="Center">
+                                                                <Button Content="▶ Démarrer" Style="{StaticResource GhostButton}" Height="28" Click="OnStartService" Tag="{Binding Name}" Margin="0,0,6,0"/>
+                                                                <Button Content="⏹ Arrêter" Style="{StaticResource GhostButton}" Height="28" Click="OnStopService" Tag="{Binding Name}" Margin="0,0,6,0"/>
+                                                                <Button Content="🚫 Désactiver" Style="{StaticResource GhostButton}" Height="28" Click="OnDisableService" Tag="{Binding Name}"/>
+                                                            </WrapPanel>
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <TextBlock x:Name="ServicesStatus" Text="" Foreground="{StaticResource GoldBrush}" FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- ===== Réseau ===== -->
+                                <TextBlock Text="🌐 Contrôle réseau" Foreground="{StaticResource GoldBrush}" FontWeight="SemiBold" FontSize="14" Margin="0,18,0,8"/>
+                                <Border Style="{StaticResource Card}" Margin="0,0,0,20">
+                                    <StackPanel>
+                                        <WrapPanel Margin="0,0,0,8">
+                                            <Button Content="📡 Connexions TCP" Style="{StaticResource GhostButton}" Tag="tcp" Click="OnShowConnections" Margin="0,0,8,8"/>
+                                            <Button Content="📨 Connexions UDP" Style="{StaticResource GhostButton}" Tag="udp" Click="OnShowConnections" Margin="0,0,8,8"/>
+                                            <Button Content="🚫 Bloquer une IP" Style="{StaticResource GhostButton}" Click="OnBlockIpManual" Margin="0,0,8,8"/>
+                                            <Button Content="🌍 Bloquer un domaine" Style="{StaticResource GhostButton}" Click="OnBlockDomain" Margin="0,0,8,8"/>
+                                            <Button Content="🏴 Bloquer un pays" Style="{StaticResource GhostButton}" Click="OnBlockCountry" Margin="0,0,8,8"/>
+                                            <Button Content="📊 Bande passante" Style="{StaticResource GhostButton}" Click="OnBandwidth" Margin="0,0,8,8"/>
+                                            <Button Content="🛰️ Détecter un scan" Style="{StaticResource GhostButton}" Click="OnDetectScan" Margin="0,0,8,8"/>
+                                        </WrapPanel>
+                                        <TextBlock x:Name="NetControlStatus" Text="" Foreground="{StaticResource GoldBrush}" FontSize="11" Margin="0,0,0,8" TextWrapping="Wrap"/>
+                                        <ItemsControl x:Name="ConnectionsList">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Background="#0E2233" CornerRadius="6" Padding="9" Margin="0,0,0,4">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <StackPanel Grid.Column="0">
+                                                                <TextBlock Text="{Binding Line}" Foreground="{StaticResource TextPrimaryBrush}" FontFamily="Consolas" FontSize="11"/>
+                                                                <TextBlock Text="{Binding Sub}" Foreground="{StaticResource TextMutedBrush}" FontSize="10"/>
+                                                            </StackPanel>
+                                                            <Button Grid.Column="1" Content="Bloquer" Style="{StaticResource GhostButton}" Height="26" Click="OnBlockConnIp" Tag="{Binding RemoteIp}" VerticalAlignment="Center"/>
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
                         </ScrollViewer>
                     </Grid>
 

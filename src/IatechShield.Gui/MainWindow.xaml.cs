@@ -141,6 +141,7 @@ public partial class MainWindow : Window
         PageAccess.Visibility = Visibility.Collapsed;
         PageRemote.Visibility = Visibility.Collapsed;
         PageIdRegister.Visibility = Visibility.Collapsed;
+        PageControl.Visibility = Visibility.Collapsed;
 
         Grid page = name switch
         {
@@ -171,6 +172,7 @@ public partial class MainWindow : Window
             "Accès" => PageAccess,
             "Accès distant" => PageRemote,
             "Registre ID" => PageIdRegister,
+            "Contrôle" => PageControl,
             _ => PageDashboard
         };
         page.Visibility = Visibility.Visible;
@@ -5115,6 +5117,338 @@ public partial class MainWindow : Window
                 ? (n == 0 ? "✓ Verrouillage après erreurs désactivé." : $"✓ Comptes verrouillés après {n} tentatives erronées (30 min).")
                 : $"Échec : {res}";
         if (res.Contains("OK")) Log($"Politique de verrouillage : seuil {n}.");
+    }
+
+    // =========================================================================
+    //  PAGE CONTRÔLE : Windows · USB · Services · Réseau
+    // =========================================================================
+
+    // --- Contrôle de Windows (alimentation, réparation, scripts) ---
+
+    private async void OnWinControl(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: string key }) return;
+        void St(string s) { if (WinControlStatus is not null) WinControlStatus.Text = s; }
+        try
+        {
+            switch (key)
+            {
+                case "lock":       RunHidden("rundll32.exe", "user32.dll,LockWorkStation"); St("✓ Poste verrouillé."); break;
+                case "restart":    if (Confirm("Redémarrer le PC maintenant ?")) RunHidden("shutdown.exe", "/r /t 5 /c \"IATECH-SHIELD\""); St("Redémarrage dans 5 s… (annuler : shutdown /a)"); break;
+                case "shutdown":   if (Confirm("Arrêter le PC maintenant ?")) RunHidden("shutdown.exe", "/s /t 5 /c \"IATECH-SHIELD\""); St("Arrêt dans 5 s… (annuler : shutdown /a)"); break;
+                case "sleep":      RunHidden("rundll32.exe", "powrprof.dll,SetSuspendState 0,1,0"); St("Mise en veille…"); break;
+                case "restorepoint":
+                    St("Création d'un point de restauration…");
+                    await RunHiddenAsync("powershell.exe", "-NoProfile -Command \"Enable-ComputerRestore -Drive 'C:\\'; Checkpoint-Computer -Description 'IATECH-SHIELD' -RestorePointType MODIFY_SETTINGS\"");
+                    St("✓ Point de restauration créé (IATECH-SHIELD).");
+                    break;
+                case "restore":    LaunchTool("rstrui.exe"); St("Restauration système ouverte."); break;
+                case "sfc":        LaunchAdmin("cmd.exe", "/k sfc /scannow"); St("🩹 SFC lancé dans une fenêtre admin."); break;
+                case "dism":       LaunchAdmin("cmd.exe", "/k DISM /Online /Cleanup-Image /RestoreHealth"); St("🛠️ DISM lancé dans une fenêtre admin."); break;
+                case "temp":       int d = CleanTempFiles() + CleanPrefetch(); St($"✓ {d} élément(s) temporaire(s) supprimé(s)."); break;
+                case "clearlogs":  LaunchAdmin("cmd.exe", "/k for /f \"tokens=*\" %G in ('wevtutil el') do wevtutil cl \"%G\""); St("🧹 Nettoyage des journaux d'événements lancé."); break;
+                case "startup":    LaunchTool("ms-settings:startupapps"); St("Gestion des programmes de démarrage ouverte."); break;
+                case "cmd":        LaunchAdmin("cmd.exe", ""); St("Invite de commandes (admin) ouverte."); break;
+                case "powershell": LaunchAdmin("powershell.exe", "-NoExit"); St("PowerShell (admin) ouvert."); break;
+                case "script":
+                    var dlg = new Microsoft.Win32.OpenFileDialog { Title = "Script à exécuter", Filter = "Scripts (*.ps1;*.bat;*.cmd)|*.ps1;*.bat;*.cmd|Tous (*.*)|*.*" };
+                    if (dlg.ShowDialog(this) == true)
+                    {
+                        if (dlg.FileName.EndsWith(".ps1", StringComparison.OrdinalIgnoreCase))
+                            LaunchAdmin("powershell.exe", $"-NoProfile -ExecutionPolicy Bypass -File \"{dlg.FileName}\"");
+                        else LaunchAdmin("cmd.exe", $"/c \"{dlg.FileName}\"");
+                        St($"Script lancé : {System.IO.Path.GetFileName(dlg.FileName)}");
+                    }
+                    break;
+            }
+            Log($"Contrôle Windows : {key}.");
+        }
+        catch (Exception ex) { St($"Échec : {ex.Message}"); }
+    }
+
+    private bool Confirm(string question)
+    {
+        var c = new PromptWindow("Confirmation", question + " Tapez OUI.", "Confirmer") { Owner = this };
+        return c.ShowDialog() == true && string.Equals(c.Value.Trim(), "OUI", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static void RunHidden(string file, string args)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo(file, args)
+            { CreateNoWindow = true, UseShellExecute = false, WindowStyle = ProcessWindowStyle.Hidden });
+        }
+        catch { }
+    }
+
+    // --- Contrôle USB ---
+
+    private async void OnUsbControl(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: string key }) return;
+        void St(string s) { if (UsbControlStatus is not null) UsbControlStatus.Text = s; }
+        try
+        {
+            switch (key)
+            {
+                case "usb-block":
+                    await RunHiddenAsync("cmd.exe", "/c reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Services\\USBSTOR\" /v Start /t REG_DWORD /d 4 /f");
+                    St("🚫 Stockage USB bloqué (clés et disques USB refusés)."); break;
+                case "usb-allow":
+                    await RunHiddenAsync("cmd.exe", "/c reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Services\\USBSTOR\" /v Start /t REG_DWORD /d 3 /f");
+                    St("✅ Stockage USB autorisé."); break;
+                case "usb-ro":
+                    await RunHiddenAsync("cmd.exe", "/c reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\StorageDevicePolicies\" /v WriteProtect /t REG_DWORD /d 1 /f");
+                    St("🔒 USB en lecture seule : impossible d'y copier des fichiers (anti-exfiltration)."); break;
+                case "usb-rw":
+                    await RunHiddenAsync("cmd.exe", "/c reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\StorageDevicePolicies\" /v WriteProtect /t REG_DWORD /d 0 /f");
+                    St("🔓 Écriture USB réautorisée."); break;
+                case "wpd-block":
+                    await RunHiddenAsync("cmd.exe", "/c reg add \"HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\RemovableStorageDevices\\{6AC27878-A6FA-4155-BA85-F98F491D4F33}\" /v Deny_All /t REG_DWORD /d 1 /f");
+                    St("📵 Téléphones / appareils WPD bloqués."); break;
+                case "wpd-allow":
+                    await RunHiddenAsync("cmd.exe", "/c reg add \"HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\RemovableStorageDevices\\{6AC27878-A6FA-4155-BA85-F98F491D4F33}\" /v Deny_All /t REG_DWORD /d 0 /f");
+                    St("📱 Téléphones / appareils WPD autorisés."); break;
+                case "autorun-off":
+                    await RunHiddenAsync("cmd.exe", "/c reg add \"HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer\" /v NoDriveTypeAutoRun /t REG_DWORD /d 255 /f");
+                    St("⏏️ Exécution automatique désactivée (anti-ver USB)."); break;
+            }
+            Log($"Contrôle USB : {key}.");
+        }
+        catch (Exception ex) { St($"Échec : {ex.Message} (droits administrateur requis)."); }
+    }
+
+    // --- Contrôle des services Windows ---
+
+    public sealed class ServiceItem
+    {
+        public string Name { get; set; } = "";
+        public string Display { get; set; } = "";
+        public string Sub { get; set; } = "";
+        public System.Windows.Media.Brush StateColor { get; set; } = System.Windows.Media.Brushes.Cyan;
+    }
+
+    private HashSet<string>? _serviceSnapshot;
+
+    private async void OnSearchServices(object sender, RoutedEventArgs e)
+    {
+        string q = (ServiceSearch?.Text ?? "").Trim().Replace("'", "''");
+        if (q.Length == 0) { if (ServicesStatus is not null) ServicesStatus.Text = "Tapez un nom de service."; return; }
+        await LoadServices($"Get-Service -Name '*{q}*' -ErrorAction SilentlyContinue");
+    }
+
+    private async void OnRunningServices(object sender, RoutedEventArgs e)
+        => await LoadServices("Get-Service | Where-Object { $_.Status -eq 'Running' }");
+
+    private async Task LoadServices(string baseCmd)
+    {
+        if (ServicesList is null) return;
+        if (ServicesStatus is not null) ServicesStatus.Text = "Lecture des services…";
+        try
+        {
+            string raw = await RunPs($"({baseCmd} | Select-Object -First 60 | ForEach-Object {{ $_.Name + '|' + $_.DisplayName + '|' + $_.Status }}) -join ';;'");
+            var items = new List<ServiceItem>();
+            foreach (var row in raw.Split(new[] { ";;" }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                var p = row.Split('|');
+                if (p.Length < 3) continue;
+                bool running = p[2].Trim().Equals("Running", StringComparison.OrdinalIgnoreCase);
+                items.Add(new ServiceItem
+                {
+                    Name = p[0].Trim(),
+                    Display = p[1].Trim(),
+                    Sub = $"{p[0].Trim()} · {(running ? "▶ en cours" : "⏹ arrêté")}",
+                    StateColor = new SolidColorBrush(running ? Color.FromRgb(0x2B, 0xE0, 0xA6) : Color.FromRgb(0x6E, 0x8B, 0xA0))
+                });
+            }
+            ServicesList.ItemsSource = items;
+            if (ServicesStatus is not null)
+                ServicesStatus.Text = items.Count == 0 ? "Aucun service trouvé." : $"{items.Count} service(s).";
+        }
+        catch (Exception ex) { if (ServicesStatus is not null) ServicesStatus.Text = $"Échec : {ex.Message}"; }
+    }
+
+    private async void OnSnapshotServices(object sender, RoutedEventArgs e)
+    {
+        string raw = await RunPs("(Get-Service | ForEach-Object { $_.Name }) -join ','");
+        var current = raw.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (_serviceSnapshot is null)
+        {
+            _serviceSnapshot = current;
+            if (ServicesStatus is not null) ServicesStatus.Text = $"🛡️ Référence enregistrée ({current.Count} services). Recliquez plus tard pour détecter les nouveaux.";
+        }
+        else
+        {
+            var added = current.Except(_serviceSnapshot).ToList();
+            _serviceSnapshot = current;
+            if (ServicesStatus is not null)
+                ServicesStatus.Text = added.Count == 0 ? "✓ Aucun nouveau service depuis la référence." : $"⚠ Nouveau(x) service(s) : {string.Join(", ", added)}";
+            if (added.Count > 0) Notify("Nouveau service détecté", string.Join(", ", added), "Contrôle");
+        }
+    }
+
+    private async void OnStartService(object sender, RoutedEventArgs e) => await ServiceAction(sender, "start");
+    private async void OnStopService(object sender, RoutedEventArgs e) => await ServiceAction(sender, "stop");
+    private async void OnDisableService(object sender, RoutedEventArgs e) => await ServiceAction(sender, "disable");
+
+    private async Task ServiceAction(object sender, string action)
+    {
+        if (sender is not FrameworkElement { Tag: string name }) return;
+        string n = name.Replace("'", "''");
+        string cmd = action switch
+        {
+            "start" => $"Start-Service -Name '{n}' -ErrorAction Stop",
+            "stop" => $"Stop-Service -Name '{n}' -Force -ErrorAction Stop",
+            "disable" => $"Stop-Service -Name '{n}' -Force -ErrorAction SilentlyContinue; Set-Service -Name '{n}' -StartupType Disabled -ErrorAction Stop",
+            _ => ""
+        };
+        string res = await RunPs(cmd + "; if($?){'OK'}");
+        if (ServicesStatus is not null)
+            ServicesStatus.Text = res.Contains("OK")
+                ? $"✓ Service {name} : {action} effectué."
+                : $"Échec ({name}) : droits administrateur requis ou service protégé.";
+        if (res.Contains("OK")) Log($"Service {name} : {action}.");
+    }
+
+    // --- Contrôle réseau (connexions, blocage) ---
+
+    public sealed class ConnItem
+    {
+        public string Line { get; set; } = "";
+        public string Sub { get; set; } = "";
+        public string RemoteIp { get; set; } = "";
+    }
+
+    private async void OnShowConnections(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: string proto } || ConnectionsList is null) return;
+        if (NetControlStatus is not null) NetControlStatus.Text = "Lecture des connexions…";
+        try
+        {
+            string cmd = proto == "udp"
+                ? "(Get-NetUDPEndpoint | Select-Object -First 80 | ForEach-Object { $_.LocalAddress + ':' + $_.LocalPort + '|' + $_.OwningProcess }) -join ';;'"
+                : "(Get-NetTCPConnection | Where-Object { $_.RemoteAddress -ne '0.0.0.0' -and $_.RemoteAddress -ne '::' } | Select-Object -First 80 | ForEach-Object { $_.LocalAddress + ':' + $_.LocalPort + '>' + $_.RemoteAddress + ':' + $_.RemotePort + '|' + $_.State + '|' + $_.OwningProcess }) -join ';;'";
+            string raw = await RunPs(cmd);
+            var items = new List<ConnItem>();
+            foreach (var row in raw.Split(new[] { ";;" }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                var p = row.Split('|');
+                string remoteIp = "";
+                if (proto == "tcp" && p[0].Contains('>'))
+                {
+                    string remote = p[0].Split('>')[1];
+                    remoteIp = remote.Contains(':') ? remote[..remote.LastIndexOf(':')] : remote;
+                }
+                items.Add(new ConnItem
+                {
+                    Line = p[0],
+                    Sub = proto == "udp" ? $"UDP · PID {(p.Length > 1 ? p[1] : "?")}" : $"TCP · {(p.Length > 1 ? p[1] : "")} · PID {(p.Length > 2 ? p[2] : "?")}",
+                    RemoteIp = remoteIp
+                });
+            }
+            ConnectionsList.ItemsSource = items;
+            if (NetControlStatus is not null) NetControlStatus.Text = $"{items.Count} connexion(s) {proto.ToUpper()}.";
+        }
+        catch (Exception ex) { if (NetControlStatus is not null) NetControlStatus.Text = $"Échec : {ex.Message}"; }
+    }
+
+    private async void OnBlockConnIp(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: string ip } || string.IsNullOrWhiteSpace(ip)) return;
+        await BlockIp(ip);
+    }
+
+    private async void OnBlockIpManual(object sender, RoutedEventArgs e)
+    {
+        var dlg = new PromptWindow("Bloquer une IP", "Adresse IP à bloquer (entrant + sortant) :", "Bloquer") { Owner = this };
+        if (dlg.ShowDialog() == true && !string.IsNullOrWhiteSpace(dlg.Value)) await BlockIp(dlg.Value.Trim());
+    }
+
+    private async Task BlockIp(string ip)
+    {
+        string safe = ip.Replace("\"", "");
+        await RunHiddenAsync("cmd.exe", $"/c netsh advfirewall firewall add rule name=\"IATECH-Block {safe}\" dir=out action=block remoteip={safe} & " +
+                                        $"netsh advfirewall firewall add rule name=\"IATECH-Block {safe}\" dir=in action=block remoteip={safe}");
+        if (NetControlStatus is not null) NetControlStatus.Text = $"🚫 IP {ip} bloquée (pare-feu).";
+        IatechShield.Tools.AccessLog.Record("Blocage réseau", "IP", ip, "Bloquée au pare-feu");
+        Log($"IP bloquée : {ip}.");
+    }
+
+    private async void OnBlockDomain(object sender, RoutedEventArgs e)
+    {
+        var dlg = new PromptWindow("Bloquer un domaine", "Nom de domaine à bloquer (ex : exemple.com) :", "Bloquer") { Owner = this };
+        if (dlg.ShowDialog() != true || string.IsNullOrWhiteSpace(dlg.Value)) return;
+        string domain = dlg.Value.Trim().Replace("\"", "").Replace("'", "").Replace(" ", "");
+        // Ajout au fichier hosts : redirige le domaine vers 0.0.0.0 (inaccessible).
+        // Guillemets simples PowerShell → pas d'échappement fragile.
+        string ps = $"$h='C:\\Windows\\System32\\drivers\\etc\\hosts'; " +
+                    $"Add-Content -Path $h -Value '0.0.0.0 {domain}'; " +
+                    $"Add-Content -Path $h -Value '0.0.0.0 www.{domain}'; if($?){{'OK'}}";
+        string res = await RunPs(ps);
+        if (NetControlStatus is not null)
+            NetControlStatus.Text = res.Contains("OK") ? $"🌍 Domaine {domain} bloqué (fichier hosts)." : $"Échec : droits administrateur requis.";
+        if (res.Contains("OK")) { IatechShield.Tools.AccessLog.Record("Blocage réseau", "Domaine", domain, "Bloqué (hosts)"); Log($"Domaine bloqué : {domain}."); }
+    }
+
+    private async void OnBlockCountry(object sender, RoutedEventArgs e)
+    {
+        var dlg = new PromptWindow("Bloquer un pays",
+            "Code pays ISO à 2 lettres (ex : RU, CN, KP). Les plages d'IP du pays seront bloquées au pare-feu.", "Bloquer") { Owner = this };
+        if (dlg.ShowDialog() != true || string.IsNullOrWhiteSpace(dlg.Value)) return;
+        string cc = dlg.Value.Trim().ToUpperInvariant();
+        if (cc.Length != 2) { if (NetControlStatus is not null) NetControlStatus.Text = "Code pays invalide (2 lettres)."; return; }
+        if (NetControlStatus is not null) NetControlStatus.Text = $"Téléchargement des plages d'IP de {cc}…";
+        try
+        {
+            // Plages CIDR du pays via un service public (ipdeny).
+            string list = await new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(20) }
+                .GetStringAsync($"https://www.ipdeny.com/ipblocks/data/aggregated/{cc.ToLowerInvariant()}-aggregated.zone");
+            var cidrs = list.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim()).Where(s => s.Contains('/')).Take(2000).ToList();
+            if (cidrs.Count == 0) { if (NetControlStatus is not null) NetControlStatus.Text = $"Aucune plage trouvée pour {cc}."; return; }
+            string joined = string.Join(",", cidrs);
+            await RunHiddenAsync("cmd.exe", $"/c netsh advfirewall firewall add rule name=\"IATECH-Country {cc}\" dir=out action=block remoteip={joined}");
+            if (NetControlStatus is not null) NetControlStatus.Text = $"🏴 {cidrs.Count} plage(s) d'IP de {cc} bloquée(s) au pare-feu.";
+            IatechShield.Tools.AccessLog.Record("Blocage réseau", "Pays", cc, $"{cidrs.Count} plages bloquées");
+            Log($"Pays bloqué : {cc} ({cidrs.Count} plages).");
+        }
+        catch (Exception ex) { if (NetControlStatus is not null) NetControlStatus.Text = $"Échec : {ex.Message}"; }
+    }
+
+    private async void OnBandwidth(object sender, RoutedEventArgs e)
+    {
+        if (NetControlStatus is not null) NetControlStatus.Text = "Mesure de la bande passante (2 s)…";
+        try
+        {
+            string raw = await RunPs("$a=Get-NetAdapterStatistics | Sort-Object ReceivedBytes -Descending | Select-Object -First 1; " +
+                "$r1=$a.ReceivedBytes; $s1=$a.SentBytes; Start-Sleep -Seconds 2; " +
+                "$b=Get-NetAdapterStatistics -Name $a.Name; " +
+                "[math]::Round(($b.ReceivedBytes-$r1)/2048,1).ToString() + '|' + [math]::Round(($b.SentBytes-$s1)/2048,1).ToString() + '|' + $a.Name");
+            var p = raw.Split('|');
+            if (p.Length >= 3 && NetControlStatus is not null)
+                NetControlStatus.Text = $"📊 {p[2].Trim()} — ↓ {p[0].Trim()} Ko/s · ↑ {p[1].Trim()} Ko/s";
+            else if (NetControlStatus is not null) NetControlStatus.Text = "Mesure indisponible.";
+        }
+        catch (Exception ex) { if (NetControlStatus is not null) NetControlStatus.Text = $"Échec : {ex.Message}"; }
+    }
+
+    private async void OnDetectScan(object sender, RoutedEventArgs e)
+    {
+        if (NetControlStatus is not null) NetControlStatus.Text = "Analyse des connexions entrantes (détection de scan)…";
+        try
+        {
+            // Heuristique : une même IP distante ouvrant de nombreuses connexions = scan probable.
+            string raw = await RunPs("(Get-NetTCPConnection | Where-Object { $_.RemoteAddress -ne '0.0.0.0' -and $_.RemoteAddress -ne '127.0.0.1' -and $_.RemoteAddress -ne '::' } | " +
+                "Group-Object RemoteAddress | Where-Object { $_.Count -ge 8 } | Sort-Object Count -Descending | " +
+                "ForEach-Object { $_.Name + ':' + $_.Count }) -join ';'");
+            var hits = raw.Split(';', StringSplitOptions.RemoveEmptyEntries);
+            if (NetControlStatus is not null)
+                NetControlStatus.Text = hits.Length == 0
+                    ? "✓ Aucun comportement de scan détecté."
+                    : "🛰️ Activité suspecte (nombreuses connexions) : " + string.Join("  ", hits);
+            if (hits.Length > 0) { SoundFx.Alert(); Notify("Scan réseau possible", string.Join(", ", hits), "Contrôle"); }
+        }
+        catch (Exception ex) { if (NetControlStatus is not null) NetControlStatus.Text = $"Échec : {ex.Message}"; }
     }
 
     // ------------------------------------------------- Accès à distance --------
