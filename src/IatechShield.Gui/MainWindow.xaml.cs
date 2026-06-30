@@ -5150,8 +5150,12 @@ public partial class MainWindow : Window
             : $"Add-LocalGroupMember -SID {AdminsSid} -Member '{n}' -ErrorAction Stop";
         string res = await RunPs(cmd + "; if($?){'OK'}");
         if (res.Contains("OK"))
+        {
             Log($"Rôle modifié pour {u.Name} : {(u.IsAdmin ? "standard" : "administrateur")}.");
-        else if (UsersStatus is not null) UsersStatus.Text = $"Échec : {res}";
+            if (UsersStatus is not null)
+                UsersStatus.Text = $"✓ {u.Name} est désormais {(u.IsAdmin ? "compte standard" : "administrateur")}.";
+        }
+        else if (UsersStatus is not null) UsersStatus.Text = $"❌ Échec : {res}";
         await BuildUsersAsync();
     }
 
@@ -5178,14 +5182,20 @@ public partial class MainWindow : Window
             $"Supprimer définitivement le compte « {u.Name} » ? Tapez OUI pour confirmer.", "Supprimer") { Owner = this };
         if (confirm.ShowDialog() != true || !string.Equals(confirm.Value.Trim(), "OUI", StringComparison.OrdinalIgnoreCase))
             return;
+        if (UsersStatus is not null) UsersStatus.Text = $"Suppression de « {u.Name} »…";
         string n = u.Name.Replace("'", "''");
         string res = await RunPs($"Remove-LocalUser -Name '{n}' -ErrorAction Stop; if($?){{'OK'}}");
+        // Repli : certains comptes (invité, comptes hérités) se suppriment mieux via « net user ».
+        if (!res.Contains("OK"))
+            res = await RunPs($"net user '{n}' /delete; if($?){{'OK'}}");
         if (res.Contains("OK"))
         {
             IatechShield.Tools.AccessLog.Record("Compte supprimé", "Admin local", u.Name, "Utilisateur Windows supprimé");
             Log($"Utilisateur Windows supprimé : {u.Name}.");
+            if (UsersStatus is not null) UsersStatus.Text = $"✓ Compte « {u.Name} » supprimé.";
         }
-        else if (UsersStatus is not null) UsersStatus.Text = $"Échec : {res}";
+        else if (UsersStatus is not null)
+            UsersStatus.Text = $"❌ Échec de la suppression de « {u.Name} » : {res}";
         await BuildUsersAsync();
     }
 
@@ -5197,9 +5207,16 @@ public partial class MainWindow : Window
             ? $"Disable-LocalUser -Name '{n}' -ErrorAction Stop"
             : $"Enable-LocalUser -Name '{n}' -ErrorAction Stop";
         string res = await RunPs(cmd + "; if($?){'OK'}");
+        // Repli « net user … /active:yes|no » si la cmdlet échoue.
+        if (!res.Contains("OK"))
+            res = await RunPs($"net user '{n}' /active:{(u.Enabled ? "no" : "yes")}; if($?){{'OK'}}");
         if (res.Contains("OK"))
+        {
             Log($"Compte {u.Name} {(u.Enabled ? "désactivé" : "activé")}.");
-        else if (UsersStatus is not null) UsersStatus.Text = $"Échec : {res}";
+            if (UsersStatus is not null)
+                UsersStatus.Text = $"✓ Compte « {u.Name} » {(u.Enabled ? "désactivé" : "activé")}.";
+        }
+        else if (UsersStatus is not null) UsersStatus.Text = $"❌ Échec : {res}";
         await BuildUsersAsync();
     }
 
@@ -6588,11 +6605,27 @@ public partial class MainWindow : Window
             UseShellExecute = false,
             CreateNoWindow = true
         };
-        using var p = Process.Start(psi);
-        if (p is null) return "";
-        string output = await p.StandardOutput.ReadToEndAsync();
-        p.WaitForExit(8000);
-        return output.Trim();
+        try
+        {
+            using var p = Process.Start(psi);
+            if (p is null) return "ERREUR: impossible de démarrer PowerShell.";
+            // On lit les deux flux en parallèle (évite tout blocage de tampon) et on
+            // attend réellement la fin du processus.
+            var outTask = p.StandardOutput.ReadToEndAsync();
+            var errTask = p.StandardError.ReadToEndAsync();
+            await Task.WhenAll(outTask, errTask);
+            await p.WaitForExitAsync();
+            string output = outTask.Result.Trim();
+            string error = errTask.Result.Trim();
+            // Si la commande n'a rien renvoyé mais a produit une erreur, on remonte
+            // la raison réelle (sinon l'appelant croit à un échec silencieux).
+            if (output.Length == 0 && error.Length > 0) return "ERREUR: " + error;
+            return output;
+        }
+        catch (Exception ex)
+        {
+            return "ERREUR: " + ex.Message;
+        }
     }
 
     // ----------------------------------------------------- options avancées ---
