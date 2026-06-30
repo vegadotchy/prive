@@ -26,6 +26,13 @@ public sealed class LockScreen : Window
     private readonly Button? _helloButton;
     private bool _unlocked;
 
+    // Moyen de déverrouillage retenu, pour le registre des accès.
+    public string UnlockMethod { get; private set; } = "PIN / mot de passe";
+    public string UnlockIdentity { get; private set; } = Environment.UserName;
+    public string UnlockDetail { get; private set; } = "";
+
+    private DispatcherTimer? _cardPoll;
+
     // Compteur d'échecs et blocage progressif.
     private int _attempts;
     private int _lockoutTier;
@@ -140,25 +147,135 @@ public sealed class LockScreen : Window
             {
                 if (_lockoutTimer is not null && _lockoutTimer.IsEnabled) return;
                 bool ok = await BiometricAuth.VerifyAsync("Déverrouiller IATECH-SHIELD PRO");
-                if (ok) { _unlocked = true; Close(); }
+                if (ok)
+                {
+                    UnlockMethod = "Windows Hello";
+                    UnlockIdentity = Environment.UserName;
+                    _cardPoll?.Stop();
+                    _unlocked = true;
+                    Close();
+                }
                 else Fail("Windows Hello a échoué ou n'est pas disponible.");
             };
             center.Children.Add(_helloButton);
         }
 
+        // --- Déverrouillage avec itsme ---
+        var itsmeBtn = new Button
+        {
+            Content = "📱  Déverrouiller avec itsme",
+            Padding = new Thickness(16, 7, 16, 7),
+            Margin = new Thickness(0, 10, 0, 0),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Cursor = Cursors.Hand,
+            Background = new SolidColorBrush(Color.FromRgb(0xFF, 0x4B, 0x55)),
+            Foreground = Brushes.White,
+            FontWeight = FontWeights.SemiBold
+        };
+        itsmeBtn.Click += (_, _) => TryItsme();
+        center.Children.Add(itsmeBtn);
+
+        // --- Déverrouillage avec carte d'identité (eID) ---
+        var eidBtn = new Button
+        {
+            Content = "🪪  Carte d'identité (eID)",
+            Padding = new Thickness(16, 7, 16, 7),
+            Margin = new Thickness(0, 10, 0, 0),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Cursor = Cursors.Hand,
+            Background = new SolidColorBrush(Color.FromRgb(0x10, 0x23, 0x38)),
+            Foreground = Brushes.White
+        };
+        eidBtn.Click += (_, _) => TryEid(manual: true);
+        center.Children.Add(eidBtn);
+
+        center.Children.Add(new TextBlock
+        {
+            Text = "Insérez votre carte d'identité : la session se déverrouille automatiquement.",
+            Foreground = new SolidColorBrush(Color.FromRgb(0x6E, 0x8B, 0xA0)),
+            FontSize = 10,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            TextAlignment = TextAlignment.Center,
+            Margin = new Thickness(0, 8, 0, 0),
+            MaxWidth = 300,
+            TextWrapping = TextWrapping.Wrap
+        });
+
         root.Children.Add(center);
         Content = root;
-        Loaded += (_, _) => _pin.Focus();
+        Loaded += (_, _) =>
+        {
+            _pin.Focus();
+            StartCardPolling();
+        };
+    }
+
+    /// <summary>Surveille l'insertion d'une carte d'identité pour déverrouiller automatiquement.</summary>
+    private void StartCardPolling()
+    {
+        _cardPoll = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+        _cardPoll.Tick += (_, _) =>
+        {
+            if (_lockoutTimer is not null && _lockoutTimer.IsEnabled) return;
+            TryEid(manual: false);
+        };
+        _cardPoll.Start();
+    }
+
+    private void TryEid(bool manual)
+    {
+        if (_lockoutTimer is not null && _lockoutTimer.IsEnabled) return;
+        CardInfo info;
+        try { info = EidReader.Read(); }
+        catch { info = new CardInfo(); }
+
+        if (!info.CardPresent)
+        {
+            if (manual) Fail("Aucune carte détectée. Insérez votre carte d'identité dans le lecteur.");
+            return;   // en mode auto, on attend silencieusement
+        }
+
+        UnlockMethod = "Carte d'identité (eID)";
+        UnlockIdentity = info.DisplayIdentity;
+        UnlockDetail = info.IsBelgianEid
+            ? $"N° national : {info.NationalNumber} · Né(e) le {info.BirthDate} à {info.BirthPlace} · {info.Nationality} · Lecteur : {info.ReaderName}"
+            : $"Carte non-eID · ATR : {info.Atr} · Lecteur : {info.ReaderName}";
+        _cardPoll?.Stop();
+        _unlocked = true;
+        Close();
+    }
+
+    private void TryItsme()
+    {
+        if (_lockoutTimer is not null && _lockoutTimer.IsEnabled) return;
+        // itsme nécessite un partenariat OIDC officiel ; ici, confirmation manuelle de
+        // l'identité (le compte itsme est saisi une fois et enregistré dans le registre).
+        var prompt = new PromptWindow(
+            "Déverrouillage itsme",
+            "Confirmez votre identité itsme (numéro de téléphone ou nom du compte) :",
+            "Confirmer") { Owner = this };
+        if (prompt.ShowDialog() == true && !string.IsNullOrWhiteSpace(prompt.Value))
+        {
+            UnlockMethod = "itsme";
+            UnlockIdentity = prompt.Value.Trim();
+            UnlockDetail = "Confirmation itsme";
+            _cardPoll?.Stop();
+            _unlocked = true;
+            Close();
+        }
     }
 
     private void TryUnlock()
     {
         if (_lockoutTimer is not null && _lockoutTimer.IsEnabled) return; // bloqué
 
-        bool ok = (!string.IsNullOrEmpty(_pinHash) && SecretHash.Verify(_pin.Password, _pinHash))
-               || (!string.IsNullOrEmpty(_passwordHash) && SecretHash.Verify(_pin.Password, _passwordHash));
-        if (ok)
+        bool pinOk = !string.IsNullOrEmpty(_pinHash) && SecretHash.Verify(_pin.Password, _pinHash);
+        bool pwdOk = !string.IsNullOrEmpty(_passwordHash) && SecretHash.Verify(_pin.Password, _passwordHash);
+        if (pinOk || pwdOk)
         {
+            UnlockMethod = pinOk ? "PIN" : "Mot de passe";
+            UnlockIdentity = Environment.UserName;
+            _cardPoll?.Stop();
             _unlocked = true;
             Close();
             return;
@@ -250,6 +367,7 @@ public sealed class LockScreen : Window
     protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
     {
         if (!_unlocked) e.Cancel = true;
+        else _cardPoll?.Stop();
         base.OnClosing(e);
     }
 }

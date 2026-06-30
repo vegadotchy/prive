@@ -76,6 +76,7 @@ public partial class MainWindow : Window
             ShowPage("Dashboard");
             RefreshDashboardKpis();
             SoundFx.ReactorStartup();   // démarrage « réacteur » à l'ouverture du dashboard
+            IatechShield.Tools.AccessLog.Record("Connexion", "Session Windows", Environment.UserName, "Ouverture d'IATECH-SHIELD PRO");
             _ = InitCloudAsync();
         };
     }
@@ -130,6 +131,8 @@ public partial class MainWindow : Window
         PageDevices.Visibility = Visibility.Collapsed;
         PageSettings.Visibility = Visibility.Collapsed;
         PageLogs.Visibility = Visibility.Collapsed;
+        PageAccess.Visibility = Visibility.Collapsed;
+        PageRemote.Visibility = Visibility.Collapsed;
 
         Grid page = name switch
         {
@@ -157,6 +160,8 @@ public partial class MainWindow : Window
             "Périphériques" => PageDevices,
             "Settings" => PageSettings,
             "Logs" => PageLogs,
+            "Accès" => PageAccess,
+            "Accès distant" => PageRemote,
             _ => PageDashboard
         };
         page.Visibility = Visibility.Visible;
@@ -239,6 +244,14 @@ public partial class MainWindow : Window
         else if (page == PageDevices)
         {
             BuildDevices();
+        }
+        else if (page == PageAccess)
+        {
+            BuildAccessLog();
+        }
+        else if (page == PageRemote)
+        {
+            RefreshRemoteStatus();
         }
     }
 
@@ -4214,8 +4227,14 @@ public partial class MainWindow : Window
         try
         {
             ShowFromTray();
+            IatechShield.Tools.AccessLog.Record("Verrouillage", "—", Environment.UserName, "Session verrouillée");
             var lockScreen = new LockScreen(_lockPinHash, _lockPasswordHash, _lockHello) { Owner = this };
             lockScreen.ShowDialog();
+            // Session déverrouillée : on consigne qui a accédé et par quel moyen.
+            IatechShield.Tools.AccessLog.Record("Déverrouillage", lockScreen.UnlockMethod,
+                lockScreen.UnlockIdentity, lockScreen.UnlockDetail);
+            if (AccessList is not null && PageAccess is not null && PageAccess.Visibility == Visibility.Visible)
+                BuildAccessLog();
         }
         catch { /* en cas d'échec d'affichage, on ne bloque pas l'utilisateur */ }
         finally { _lockShowing = false; }
@@ -4619,6 +4638,211 @@ public partial class MainWindow : Window
     {
         if (NavLogs is not null) NavLogs.IsChecked = true;
         ShowPage("Logs");
+    }
+
+    // ------------------------------------ Registre des accès (connexions) ------
+
+    /// <summary>Élément de liste du registre des accès.</summary>
+    public sealed class AccessItem
+    {
+        public string Glyph { get; set; } = "🔓";
+        public string Kind { get; set; } = "";
+        public string Method { get; set; } = "";
+        public string Identity { get; set; } = "";
+        public string Detail { get; set; } = "";
+        public string TimeText { get; set; } = "";
+        public System.Windows.Media.Brush MethodColor { get; set; } = System.Windows.Media.Brushes.Cyan;
+    }
+
+    private void BuildAccessLog()
+    {
+        if (AccessList is null) return;
+        var items = new List<AccessItem>();
+        foreach (var ev in IatechShield.Tools.AccessLog.Load())
+        {
+            bool unlock = ev.Kind.StartsWith("Déver", StringComparison.OrdinalIgnoreCase)
+                       || ev.Kind.StartsWith("Conn", StringComparison.OrdinalIgnoreCase);
+            string glyph = ev.Method switch
+            {
+                "Carte d'identité (eID)" => "🪪",
+                "itsme" => "📱",
+                "Windows Hello" => "🙂",
+                "PIN" => "🔢",
+                "Mot de passe" => "🔑",
+                _ => unlock ? "🔓" : "🔒"
+            };
+            items.Add(new AccessItem
+            {
+                Glyph = glyph,
+                Kind = ev.Kind,
+                Method = string.IsNullOrWhiteSpace(ev.Method) || ev.Method == "—" ? "" : $"· {ev.Method}",
+                Identity = string.IsNullOrWhiteSpace(ev.Identity) ? "" : $"👤 {ev.Identity}",
+                Detail = ev.Detail,
+                TimeText = ev.Time.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss"),
+                MethodColor = unlock ? System.Windows.Media.Brushes.LimeGreen : System.Windows.Media.Brushes.OrangeRed
+            });
+        }
+        if (items.Count == 0)
+            items.Add(new AccessItem { Glyph = "ℹ️", Kind = "Aucun accès enregistré", Identity = "", Detail = "Les verrouillages/déverrouillages apparaîtront ici.", TimeText = "" });
+        AccessList.ItemsSource = items;
+        if (AccessStatus is not null) AccessStatus.Text = $"{IatechShield.Tools.AccessLog.Load().Count} évènement(s) enregistré(s).";
+    }
+
+    private void OnRefreshAccess(object sender, RoutedEventArgs e) => BuildAccessLog();
+
+    private void OnClearAccess(object sender, RoutedEventArgs e)
+    {
+        IatechShield.Tools.AccessLog.Clear();
+        BuildAccessLog();
+        Log("Registre des accès effacé.");
+    }
+
+    // ------------------------------------------------- Accès à distance --------
+
+    private DispatcherTimer? _remoteTimer;
+    private DateTime _remoteExpiry;
+
+    private static readonly string[] AnyDeskPaths =
+    {
+        @"%ProgramFiles(x86)%\AnyDesk\AnyDesk.exe",
+        @"%ProgramFiles%\AnyDesk\AnyDesk.exe",
+        @"%APPDATA%\AnyDesk\AnyDesk.exe",
+    };
+    private static readonly string[] TeamViewerPaths =
+    {
+        @"%ProgramFiles%\TeamViewer\TeamViewer.exe",
+        @"%ProgramFiles(x86)%\TeamViewer\TeamViewer.exe",
+    };
+
+    private static string? FindExe(string[] candidates)
+    {
+        foreach (var c in candidates)
+        {
+            string p = Environment.ExpandEnvironmentVariables(c);
+            if (File.Exists(p)) return p;
+        }
+        return null;
+    }
+
+    private void RefreshRemoteStatus()
+    {
+        if (AnyDeskStatus is not null)
+            AnyDeskStatus.Text = FindExe(AnyDeskPaths) is not null ? "✓ installé" : "non installé (cliquez Télécharger)";
+        if (TeamViewerStatus is not null)
+            TeamViewerStatus.Text = FindExe(TeamViewerPaths) is not null ? "✓ installé" : "non installé (cliquez Télécharger)";
+    }
+
+    private void OnRemoteLaunch(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: string tag }) return;
+        try
+        {
+            switch (tag)
+            {
+                case "anydesk":
+                    var ad = FindExe(AnyDeskPaths);
+                    if (ad is not null) Process.Start(new ProcessStartInfo(ad) { UseShellExecute = true });
+                    else Process.Start(new ProcessStartInfo("https://anydesk.com/fr/downloads/windows") { UseShellExecute = true });
+                    break;
+                case "anydesk-settings":
+                    var ad2 = FindExe(AnyDeskPaths);
+                    if (ad2 is not null) Process.Start(new ProcessStartInfo(ad2) { UseShellExecute = true });
+                    if (RemoteStatus is not null) RemoteStatus.Text = "Dans AnyDesk : ☰ → Paramètres → Sécurité → « Activer l'accès non surveillé » et collez le mot de passe ci-dessus.";
+                    break;
+                case "teamviewer":
+                    var tv = FindExe(TeamViewerPaths);
+                    if (tv is not null) Process.Start(new ProcessStartInfo(tv) { UseShellExecute = true });
+                    else Process.Start(new ProcessStartInfo("https://www.teamviewer.com/fr/telecharger/windows/") { UseShellExecute = true });
+                    break;
+            }
+        }
+        catch (Exception ex) { if (RemoteStatus is not null) RemoteStatus.Text = $"Erreur : {ex.Message}"; }
+    }
+
+    private void OnGenRemotePassword(object sender, RoutedEventArgs e)
+    {
+        if (RemotePassword is null) return;
+        const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%";
+        var bytes = System.Security.Cryptography.RandomNumberGenerator.GetBytes(16);
+        var sb = new StringBuilder();
+        foreach (var b in bytes) sb.Append(chars[b % chars.Length]);
+        RemotePassword.Text = sb.ToString();
+    }
+
+    private void OnCopyRemotePassword(object sender, RoutedEventArgs e)
+    {
+        if (RemotePassword is null || string.IsNullOrEmpty(RemotePassword.Text)) { OnGenRemotePassword(sender, e); }
+        try { Clipboard.SetText(RemotePassword!.Text); if (RemoteStatus is not null) RemoteStatus.Text = "✓ Mot de passe copié dans le presse-papiers."; }
+        catch { }
+    }
+
+    private void OnGrantRemote(object sender, RoutedEventArgs e)
+    {
+        if (RemotePassword is not null && string.IsNullOrEmpty(RemotePassword.Text))
+            OnGenRemotePassword(sender, e);
+
+        bool temporary = RemoteTemporary?.IsChecked == true;
+        string mode;
+        if (temporary)
+        {
+            int mins = RemoteDuration?.SelectedIndex switch { 0 => 15, 1 => 30, 2 => 60, 3 => 240, 4 => 480, _ => 60 };
+            _remoteExpiry = DateTime.Now.AddMinutes(mins);
+            _remoteTimer ??= new DispatcherTimer { Interval = TimeSpan.FromSeconds(15) };
+            _remoteTimer.Tick -= OnRemoteTick;
+            _remoteTimer.Tick += OnRemoteTick;
+            _remoteTimer.Start();
+            mode = $"temporaire ({mins} min, jusqu'à {_remoteExpiry:HH:mm})";
+        }
+        else
+        {
+            _remoteTimer?.Stop();
+            mode = "permanent";
+        }
+
+        if (RemoteStatus is not null)
+            RemoteStatus.Text = $"✅ Accès {mode} activé. Communiquez le mot de passe au technicien et lancez AnyDesk/TeamViewer.";
+        IatechShield.Tools.AccessLog.Record("Accès distant accordé", temporary ? "Temporaire" : "Permanent",
+            Environment.UserName, $"Mode {mode}");
+        Notify("Accès à distance activé", $"Accès {mode} accordé.", "Accès distant");
+        Log($"Accès à distance accordé ({mode}).");
+    }
+
+    private void OnRemoteTick(object? sender, EventArgs e)
+    {
+        if (DateTime.Now < _remoteExpiry)
+        {
+            int left = (int)(_remoteExpiry - DateTime.Now).TotalMinutes;
+            if (RemoteStatus is not null) RemoteStatus.Text = $"⏳ Accès temporaire actif — expire dans ~{left + 1} min (à {_remoteExpiry:HH:mm}).";
+            return;
+        }
+        _remoteTimer?.Stop();
+        RevokeRemote(auto: true);
+    }
+
+    private void OnRevokeRemote(object sender, RoutedEventArgs e) => RevokeRemote(auto: false);
+
+    private void RevokeRemote(bool auto)
+    {
+        _remoteTimer?.Stop();
+        int killed = 0;
+        foreach (var name in new[] { "AnyDesk", "TeamViewer" })
+        {
+            try
+            {
+                foreach (var p in Process.GetProcessesByName(name))
+                {
+                    try { p.Kill(); killed++; } catch { } finally { p.Dispose(); }
+                }
+            }
+            catch { }
+        }
+        if (RemoteStatus is not null)
+            RemoteStatus.Text = auto
+                ? "⛔ Accès temporaire expiré : AnyDesk/TeamViewer ont été fermés."
+                : $"⛔ Accès révoqué — {killed} application(s) de contrôle à distance fermée(s).";
+        IatechShield.Tools.AccessLog.Record("Accès distant révoqué", auto ? "Expiration" : "Manuel", Environment.UserName, "");
+        Notify("Accès à distance révoqué", auto ? "L'accès temporaire a expiré." : "Accès coupé manuellement.", "Accès distant");
+        Log("Accès à distance révoqué.");
     }
 
     // -------------------------------------------------------------- pare-feu --
