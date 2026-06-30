@@ -63,7 +63,9 @@
                                    FontSize="9" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,1,0,0"/>
                     </StackPanel>
 
-                    <StackPanel DockPanel.Dock="Top">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                                  PanningMode="VerticalOnly">
+                    <StackPanel>
                         <RadioButton x:Name="NavDashboard" Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE80F;" IsChecked="True" Content="Dashboard" Checked="OnNav"/>
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
@@ -121,6 +123,7 @@
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE77B;" Content="Registre ID" Checked="OnNav"/>
                     </StackPanel>
+                    </ScrollViewer>
                 </DockPanel>
             </Border>
 

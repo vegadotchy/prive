@@ -88,6 +88,30 @@ public static class EidReader
         return result;
     }
 
+    /// <summary>Indique si une carte est actuellement insérée dans un lecteur (test léger).</summary>
+    public static bool IsCardPresent()
+    {
+        if (SCardEstablishContext(SCARD_SCOPE_USER, IntPtr.Zero, IntPtr.Zero, out var ctx) != 0)
+            return false;
+        try
+        {
+            foreach (var reader in ListReaders())
+            {
+                if (SCardConnect(ctx, reader, SCARD_SHARE_SHARED, SCARD_PROTOCOL_T0 | SCARD_PROTOCOL_T1,
+                        out var card, out _) == 0)
+                {
+                    SCardDisconnect(card, SCARD_LEAVE_CARD);
+                    return true;   // au moins un lecteur contient une carte
+                }
+            }
+        }
+        finally { SCardReleaseContext(ctx); }
+        return false;
+    }
+
+    /// <summary>Indique s'il existe au moins un lecteur de carte branché.</summary>
+    public static bool HasReader() => ListReaders().Count > 0;
+
     /// <summary>Tente de lire la première carte présente dans un lecteur.</summary>
     public static CardInfo Read()
     {

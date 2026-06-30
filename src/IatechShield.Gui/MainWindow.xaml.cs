@@ -77,6 +77,7 @@ public partial class MainWindow : Window
             RefreshDashboardKpis();
             SoundFx.ReactorStartup();   // démarrage « réacteur » à l'ouverture du dashboard
             IatechShield.Tools.AccessLog.Record("Connexion", "Session Windows", Environment.UserName, "Ouverture d'IATECH-SHIELD PRO");
+            StartCardRemovalWatcher();
             _ = InitCloudAsync();
         };
         Closing += (_, _) =>
@@ -4413,6 +4414,42 @@ public partial class MainWindow : Window
         var info = new LastInputInfo { cbSize = (uint)System.Runtime.InteropServices.Marshal.SizeOf<LastInputInfo>() };
         if (!GetLastInputInfo(ref info)) return 0;
         return (uint)Environment.TickCount - info.dwTime;
+    }
+
+    // Surveillance du retrait de la carte d'identité : si on enlève la carte du
+    // lecteur, le PC se verrouille automatiquement.
+    private DispatcherTimer? _cardWatchTimer;
+    private bool _cardWasPresent;
+
+    private void StartCardRemovalWatcher()
+    {
+        _cardWatchTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+        _cardWatchTimer.Tick += OnCardWatchTick;
+        _cardWatchTimer.Start();
+    }
+
+    private void OnCardWatchTick(object? sender, EventArgs e)
+    {
+        if (_lockShowing) return;
+        bool present;
+        try { present = EidReader.IsCardPresent(); }
+        catch { return; }
+
+        // Transition « carte présente » → « carte retirée » : verrouillage immédiat.
+        if (_cardWasPresent && !present)
+        {
+            _cardWasPresent = false;
+            LoadLockConfig();
+            if (LockConfigured)
+            {
+                Log("Carte d'identité retirée : verrouillage automatique.");
+                ShowLockScreen();
+            }
+        }
+        else
+        {
+            _cardWasPresent = present;
+        }
     }
 
     private void ShowLockScreen()
