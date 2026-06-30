@@ -5,6 +5,9 @@ namespace IatechShield.Gui;
 
 public partial class App : Application
 {
+    private bool _dialogOpen;
+    private DateTime _lastDialog = DateTime.MinValue;
+
     private static string CrashLogPath => System.IO.Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "IatechShield", "crash.log");
@@ -19,14 +22,22 @@ public partial class App : Application
         DispatcherUnhandledException += (_, ex) =>
         {
             LogCrash("UI", ex.Exception);
-            try
+            // Anti-spam : on n'affiche qu'une boîte à la fois et au plus une toutes
+            // les 5 s (sinon une erreur répétée empilerait des dizaines de fenêtres).
+            if (!_dialogOpen && (DateTime.UtcNow - _lastDialog).TotalSeconds > 5)
             {
-                MessageBox.Show(
-                    "Une erreur est survenue mais IATECH-SHIELD reste ouvert.\n\n" +
-                    ex.Exception.Message + "\n\nDétails enregistrés dans :\n" + CrashLogPath,
-                    "IATECH-SHIELD PRO", MessageBoxButton.OK, MessageBoxImage.Warning);
+                _dialogOpen = true;
+                _lastDialog = DateTime.UtcNow;
+                try
+                {
+                    MessageBox.Show(
+                        "Une erreur est survenue mais IATECH-SHIELD reste ouvert.\n\n" +
+                        ex.Exception.Message + "\n\nDétails enregistrés dans :\n" + CrashLogPath,
+                        "IATECH-SHIELD PRO", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+                catch { }
+                finally { _dialogOpen = false; }
             }
-            catch { }
             ex.Handled = true;   // on ne ferme pas l'application
         };
         AppDomain.CurrentDomain.UnhandledException += (_, ex) =>

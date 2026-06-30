@@ -1129,7 +1129,11 @@ public partial class MainWindow : Window
                 {
                     string exe = ExtractExePath(entry.Command);
                     var prof = TrustIndex.Evaluate(entry.Name, exe, autostart: true);
-                    var color = ScoreColor(prof.Score);
+                    // IMPORTANT : on est sur un thread d'arrière-plan (Task.Run). Un Brush
+                    // WPF est un DependencyObject : il faut le « geler » (Freeze) pour
+                    // pouvoir l'utiliser ensuite sur le thread UI sans planter.
+                    var brush = new SolidColorBrush(ScoreColor(prof.Score));
+                    brush.Freeze();
                     list.Add(new DnaItem
                     {
                         Name = string.IsNullOrWhiteSpace(prof.Name) ? System.IO.Path.GetFileName(exe) : prof.Name,
@@ -1137,7 +1141,7 @@ public partial class MainWindow : Window
                         Line = $"{prof.Location} · âge : {prof.Age} · {prof.Behavior}\n{exe}",
                         Score = prof.Score,
                         ScoreText = prof.Score + "%",
-                        ScoreColor = new SolidColorBrush(color)
+                        ScoreColor = brush
                     });
                 }
                 return list.OrderBy(i => i.Score).ToList();
