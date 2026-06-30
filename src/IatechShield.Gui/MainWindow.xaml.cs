@@ -4425,33 +4425,42 @@ public partial class MainWindow : Window
 
     private void StartCardRemovalWatcher()
     {
-        _cardWatchTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
-        _cardWatchTimer.Tick += OnCardWatchTick;
-        _cardWatchTimer.Start();
+        try
+        {
+            _cardWatchTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+            _cardWatchTimer.Tick += OnCardWatchTick;
+            _cardWatchTimer.Start();
+        }
+        catch { /* indisponible : le verrouillage auto carte est simplement inactif */ }
     }
 
     private void OnCardWatchTick(object? sender, EventArgs e)
     {
-        if (_lockShowing) return;
-        bool present;
-        try { present = EidReader.IsCardPresent(); }
-        catch { return; }
-
-        // Transition « carte présente » → « carte retirée » : verrouillage immédiat.
-        if (_cardWasPresent && !present)
+        // Entièrement protégé : ce minuteur ne doit jamais fermer l'application.
+        try
         {
-            _cardWasPresent = false;
-            LoadLockConfig();
-            if (LockConfigured)
+            if (_lockShowing) return;
+            bool present;
+            try { present = EidReader.IsCardPresent(); }
+            catch { return; }
+
+            // Transition « carte présente » → « carte retirée » : verrouillage immédiat.
+            if (_cardWasPresent && !present)
             {
-                Log("Carte d'identité retirée : verrouillage automatique.");
-                ShowLockScreen();
+                _cardWasPresent = false;
+                LoadLockConfig();
+                if (LockConfigured)
+                {
+                    Log("Carte d'identité retirée : verrouillage automatique.");
+                    ShowLockScreen();
+                }
+            }
+            else
+            {
+                _cardWasPresent = present;
             }
         }
-        else
-        {
-            _cardWasPresent = present;
-        }
+        catch { /* on n'interrompt jamais l'application pour cette surveillance */ }
     }
 
     private void ShowLockScreen()
@@ -4777,28 +4786,42 @@ public partial class MainWindow : Window
     /// <summary>Coupe (ou rétablit) Internet via une règle de pare-feu bloquant tout le trafic sortant/entrant.</summary>
     private async Task CutInternet(bool cut)
     {
+        void St(string s) { if (NetScheduleStatus is not null) NetScheduleStatus.Text = s; }
         try
         {
             if (cut)
             {
-                await RunHiddenAsync("cmd.exe", $"/c netsh advfirewall firewall add rule name=\"{NetCutRule}\" dir=out action=block & " +
-                                                $"netsh advfirewall firewall add rule name=\"{NetCutRule}\" dir=in action=block");
+                St("Coupure d'Internet en cours…");
+                // Méthode fiable et visible : on désactive les cartes réseau actives
+                // (et on pose aussi une règle de pare-feu bloquant tout, par sécurité).
+                await RunHiddenAsync("cmd.exe",
+                    $"/c netsh advfirewall firewall add rule name=\"{NetCutRule}\" dir=out action=block & " +
+                    $"netsh advfirewall firewall add rule name=\"{NetCutRule}\" dir=in action=block");
+                string res = await RunPs("$a=Get-NetAdapter -Physical | Where-Object {$_.Status -eq 'Up'}; " +
+                    "if($a){ $a | Disable-NetAdapter -Confirm:$false; 'OK:' + (($a.Name) -join ', ') } else { 'NONE' }");
                 _netCutActive = true;
-                if (NetScheduleStatus is not null) NetScheduleStatus.Text = "🔴 Internet COUPÉ par IATECH-SHIELD.";
-                Notify("Connexion Internet coupée", "La connexion a été bloquée selon votre programmation.", "Protection");
-                Log("Internet coupé (règle de pare-feu).");
+                if (res.Contains("OK:"))
+                    St($"🔴 Internet COUPÉ ({res.Substring(res.IndexOf(':') + 1).Trim()} désactivée(s)).");
+                else if (res.Contains("NONE"))
+                    St("🔴 Internet coupé (règle de pare-feu). Aucune carte réseau active à désactiver.");
+                else
+                    St("Tentative effectuée. Si Internet fonctionne encore, relancez en administrateur.");
+                Notify("Connexion Internet coupée", "La connexion a été bloquée.", "Protection");
+                Log("Internet coupé.");
             }
             else
             {
+                St("Rétablissement d'Internet…");
                 await RunHiddenAsync("cmd.exe", $"/c netsh advfirewall firewall delete rule name=\"{NetCutRule}\"");
+                await RunPs("Get-NetAdapter -Physical | Enable-NetAdapter -Confirm:$false");
                 _netCutActive = false;
-                if (NetScheduleStatus is not null) NetScheduleStatus.Text = "🟢 Internet rétabli.";
+                St("🟢 Internet rétabli (cartes réseau réactivées).");
                 Log("Internet rétabli.");
             }
         }
         catch (Exception ex)
         {
-            if (NetScheduleStatus is not null) NetScheduleStatus.Text = $"Échec : {ex.Message} (droits administrateur requis).";
+            St($"Échec : {ex.Message} (droits administrateur requis).");
         }
     }
 
