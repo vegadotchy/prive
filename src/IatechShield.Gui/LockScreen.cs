@@ -30,6 +30,8 @@ public sealed class LockScreen : Window
     public string UnlockMethod { get; private set; } = "PIN / mot de passe";
     public string UnlockIdentity { get; private set; } = Environment.UserName;
     public string UnlockDetail { get; private set; } = "";
+    /// <summary>Carte d'identité lue lors du déverrouillage (null si autre moyen).</summary>
+    public CardInfo? UnlockCard { get; private set; }
 
     private DispatcherTimer? _cardPoll;
 
@@ -240,28 +242,50 @@ public sealed class LockScreen : Window
         UnlockDetail = info.IsBelgianEid
             ? $"N° national : {info.NationalNumber} · Né(e) le {info.BirthDate} à {info.BirthPlace} · {info.Nationality} · Lecteur : {info.ReaderName}"
             : $"Carte non-eID · ATR : {info.Atr} · Lecteur : {info.ReaderName}";
+        UnlockCard = info;
         _cardPoll?.Stop();
         _unlocked = true;
         Close();
     }
 
-    private void TryItsme()
+    private async void TryItsme()
     {
         if (_lockoutTimer is not null && _lockoutTimer.IsEnabled) return;
-        // itsme nécessite un partenariat OIDC officiel ; ici, confirmation manuelle de
-        // l'identité (le compte itsme est saisi une fois et enregistré dans le registre).
-        var prompt = new PromptWindow(
-            "Déverrouillage itsme",
-            "Confirmez votre identité itsme (numéro de téléphone ou nom du compte) :",
-            "Confirmer") { Owner = this };
-        if (prompt.ShowDialog() == true && !string.IsNullOrWhiteSpace(prompt.Value))
+
+        var itsme = ItsmeAuth.FromStore();
+        if (itsme is null || !itsme.IsConfigured)
+        {
+            // Pas d'identifiants partenaire itsme : on explique comment l'activer.
+            _error.Foreground = new SolidColorBrush(Color.FromRgb(0xFB, 0xBF, 0x24));
+            _error.Text = "itsme non configuré. Renseignez vos identifiants partenaire itsme\n" +
+                          "dans IATECH-SHIELD → Réglages → « Connexion itsme » pour recevoir\n" +
+                          "la vraie notification sur votre téléphone.";
+            _error.Visibility = Visibility.Visible;
+            return;
+        }
+
+        _error.Foreground = new SolidColorBrush(Color.FromRgb(0x22, 0xD3, 0xE8));
+        _error.Text = "📲 Notification envoyée sur votre téléphone — confirmez dans l'app itsme…";
+        _error.Visibility = Visibility.Visible;
+
+        ItsmeResult result;
+        try { result = await itsme.AuthenticateAsync(); }
+        catch (Exception ex) { result = new ItsmeResult { Error = ex.Message }; }
+
+        if (result.Success)
         {
             UnlockMethod = "itsme";
-            UnlockIdentity = prompt.Value.Trim();
-            UnlockDetail = "Confirmation itsme";
+            UnlockIdentity = string.IsNullOrWhiteSpace(result.FullName) ? "Compte itsme" : result.FullName;
+            UnlockDetail = string.IsNullOrWhiteSpace(result.Phone) ? "Confirmé via itsme" : $"itsme · {result.Phone}";
             _cardPoll?.Stop();
             _unlocked = true;
             Close();
+        }
+        else
+        {
+            _error.Foreground = new SolidColorBrush(Color.FromRgb(0xFF, 0x5C, 0x5C));
+            _error.Text = "itsme : " + result.Error;
+            _error.Visibility = Visibility.Visible;
         }
     }
 

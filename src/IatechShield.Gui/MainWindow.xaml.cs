@@ -79,6 +79,12 @@ public partial class MainWindow : Window
             IatechShield.Tools.AccessLog.Record("Connexion", "Session Windows", Environment.UserName, "Ouverture d'IATECH-SHIELD PRO");
             _ = InitCloudAsync();
         };
+        Closing += (_, _) =>
+        {
+            // Fermeture de l'app : on clôt toute session eID en cours et on trace la déconnexion.
+            IatechShield.Tools.EidSessionLog.EndSession();
+            IatechShield.Tools.AccessLog.Record("Déconnexion", "Session Windows", Environment.UserName, "Fermeture d'IATECH-SHIELD PRO");
+        };
     }
 
     protected override void OnSourceInitialized(EventArgs e)
@@ -133,6 +139,7 @@ public partial class MainWindow : Window
         PageLogs.Visibility = Visibility.Collapsed;
         PageAccess.Visibility = Visibility.Collapsed;
         PageRemote.Visibility = Visibility.Collapsed;
+        PageIdRegister.Visibility = Visibility.Collapsed;
 
         Grid page = name switch
         {
@@ -162,6 +169,7 @@ public partial class MainWindow : Window
             "Logs" => PageLogs,
             "Accès" => PageAccess,
             "Accès distant" => PageRemote,
+            "Registre ID" => PageIdRegister,
             _ => PageDashboard
         };
         page.Visibility = Visibility.Visible;
@@ -184,6 +192,7 @@ public partial class MainWindow : Window
             if (TamperStatus is not null)
                 TamperStatus.Text = TamperEnabled ? "Protection par mot de passe activée." : "Aucun mot de passe défini.";
             LoadLockSettings();
+            LoadItsmeConfig();
             OnRefreshQuarantine(this, new RoutedEventArgs());
         }
         else if (page == PageSystem)
@@ -256,6 +265,14 @@ public partial class MainWindow : Window
         else if (page == PageRemote)
         {
             RefreshRemoteStatus();
+        }
+        else if (page == PageIdRegister)
+        {
+            StartIdRegisterTicker();
+        }
+        else
+        {
+            StopIdRegisterTicker();
         }
     }
 
@@ -3325,6 +3342,42 @@ public partial class MainWindow : Window
         catch (Exception ex) { ApiKeyStatusText.Text = $"Ouverture impossible : {ex.Message}"; }
     }
 
+    // ----------------------------------------------------- Configuration itsme -
+
+    private void LoadItsmeConfig()
+    {
+        var itsme = ItsmeAuth.FromStore();
+        if (ItsmeStatusText is null) return;
+        if (itsme is { IsConfigured: true })
+        {
+            if (ItsmeClientId is not null) ItsmeClientId.Text = itsme.ClientId;
+            if (ItsmeServiceCode is not null) ItsmeServiceCode.Text = itsme.ServiceCode;
+            if (ItsmeEnv is not null) ItsmeEnv.SelectedIndex = itsme.Environment == "e2e" ? 1 : 0;
+            ItsmeStatusText.Text = "✓ itsme configuré — déverrouillage par notification téléphone actif.";
+        }
+        else
+        {
+            ItsmeStatusText.Text = "itsme non configuré. Sans identifiants partenaire, le déverrouillage itsme est indisponible.";
+        }
+    }
+
+    private void OnSaveItsme(object sender, RoutedEventArgs e)
+    {
+        string id = ItsmeClientId?.Text.Trim() ?? "";
+        string secret = ItsmeClientSecret?.Password.Trim() ?? "";
+        string code = ItsmeServiceCode?.Text.Trim() ?? "";
+        string env = ItsmeEnv?.SelectedIndex == 1 ? "e2e" : "prd";
+        if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(code))
+        {
+            if (ItsmeStatusText is not null) ItsmeStatusText.Text = "⚠ client_id et code de service sont requis.";
+            return;
+        }
+        ItsmeAuth.SaveConfig(id, secret, code, env);
+        if (ItsmeClientSecret is not null) ItsmeClientSecret.Clear();
+        if (ItsmeStatusText is not null) ItsmeStatusText.Text = "✓ itsme enregistré (chiffré). Le bouton itsme de l'écran de verrouillage est actif.";
+        Log("Configuration itsme enregistrée.");
+    }
+
     // ----------------------------------------------- réputation VirusTotal ---
 
     private async void OnVirusTotalCheck(object sender, RoutedEventArgs e)
@@ -4369,11 +4422,17 @@ public partial class MainWindow : Window
         {
             ShowFromTray();
             IatechShield.Tools.AccessLog.Record("Verrouillage", "—", Environment.UserName, "Session verrouillée");
+            // Le verrouillage clôt toute session eID en cours (déconnexion).
+            IatechShield.Tools.EidSessionLog.EndSession();
             var lockScreen = new LockScreen(_lockPinHash, _lockPasswordHash, _lockHello) { Owner = this };
             lockScreen.ShowDialog();
             // Session déverrouillée : on consigne qui a accédé et par quel moyen.
             IatechShield.Tools.AccessLog.Record("Déverrouillage", lockScreen.UnlockMethod,
                 lockScreen.UnlockIdentity, lockScreen.UnlockDetail);
+            // Déverrouillage par carte d'identité : on ouvre une session dans l'« ID Registre ».
+            if (lockScreen.UnlockCard is { IsBelgianEid: true } card)
+                IatechShield.Tools.EidSessionLog.StartSession(card.Name, card.FirstNames, card.BirthDate,
+                    card.NationalNumber, Guid.NewGuid().ToString("N"));
             if (AccessList is not null && PageAccess is not null && PageAccess.Visibility == Visibility.Visible)
                 BuildAccessLog();
         }
@@ -4984,6 +5043,103 @@ public partial class MainWindow : Window
         IatechShield.Tools.AccessLog.Record("Accès distant révoqué", auto ? "Expiration" : "Manuel", Environment.UserName, "");
         Notify("Accès à distance révoqué", auto ? "L'accès temporaire a expiré." : "Accès coupé manuellement.", "Accès distant");
         Log("Accès à distance révoqué.");
+    }
+
+    // ------------------------------------------------- ID Registre (eID) -------
+
+    /// <summary>Ligne du registre des cartes d'identité (durée mise à jour en direct).</summary>
+    public sealed class IdSessionItem : System.ComponentModel.INotifyPropertyChanged
+    {
+        public string FullName { get; set; } = "";
+        public string BirthLine { get; set; } = "";
+        public string NationalLine { get; set; } = "";
+        public string ConnectedLine { get; set; } = "";
+        public string DisconnectedLine { get; set; } = "";
+        public string StateText { get; set; } = "";
+        public System.Windows.Media.Brush StateColor { get; set; } = System.Windows.Media.Brushes.LimeGreen;
+        public DateTimeOffset ConnectedAt { get; set; }
+        public DateTimeOffset? DisconnectedAt { get; set; }
+
+        private string _duration = "";
+        public string Duration
+        {
+            get => _duration;
+            set { _duration = value; PropertyChanged?.Invoke(this, new(nameof(Duration))); }
+        }
+        public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+    }
+
+    private List<IdSessionItem> _idItems = new();
+    private DispatcherTimer? _idTicker;
+
+    private void BuildIdRegister()
+    {
+        if (IdRegisterList is null) return;
+        _idItems = new List<IdSessionItem>();
+        foreach (var s in IatechShield.Tools.EidSessionLog.Load())
+        {
+            bool active = s.DisconnectedAt is null;
+            _idItems.Add(new IdSessionItem
+            {
+                FullName = $"{s.FirstNames} {s.Name}".Trim() is { Length: > 0 } n ? n : "Carte d'identité",
+                BirthLine = $"📅 Né(e) le {(string.IsNullOrWhiteSpace(s.BirthDate) ? "—" : s.BirthDate)}",
+                NationalLine = $"🆔 Registre national : {(string.IsNullOrWhiteSpace(s.NationalNumber) ? "—" : s.NationalNumber)}",
+                ConnectedLine = $"🟢 Connexion : {s.ConnectedAt.ToLocalTime():dd/MM/yyyy HH:mm:ss}",
+                DisconnectedLine = active ? "🔴 ● toujours connecté" : $"🔴 Déconnexion : {s.DisconnectedAt!.Value.ToLocalTime():dd/MM/yyyy HH:mm:ss}",
+                StateText = active ? "EN COURS" : "TERMINÉE",
+                StateColor = new SolidColorBrush(active ? Color.FromRgb(0x33, 0xFF, 0x66) : Color.FromRgb(0x6E, 0x8B, 0xA0)),
+                ConnectedAt = s.ConnectedAt,
+                DisconnectedAt = s.DisconnectedAt,
+            });
+        }
+        foreach (var it in _idItems) UpdateIdDuration(it);
+        if (_idItems.Count == 0)
+            _idItems.Add(new IdSessionItem { FullName = "Aucune connexion par carte d'identité", BirthLine = "Insérez une carte d'identité sur l'écran de verrouillage pour ouvrir une session.", Duration = "—", StateText = "" });
+        IdRegisterList.ItemsSource = _idItems;
+        if (IdRegisterStatus is not null)
+        {
+            int active = IatechShield.Tools.EidSessionLog.Load().Count(x => x.DisconnectedAt is null);
+            IdRegisterStatus.Text = $"{IatechShield.Tools.EidSessionLog.Load().Count} session(s) — {active} en cours.";
+        }
+    }
+
+    private static void UpdateIdDuration(IdSessionItem it)
+    {
+        if (it.ConnectedAt == default) return;
+        var end = it.DisconnectedAt ?? DateTimeOffset.Now;
+        var span = end - it.ConnectedAt;
+        if (span < TimeSpan.Zero) span = TimeSpan.Zero;
+        it.Duration = span.TotalDays >= 1
+            ? $"{(int)span.TotalDays}j {span.Hours:00}:{span.Minutes:00}:{span.Seconds:00}"
+            : $"{(int)span.TotalHours:00}:{span.Minutes:00}:{span.Seconds:00}";
+    }
+
+    private void StartIdRegisterTicker()
+    {
+        BuildIdRegister();
+        _idTicker ??= new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        _idTicker.Tick -= OnIdTick;
+        _idTicker.Tick += OnIdTick;
+        _idTicker.Start();
+    }
+
+    private void StopIdRegisterTicker() => _idTicker?.Stop();
+
+    private void OnIdTick(object? sender, EventArgs e)
+    {
+        // Met à jour en direct la durée des sessions encore actives.
+        foreach (var it in _idItems)
+            if (it.DisconnectedAt is null && it.ConnectedAt != default)
+                UpdateIdDuration(it);
+    }
+
+    private void OnRefreshIdRegister(object sender, RoutedEventArgs e) => BuildIdRegister();
+
+    private void OnClearIdRegister(object sender, RoutedEventArgs e)
+    {
+        IatechShield.Tools.EidSessionLog.Clear();
+        BuildIdRegister();
+        Log("ID Registre effacé.");
     }
 
     // -------------------------------------------------------------- pare-feu --

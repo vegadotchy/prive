@@ -118,6 +118,8 @@
                                      Tag="&#xE8D7;" Content="Accès" Checked="OnNav"/>
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE703;" Content="Accès distant" Checked="OnNav"/>
+                        <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
+                                     Tag="&#xE77B;" Content="Registre ID" Checked="OnNav"/>
                     </StackPanel>
                 </DockPanel>
             </Border>
@@ -835,6 +837,47 @@
                             </Border>
                             <Border Style="{StaticResource Card}" Margin="0,12,0,0">
                                 <StackPanel>
+                                    <TextBlock Text="📱 Connexion itsme (déverrouillage par notification téléphone)" Foreground="{StaticResource GoldBrush}" FontWeight="SemiBold" FontSize="13"/>
+                                    <TextBlock x:Name="ItsmeStatusText" Text="" Foreground="{StaticResource TextMutedBrush}" FontSize="11" Margin="0,6,0,4" TextWrapping="Wrap"/>
+                                    <TextBlock Text="itsme exige un contrat partenaire. Renseignez le client_id, le client_secret et le code de service fournis par itsme. Déclarez chez itsme l'URL de redirection : http://127.0.0.1:38220/itsme/callback. Une fois configuré, le bouton « itsme » de l'écran de verrouillage envoie une vraie notification sur votre téléphone."
+                                               Foreground="{StaticResource TextMutedBrush}" FontSize="10" Margin="0,0,0,8" TextWrapping="Wrap"/>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,6,8">
+                                            <TextBlock Text="client_id" Foreground="{StaticResource TextMutedBrush}" FontSize="10"/>
+                                            <TextBox x:Name="ItsmeClientId" Background="#0A1726" Foreground="{StaticResource TextPrimaryBrush}" BorderBrush="{StaticResource PanelStrokeBrush}" Padding="7" FontSize="12"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Row="0" Grid.Column="1" Margin="6,0,0,8">
+                                            <TextBlock Text="code de service" Foreground="{StaticResource TextMutedBrush}" FontSize="10"/>
+                                            <TextBox x:Name="ItsmeServiceCode" Background="#0A1726" Foreground="{StaticResource TextPrimaryBrush}" BorderBrush="{StaticResource PanelStrokeBrush}" Padding="7" FontSize="12"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,6,8">
+                                            <TextBlock Text="client_secret" Foreground="{StaticResource TextMutedBrush}" FontSize="10"/>
+                                            <PasswordBox x:Name="ItsmeClientSecret" Background="#0A1726" BorderBrush="{StaticResource PanelStrokeBrush}" Padding="7" FontSize="12"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Row="1" Grid.Column="1" Margin="6,0,0,8">
+                                            <TextBlock Text="environnement" Foreground="{StaticResource TextMutedBrush}" FontSize="10"/>
+                                            <ComboBox x:Name="ItsmeEnv" SelectedIndex="0">
+                                                <ComboBoxItem Content="Production (prd)"/>
+                                                <ComboBoxItem Content="Sandbox (e2e)"/>
+                                            </ComboBox>
+                                        </StackPanel>
+                                        <Button Grid.Row="2" Grid.Column="0" Style="{StaticResource GhostButton}" HorizontalAlignment="Left"
+                                                Content="Enregistrer itsme" Click="OnSaveItsme"/>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource Card}" Margin="0,12,0,0">
+                                <StackPanel>
                                     <TextBlock Text="Enregistrement auto des identifiants (extension navigateur)" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="13"/>
                                     <TextBlock Text="Quand vous vous connectez à un site, IATECH-SHIELD propose d'enregistrer l'identifiant dans le coffre-fort. Canal 100% local (127.0.0.1), rien ne sort du PC. Installez l'extension fournie dans Chrome/Edge (mode développeur → charger l'extension non empaquetée)."
                                                Foreground="{StaticResource TextMutedBrush}" FontSize="10" Margin="0,4,0,6" TextWrapping="Wrap"/>
@@ -1165,6 +1208,59 @@
                                     </StackPanel>
                                 </Border>
                             </StackPanel>
+                        </ScrollViewer>
+                    </Grid>
+
+                    <!-- ==================== PAGE : ID REGISTRE (cartes d'identité) ==================== -->
+                    <Grid x:Name="PageIdRegister" Visibility="Collapsed">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+                            <TextBlock Text="ID Registre" Style="{StaticResource PageTitle}"/>
+                            <Button Style="{StaticResource GhostButton}" Content="Actualiser" Click="OnRefreshIdRegister"
+                                    Margin="14,0,0,0" VerticalAlignment="Center"/>
+                            <Button Style="{StaticResource GhostButton}" Content="Effacer" Click="OnClearIdRegister"
+                                    Margin="8,0,0,0" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="IdRegisterStatus" Text="Chaque connexion par carte d'identité : nom, prénoms, date de naissance, n° national, heures et durée."
+                                       Foreground="{StaticResource TextMutedBrush}" FontSize="11"
+                                       VerticalAlignment="Center" Margin="14,0,0,0"/>
+                        </StackPanel>
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                            <ItemsControl x:Name="IdRegisterList">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Style="{StaticResource Card}" Margin="0,0,0,8" Padding="14"
+                                                BorderBrush="{Binding StateColor}" BorderThickness="1">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <!-- Compteur de durée en tête -->
+                                                <Border Grid.Column="0" Background="#0E2233" CornerRadius="8" Padding="12,8" VerticalAlignment="Center" Margin="0,0,14,0"
+                                                        BorderBrush="{Binding StateColor}" BorderThickness="1">
+                                                    <StackPanel HorizontalAlignment="Center">
+                                                        <TextBlock Text="{Binding Duration}" Foreground="{Binding StateColor}" FontSize="18" FontWeight="Bold" FontFamily="Consolas" HorizontalAlignment="Center"/>
+                                                        <TextBlock Text="{Binding StateText}" Foreground="{StaticResource TextMutedBrush}" FontSize="9" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                                    </StackPanel>
+                                                </Border>
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding FullName}" Foreground="{StaticResource GoldBrush}" FontWeight="Bold" FontSize="15"/>
+                                                    <TextBlock Text="{Binding BirthLine}" Foreground="{StaticResource TextPrimaryBrush}" FontSize="11" Margin="0,2,0,0"/>
+                                                    <TextBlock Text="{Binding NationalLine}" Foreground="{StaticResource TextMutedBrush}" FontSize="11" Margin="0,1,0,0"/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right">
+                                                    <TextBlock Text="{Binding ConnectedLine}" Foreground="#33FF66" FontSize="11"/>
+                                                    <TextBlock Text="{Binding DisconnectedLine}" Foreground="#FF6B6B" FontSize="11" Margin="0,2,0,0"/>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
                         </ScrollViewer>
                     </Grid>
 
