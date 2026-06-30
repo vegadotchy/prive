@@ -1419,6 +1419,8 @@
                                             <Button Content="📡 Connexions TCP" Style="{StaticResource GhostButton}" Tag="tcp" Click="OnShowConnections" Margin="0,0,8,8"/>
                                             <Button Content="📨 Connexions UDP" Style="{StaticResource GhostButton}" Tag="udp" Click="OnShowConnections" Margin="0,0,8,8"/>
                                             <Button Content="🚫 Bloquer une IP" Style="{StaticResource GhostButton}" Click="OnBlockIpManual" Margin="0,0,8,8"/>
+                                            <Button Content="✅ Débloquer une IP" Style="{StaticResource GhostButton}" Click="OnUnblockIpManual" Margin="0,0,8,8"/>
+                                            <Button Content="📋 IP bloquées" Style="{StaticResource GhostButton}" Click="OnListBlockedIps" Margin="0,0,8,8"/>
                                             <Button Content="🌍 Bloquer un domaine" Style="{StaticResource GhostButton}" Click="OnBlockDomain" Margin="0,0,8,8"/>
                                             <Button Content="🏴 Bloquer un pays" Style="{StaticResource GhostButton}" Click="OnBlockCountry" Margin="0,0,8,8"/>
                                             <Button Content="📊 Bande passante" Style="{StaticResource GhostButton}" Click="OnBandwidth" Margin="0,0,8,8"/>

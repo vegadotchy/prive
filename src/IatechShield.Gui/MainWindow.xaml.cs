@@ -5466,6 +5466,41 @@ public partial class MainWindow : Window
         Log($"IP bloquée : {ip}.");
     }
 
+    private async void OnUnblockIpManual(object sender, RoutedEventArgs e)
+    {
+        var dlg = new PromptWindow("Débloquer une IP", "Adresse IP à débloquer :", "Débloquer") { Owner = this };
+        if (dlg.ShowDialog() != true || string.IsNullOrWhiteSpace(dlg.Value)) return;
+        string ip = dlg.Value.Trim();
+        string safe = ip.Replace("\"", "");
+        // Supprime la règle de blocage IATECH-Block <ip> (entrée + sortie).
+        string res = await RunPs($"netsh advfirewall firewall delete rule name='IATECH-Block {safe}'; if($?){{'OK'}}");
+        if (NetControlStatus is not null)
+            NetControlStatus.Text = res.Contains("OK")
+                ? $"✅ IP {ip} débloquée."
+                : $"Aucune règle trouvée pour {ip} (déjà débloquée ?).";
+        IatechShield.Tools.AccessLog.Record("Déblocage réseau", "IP", ip, "Règle de pare-feu supprimée");
+        Log($"IP débloquée : {ip}.");
+    }
+
+    private async void OnListBlockedIps(object sender, RoutedEventArgs e)
+    {
+        if (NetControlStatus is not null) NetControlStatus.Text = "Lecture des IP bloquées…";
+        try
+        {
+            // Liste les règles IATECH-Block et extrait les IP distantes.
+            string raw = await RunPs(
+                "(Get-NetFirewallRule -DisplayName 'IATECH-Block*' -ErrorAction SilentlyContinue | " +
+                "Get-NetFirewallAddressFilter | ForEach-Object { $_.RemoteAddress }) | Sort-Object -Unique");
+            var ips = raw.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim())
+                .Where(s => s.Length > 0 && s != "Any").Distinct().ToList();
+            if (NetConnList is not null)
+                NetConnList.ItemsSource = ips.Select(ip => new ConnItem { Line = ip, Sub = "🚫 IP bloquée — bouton « Bloquer » re-bloque ; utilisez « Débloquer une IP » pour retirer", RemoteIp = ip }).ToList();
+            if (NetControlStatus is not null)
+                NetControlStatus.Text = ips.Count == 0 ? "Aucune IP bloquée par IATECH-SHIELD." : $"{ips.Count} IP bloquée(s).";
+        }
+        catch (Exception ex) { if (NetControlStatus is not null) NetControlStatus.Text = $"Échec : {ex.Message}"; }
+    }
+
     private async void OnBlockDomain(object sender, RoutedEventArgs e)
     {
         var dlg = new PromptWindow("Bloquer un domaine", "Nom de domaine à bloquer (ex : exemple.com) :", "Bloquer") { Owner = this };
