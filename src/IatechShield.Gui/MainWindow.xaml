@@ -18,8 +18,9 @@
             BorderBrush="{StaticResource PanelStrokeBrush}" BorderThickness="1">
         <Grid>
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="96"/>
+                <ColumnDefinition Width="92"/>
                 <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="92"/>
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
                 <RowDefinition Height="*"/>
@@ -27,7 +28,7 @@
             </Grid.RowDefinitions>
 
             <!-- Fond grille HUD (derrière tout le contenu) -->
-            <Rectangle Grid.RowSpan="2" Grid.ColumnSpan="2" IsHitTestVisible="False" Opacity="0.5"
+            <Rectangle Grid.RowSpan="2" Grid.ColumnSpan="3" IsHitTestVisible="False" Opacity="0.5"
                        RadiusX="16" RadiusY="16">
                 <Rectangle.Fill>
                     <DrawingBrush TileMode="Tile" Viewport="0,0,46,46" ViewportUnits="Absolute">
@@ -63,8 +64,6 @@
                                    FontSize="9" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,1,0,0"/>
                     </StackPanel>
 
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
-                                  PanningMode="VerticalOnly">
                     <StackPanel>
                         <RadioButton x:Name="NavDashboard" Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE80F;" IsChecked="True" Content="Dashboard" Checked="OnNav"/>
@@ -92,6 +91,13 @@
                                      Tag="&#xEA18;" Content="Centre" Checked="OnNav"/>
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE9D2;" Content="Intégrité" Checked="OnNav"/>
+                    </StackPanel>
+                </DockPanel>
+            </Border>
+
+            <!-- ===================== BARRE LATÉRALE DROITE ===================== -->
+            <Border Grid.Column="2" Grid.Row="0" Background="#0A1726" CornerRadius="0,16,0,0">
+                <StackPanel Margin="0,18">
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE8EC;" Content="Jumeau" Checked="OnNav"/>
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
@@ -124,9 +130,7 @@
                                      Tag="&#xE77B;" Content="Registre ID" Checked="OnNav"/>
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE9F5;" Content="Contrôle" Checked="OnNav"/>
-                    </StackPanel>
-                    </ScrollViewer>
-                </DockPanel>
+                </StackPanel>
             </Border>
 
             <!-- =========================== CONTENU =========================== -->
@@ -2760,7 +2764,7 @@
             </Grid>
 
             <!-- ============================ PIED DE PAGE ============================ -->
-            <Border Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Background="#070F1A"
+            <Border Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" Background="#070F1A"
                     CornerRadius="0,0,16,16" BorderBrush="{StaticResource PanelStrokeBrush}" BorderThickness="0,1,0,0">
                 <Grid Margin="22,0">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center" Height="44">
