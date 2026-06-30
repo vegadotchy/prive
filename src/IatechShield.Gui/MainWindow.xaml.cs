@@ -261,6 +261,7 @@ public partial class MainWindow : Window
         else if (page == PageAccess)
         {
             BuildAccessLog();
+            _ = BuildUsersAsync();
         }
         else if (page == PageRemote)
         {
@@ -4895,6 +4896,142 @@ public partial class MainWindow : Window
         IatechShield.Tools.AccessLog.Clear();
         BuildAccessLog();
         Log("Registre des accès effacé.");
+    }
+
+    // ------------------------------------------ Gestion des utilisateurs Windows -
+
+    /// <summary>Ligne « utilisateur Windows ».</summary>
+    public sealed class UserAccountItem
+    {
+        public string Name { get; set; } = "";
+        public bool IsAdmin { get; set; }
+        public bool Enabled { get; set; } = true;
+        public string RoleText => IsAdmin ? "ADMIN" : "STANDARD";
+        public System.Windows.Media.Brush RoleColor =>
+            new SolidColorBrush(IsAdmin ? Color.FromRgb(0xFB, 0xBF, 0x24) : Color.FromRgb(0x22, 0xD3, 0xE8));
+        public string StatusText => Enabled ? "Compte actif" : "Compte désactivé";
+        public string ToggleRoleLabel => IsAdmin ? "Rétrograder standard" : "Promouvoir admin";
+    }
+
+    // SID bien connu du groupe Administrateurs (indépendant de la langue de Windows).
+    private const string AdminsSid = "S-1-5-32-544";
+
+    private async Task BuildUsersAsync()
+    {
+        if (UsersList is null) return;
+        if (UsersStatus is not null) UsersStatus.Text = "Lecture des comptes…";
+        try
+        {
+            // Liste des membres administrateurs (par SID, robuste au multilingue).
+            string adminsRaw = await RunPs(
+                $"(Get-LocalGroupMember -SID {AdminsSid} | ForEach-Object {{ $_.Name.Split('\\')[-1] }}) -join ','");
+            var admins = adminsRaw.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => s.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            // Liste des comptes locaux (nom|état).
+            string usersRaw = await RunPs(
+                "(Get-LocalUser | ForEach-Object { $_.Name + '|' + $_.Enabled }) -join ';'");
+
+            var items = new List<UserAccountItem>();
+            foreach (var row in usersRaw.Split(';', StringSplitOptions.RemoveEmptyEntries))
+            {
+                var parts = row.Split('|');
+                string name = parts[0].Trim();
+                if (name.Length == 0) continue;
+                items.Add(new UserAccountItem
+                {
+                    Name = name,
+                    Enabled = parts.Length < 2 || parts[1].Trim().Equals("True", StringComparison.OrdinalIgnoreCase),
+                    IsAdmin = admins.Contains(name)
+                });
+            }
+            UsersList.ItemsSource = items;
+            if (UsersStatus is not null)
+                UsersStatus.Text = items.Count == 0
+                    ? "Impossible de lire les comptes (droits administrateur requis)."
+                    : $"{items.Count} compte(s) — {items.Count(i => i.IsAdmin)} administrateur(s).";
+        }
+        catch (Exception ex)
+        {
+            if (UsersStatus is not null) UsersStatus.Text = $"Échec : {ex.Message}";
+        }
+    }
+
+    private void OnRefreshUsers(object sender, RoutedEventArgs e) => _ = BuildUsersAsync();
+
+    private async void OnAddUser(object sender, RoutedEventArgs e)
+    {
+        var nameDlg = new PromptWindow("Ajouter un utilisateur", "Nom du nouvel utilisateur :", "Suivant") { Owner = this };
+        if (nameDlg.ShowDialog() != true || string.IsNullOrWhiteSpace(nameDlg.Value)) return;
+        string name = nameDlg.Value.Trim();
+
+        var pinDlg = new PromptWindow("Code / mot de passe", $"Code PIN ou mot de passe de session pour « {name} » :", "Créer") { Owner = this };
+        if (pinDlg.ShowDialog() != true) return;
+        string pwd = pinDlg.Value;
+
+        if (UsersStatus is not null) UsersStatus.Text = $"Création de « {name} »…";
+        // Échappe les guillemets simples PowerShell.
+        string n = name.Replace("'", "''");
+        string p = pwd.Replace("'", "''");
+        string cmd = string.IsNullOrEmpty(pwd)
+            ? $"New-LocalUser -Name '{n}' -NoPassword -ErrorAction Stop"
+            : $"New-LocalUser -Name '{n}' -Password (ConvertTo-SecureString '{p}' -AsPlainText -Force) -ErrorAction Stop";
+        string res = await RunPs(cmd + "; if($?){'OK'}");
+        if (res.Contains("OK"))
+        {
+            IatechShield.Tools.AccessLog.Record("Compte créé", "Admin local", name, "Nouvel utilisateur Windows");
+            Log($"Utilisateur Windows créé : {name}.");
+        }
+        else if (UsersStatus is not null) UsersStatus.Text = $"Échec de la création : {res}";
+        await BuildUsersAsync();
+    }
+
+    private async void OnToggleUserRole(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: UserAccountItem u }) return;
+        string n = u.Name.Replace("'", "''");
+        string cmd = u.IsAdmin
+            ? $"Remove-LocalGroupMember -SID {AdminsSid} -Member '{n}' -ErrorAction Stop"
+            : $"Add-LocalGroupMember -SID {AdminsSid} -Member '{n}' -ErrorAction Stop";
+        string res = await RunPs(cmd + "; if($?){'OK'}");
+        if (res.Contains("OK"))
+            Log($"Rôle modifié pour {u.Name} : {(u.IsAdmin ? "standard" : "administrateur")}.");
+        else if (UsersStatus is not null) UsersStatus.Text = $"Échec : {res}";
+        await BuildUsersAsync();
+    }
+
+    private async void OnSetUserPin(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: UserAccountItem u }) return;
+        var dlg = new PromptWindow("Code PIN / mot de passe", $"Nouveau code de session pour « {u.Name} » :", "Appliquer") { Owner = this };
+        if (dlg.ShowDialog() != true) return;
+        string n = u.Name.Replace("'", "''");
+        string p = dlg.Value.Replace("'", "''");
+        string res = await RunPs(
+            $"Set-LocalUser -Name '{n}' -Password (ConvertTo-SecureString '{p}' -AsPlainText -Force) -ErrorAction Stop; if($?){{'OK'}}");
+        if (UsersStatus is not null)
+            UsersStatus.Text = res.Contains("OK")
+                ? $"✓ Code de session mis à jour pour {u.Name}. (Un code PIN Windows Hello se configure ensuite à l'écran de connexion.)"
+                : $"Échec : {res}";
+        if (res.Contains("OK")) Log($"Code de session modifié pour {u.Name}.");
+    }
+
+    private async void OnDeleteUser(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: UserAccountItem u }) return;
+        var confirm = new PromptWindow("Supprimer l'utilisateur",
+            $"Supprimer définitivement le compte « {u.Name} » ? Tapez OUI pour confirmer.", "Supprimer") { Owner = this };
+        if (confirm.ShowDialog() != true || !string.Equals(confirm.Value.Trim(), "OUI", StringComparison.OrdinalIgnoreCase))
+            return;
+        string n = u.Name.Replace("'", "''");
+        string res = await RunPs($"Remove-LocalUser -Name '{n}' -ErrorAction Stop; if($?){{'OK'}}");
+        if (res.Contains("OK"))
+        {
+            IatechShield.Tools.AccessLog.Record("Compte supprimé", "Admin local", u.Name, "Utilisateur Windows supprimé");
+            Log($"Utilisateur Windows supprimé : {u.Name}.");
+        }
+        else if (UsersStatus is not null) UsersStatus.Text = $"Échec : {res}";
+        await BuildUsersAsync();
     }
 
     // ------------------------------------------------- Accès à distance --------
