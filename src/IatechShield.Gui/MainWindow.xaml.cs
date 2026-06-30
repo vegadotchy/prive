@@ -4452,6 +4452,175 @@ public partial class MainWindow : Window
             : "Retiré du démarrage de Windows.");
     }
 
+    // ------------------------------------ Protections avancées (page Protection) -
+
+    private const string NetCutRule = "IATECHShieldNetCut";
+    private const string NoPingRule = "IATECHShieldNoPing";
+    private DispatcherTimer? _netSchedTimer;
+    private bool _netCutActive;
+
+    /// <summary>Ouvre un outil/URI de protection Windows (tag = cible).</summary>
+    private void OnProtTool(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: string target } || string.IsNullOrEmpty(target)) return;
+        try { Process.Start(new ProcessStartInfo(target) { UseShellExecute = true }); }
+        catch (Exception ex)
+        {
+            // Repli : si l'URI windowsdefender:// échoue, on ouvre la Sécurité Windows.
+            try { Process.Start(new ProcessStartInfo("windowsdefender:") { UseShellExecute = true }); }
+            catch { Log($"Ouverture impossible : {ex.Message}"); }
+        }
+    }
+
+    // --- Programmateur de connexion Internet ---
+
+    private void OnNetScheduleToggled(object sender, RoutedEventArgs e)
+    {
+        if (!_ready) return;
+        if (NetScheduleSwitch.IsChecked == true)
+        {
+            _netSchedTimer ??= new DispatcherTimer { Interval = TimeSpan.FromSeconds(20) };
+            _netSchedTimer.Tick -= NetScheduleTick;
+            _netSchedTimer.Tick += NetScheduleTick;
+            _netSchedTimer.Start();
+            NetScheduleStatus.Text = $"⏰ Programmation active : Internet coupé à {NetCutTime.Text}, rétabli à {NetRestoreTime.Text}.";
+            Log("Programmateur de connexion Internet activé.");
+            NetScheduleTick(this, EventArgs.Empty);   // applique tout de suite si on est déjà dans la plage
+        }
+        else
+        {
+            _netSchedTimer?.Stop();
+            NetScheduleStatus.Text = "Programmation désactivée. (Internet non coupé.)";
+            Log("Programmateur de connexion Internet désactivé.");
+        }
+    }
+
+    private async void NetScheduleTick(object? sender, EventArgs e)
+    {
+        if (NetScheduleSwitch.IsChecked != true) return;
+        if (!TimeSpan.TryParse(NetCutTime.Text.Trim(), out var cut) ||
+            !TimeSpan.TryParse(NetRestoreTime.Text.Trim(), out var restore))
+            return;
+
+        var now = DateTime.Now.TimeOfDay;
+        // Plage « coupé » : de l'heure de coupure à l'heure de rétablissement (gère le passage de minuit).
+        bool shouldBeCut = cut <= restore
+            ? (now >= cut && now < restore)
+            : (now >= cut || now < restore);
+
+        if (shouldBeCut && !_netCutActive) await CutInternet(true);
+        else if (!shouldBeCut && _netCutActive) await CutInternet(false);
+    }
+
+    private async void OnCutNetNow(object sender, RoutedEventArgs e) => await CutInternet(true);
+    private async void OnRestoreNetNow(object sender, RoutedEventArgs e) => await CutInternet(false);
+
+    /// <summary>Coupe (ou rétablit) Internet via une règle de pare-feu bloquant tout le trafic sortant/entrant.</summary>
+    private async Task CutInternet(bool cut)
+    {
+        try
+        {
+            if (cut)
+            {
+                await RunHiddenAsync("cmd.exe", $"/c netsh advfirewall firewall add rule name=\"{NetCutRule}\" dir=out action=block & " +
+                                                $"netsh advfirewall firewall add rule name=\"{NetCutRule}\" dir=in action=block");
+                _netCutActive = true;
+                if (NetScheduleStatus is not null) NetScheduleStatus.Text = "🔴 Internet COUPÉ par IATECH-SHIELD.";
+                Notify("Connexion Internet coupée", "La connexion a été bloquée selon votre programmation.", "Protection");
+                Log("Internet coupé (règle de pare-feu).");
+            }
+            else
+            {
+                await RunHiddenAsync("cmd.exe", $"/c netsh advfirewall firewall delete rule name=\"{NetCutRule}\"");
+                _netCutActive = false;
+                if (NetScheduleStatus is not null) NetScheduleStatus.Text = "🟢 Internet rétabli.";
+                Log("Internet rétabli.");
+            }
+        }
+        catch (Exception ex)
+        {
+            if (NetScheduleStatus is not null) NetScheduleStatus.Text = $"Échec : {ex.Message} (droits administrateur requis).";
+        }
+    }
+
+    // --- Pare-feu : exception ---
+
+    private async void OnFirewallAllow(object sender, RoutedEventArgs e)
+    {
+        var dlg = new OpenFileDialog { Title = "Programme à autoriser au travers du pare-feu", Filter = "Programmes (*.exe)|*.exe" };
+        if (dlg.ShowDialog(this) != true) return;
+        string exe = dlg.FileName;
+        string name = $"IATECH-Allow {Path.GetFileNameWithoutExtension(exe)}";
+        try
+        {
+            await RunHiddenAsync("cmd.exe", $"/c netsh advfirewall firewall add rule name=\"{name}\" dir=in action=allow program=\"{exe}\" enable=yes & " +
+                                            $"netsh advfirewall firewall add rule name=\"{name}\" dir=out action=allow program=\"{exe}\" enable=yes");
+            Log($"Pare-feu : {Path.GetFileName(exe)} autorisé.");
+            Notify("Exception pare-feu ajoutée", $"{Path.GetFileName(exe)} est désormais autorisé.", "Protection");
+        }
+        catch (Exception ex) { Log($"Échec de l'exception pare-feu : {ex.Message}"); }
+    }
+
+    // --- Mode furtif (ICMP / ping) ---
+
+    private async void OnStealthToggled(object sender, RoutedEventArgs e)
+    {
+        if (!_ready) return;
+        try
+        {
+            if (StealthSwitch.IsChecked == true)
+            {
+                await RunHiddenAsync("cmd.exe", $"/c netsh advfirewall firewall add rule name=\"{NoPingRule}\" protocol=icmpv4:8,any dir=in action=block");
+                Log("Mode furtif activé (ping bloqué).");
+            }
+            else
+            {
+                await RunHiddenAsync("cmd.exe", $"/c netsh advfirewall firewall delete rule name=\"{NoPingRule}\"");
+                Log("Mode furtif désactivé.");
+            }
+        }
+        catch (Exception ex) { Log($"Mode furtif : {ex.Message}"); }
+    }
+
+    // --- Protection USB (AutoRun) ---
+
+    private async void OnUsbGuardToggled(object sender, RoutedEventArgs e)
+    {
+        if (!_ready) return;
+        const string key = @"HKCU\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer";
+        try
+        {
+            if (UsbGuardSwitch.IsChecked == true)
+            {
+                await RunHiddenAsync("cmd.exe", $"/c reg add \"{key}\" /v NoDriveTypeAutoRun /t REG_DWORD /d 255 /f");
+                Log("Protection USB activée (AutoRun désactivé).");
+            }
+            else
+            {
+                await RunHiddenAsync("cmd.exe", $"/c reg add \"{key}\" /v NoDriveTypeAutoRun /t REG_DWORD /d 145 /f");
+                Log("Protection USB désactivée (AutoRun rétabli).");
+            }
+        }
+        catch (Exception ex) { Log($"Protection USB : {ex.Message}"); }
+    }
+
+    // --- Protection Web (SmartScreen) ---
+
+    private void OnWebGuardToggled(object sender, RoutedEventArgs e)
+    {
+        if (!_ready) return;
+        Log(WebGuardSwitch.IsChecked == true ? "Protection Web (anti-hameçonnage) activée." : "Protection Web désactivée.");
+        try { Process.Start(new ProcessStartInfo("windowsdefender://appbrowser") { UseShellExecute = true }); } catch { }
+    }
+
+    // --- Historique de protection ---
+
+    private void OnOpenProtectionHistory(object sender, RoutedEventArgs e)
+    {
+        if (NavLogs is not null) NavLogs.IsChecked = true;
+        ShowPage("Logs");
+    }
+
     // -------------------------------------------------------------- pare-feu --
 
     private void OnOpenFirewall(object sender, RoutedEventArgs e)
