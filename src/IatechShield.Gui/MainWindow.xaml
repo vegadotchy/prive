@@ -1425,7 +1425,7 @@
                                             <Button Content="🛰️ Détecter un scan" Style="{StaticResource GhostButton}" Click="OnDetectScan" Margin="0,0,8,8"/>
                                         </WrapPanel>
                                         <TextBlock x:Name="NetControlStatus" Text="" Foreground="{StaticResource GoldBrush}" FontSize="11" Margin="0,0,0,8" TextWrapping="Wrap"/>
-                                        <ItemsControl x:Name="ConnectionsList">
+                                        <ItemsControl x:Name="NetConnList">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
                                                     <Border Background="#0E2233" CornerRadius="6" Padding="9" Margin="0,0,0,4">

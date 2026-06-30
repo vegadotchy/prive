@@ -5322,7 +5322,7 @@ public partial class MainWindow : Window
 
     private async void OnShowConnections(object sender, RoutedEventArgs e)
     {
-        if (sender is not FrameworkElement { Tag: string proto } || ConnectionsList is null) return;
+        if (sender is not FrameworkElement { Tag: string proto } || NetConnList is null) return;
         if (NetControlStatus is not null) NetControlStatus.Text = "Lecture des connexions…";
         try
         {
@@ -5347,7 +5347,7 @@ public partial class MainWindow : Window
                     RemoteIp = remoteIp
                 });
             }
-            ConnectionsList.ItemsSource = items;
+            NetConnList.ItemsSource = items;
             if (NetControlStatus is not null) NetControlStatus.Text = $"{items.Count} connexion(s) {proto.ToUpper()}.";
         }
         catch (Exception ex) { if (NetControlStatus is not null) NetControlStatus.Text = $"Échec : {ex.Message}"; }
