@@ -24,6 +24,23 @@
             <GradientStop Color="#F59E0B" Offset="1"/>
         </LinearGradientBrush>
 
+        <!-- Dégradé « or 3D » vertical (haut clair → reflet → or profond) pour les
+             icônes et titres : donne un effet métal bombé / relief. -->
+        <LinearGradientBrush x:Key="GoldIcon" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#FFF6D8" Offset="0"/>
+            <GradientStop Color="#FCD34D" Offset="0.35"/>
+            <GradientStop Color="#F59E0B" Offset="0.7"/>
+            <GradientStop Color="#B45309" Offset="1"/>
+        </LinearGradientBrush>
+
+        <!-- Variante très lumineuse (icône / titre actif). -->
+        <LinearGradientBrush x:Key="GoldIconBright" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#FFFDF0" Offset="0"/>
+            <GradientStop Color="#FDE68A" Offset="0.3"/>
+            <GradientStop Color="#FBBF24" Offset="0.65"/>
+            <GradientStop Color="#D97706" Offset="1"/>
+        </LinearGradientBrush>
+
         <!-- Dégradé violet → cyan (boutons secondaires colorés). -->
         <LinearGradientBrush x:Key="VioletButton" StartPoint="0,0" EndPoint="1,1">
             <GradientStop Color="#8B5CF6" Offset="0"/>
@@ -80,39 +97,54 @@
                         <Grid>
                             <!-- Barre d'accent lumineuse à gauche (onglet actif). -->
                             <Border x:Name="accent" Width="3" HorizontalAlignment="Left" CornerRadius="2"
-                                    Margin="2,8" Background="{StaticResource AccentBrush}" Opacity="0">
+                                    Margin="2,8" Background="{StaticResource GoldBrush}" Opacity="0">
                                 <Border.Effect>
-                                    <DropShadowEffect Color="#22D3E8" BlurRadius="10" ShadowDepth="0" Opacity="0.9"/>
+                                    <DropShadowEffect Color="#FBBF24" BlurRadius="10" ShadowDepth="0" Opacity="0.9"/>
                                 </Border.Effect>
                             </Border>
                             <Border x:Name="bd" Background="Transparent" CornerRadius="10" Padding="10,10" Margin="4,0,0,0">
                                 <StackPanel HorizontalAlignment="Center">
-                                    <TextBlock x:Name="ic" Text="{TemplateBinding Tag}" FontFamily="Segoe MDL2 Assets"
-                                               FontSize="18" HorizontalAlignment="Center"
-                                               Foreground="{TemplateBinding Foreground}"/>
-                                    <ContentPresenter HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                                    <!-- Icône « or 3D » : glyphe doré bombé posé sur une ombre
+                                         portée sombre décalée → effet de relief métallique. -->
+                                    <Grid HorizontalAlignment="Center">
+                                        <TextBlock Text="{TemplateBinding Tag}" FontFamily="Segoe MDL2 Assets"
+                                                   FontSize="20" HorizontalAlignment="Center" Margin="1.2,1.4,0,0"
+                                                   Foreground="#80000000"/>
+                                        <TextBlock x:Name="ic" Text="{TemplateBinding Tag}" FontFamily="Segoe MDL2 Assets"
+                                                   FontSize="20" HorizontalAlignment="Center"
+                                                   Foreground="{StaticResource GoldIcon}">
+                                            <TextBlock.Effect>
+                                                <DropShadowEffect Color="#3A1D00" BlurRadius="2" ShadowDepth="1.2"
+                                                                  Direction="270" Opacity="0.85"/>
+                                            </TextBlock.Effect>
+                                        </TextBlock>
+                                    </Grid>
+                                    <ContentPresenter x:Name="cp" HorizontalAlignment="Center" Margin="0,5,0,0"/>
                                 </StackPanel>
                             </Border>
                         </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="bd" Property="Background" Value="#14283F"/>
-                                <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+                                <Setter Property="Foreground" Value="{StaticResource GoldBrush}"/>
+                                <Setter TargetName="ic" Property="Foreground" Value="{StaticResource GoldIconBright}"/>
                             </Trigger>
                             <Trigger Property="IsChecked" Value="True">
                                 <Setter TargetName="bd" Property="Background">
                                     <Setter.Value>
                                         <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                            <GradientStop Color="#2622D3E8" Offset="0"/>
-                                            <GradientStop Color="#268B5CF6" Offset="1"/>
+                                            <GradientStop Color="#33FBBF24" Offset="0"/>
+                                            <GradientStop Color="#1AF59E0B" Offset="1"/>
                                         </LinearGradientBrush>
                                     </Setter.Value>
                                 </Setter>
+                                <Setter TargetName="accent" Property="Background" Value="{StaticResource GoldBrush}"/>
                                 <Setter TargetName="accent" Property="Opacity" Value="1"/>
-                                <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
+                                <Setter Property="Foreground" Value="{StaticResource GoldBrush}"/>
+                                <Setter TargetName="ic" Property="Foreground" Value="{StaticResource GoldIconBright}"/>
                                 <Setter TargetName="ic" Property="Effect">
                                     <Setter.Value>
-                                        <DropShadowEffect Color="#22D3E8" BlurRadius="14" ShadowDepth="0" Opacity="0.9"/>
+                                        <DropShadowEffect Color="#FBBF24" BlurRadius="16" ShadowDepth="0" Opacity="0.95"/>
                                     </Setter.Value>
                                 </Setter>
                             </Trigger>

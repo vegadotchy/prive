@@ -46,12 +46,21 @@
             <Border Grid.Column="0" Grid.Row="0" Background="#0A1726" CornerRadius="16,0,0,0">
                 <DockPanel Margin="0,18">
                     <StackPanel DockPanel.Dock="Top" HorizontalAlignment="Center" Margin="0,0,0,24">
-                        <TextBlock Text="&#xEA18;" FontFamily="Segoe MDL2 Assets" FontSize="26"
-                                   Foreground="{StaticResource AccentBrush}" HorizontalAlignment="Center"/>
-                        <TextBlock Text="IATECH" Foreground="{StaticResource TextPrimaryBrush}"
-                                   FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,4,0,0"/>
-                        <TextBlock Text="SHIELD" Foreground="{StaticResource AccentBrush}"
-                                   FontSize="9" HorizontalAlignment="Center" Margin="0,1,0,0"/>
+                        <!-- Logo bouclier « or 3D » : glyphe doré bombé + ombre portée + halo. -->
+                        <Grid HorizontalAlignment="Center">
+                            <TextBlock Text="&#xEA18;" FontFamily="Segoe MDL2 Assets" FontSize="34"
+                                       HorizontalAlignment="Center" Margin="1.6,2,0,0" Foreground="#90000000"/>
+                            <TextBlock Text="&#xEA18;" FontFamily="Segoe MDL2 Assets" FontSize="34"
+                                       HorizontalAlignment="Center" Foreground="{StaticResource GoldIconBright}">
+                                <TextBlock.Effect>
+                                    <DropShadowEffect Color="#FBBF24" BlurRadius="18" ShadowDepth="0" Opacity="0.75"/>
+                                </TextBlock.Effect>
+                            </TextBlock>
+                        </Grid>
+                        <TextBlock Text="IATECH" Foreground="{StaticResource GoldIconBright}"
+                                   FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,6,0,0"/>
+                        <TextBlock Text="SHIELD" Foreground="{StaticResource GoldBrush}"
+                                   FontSize="9" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,1,0,0"/>
                     </StackPanel>
 
                     <StackPanel DockPanel.Dock="Top">
@@ -119,10 +128,22 @@
                 <!-- En-tête -->
                 <Grid Grid.Row="0" MouseLeftButtonDown="OnHeaderDrag" Background="Transparent">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <!-- Petit bouclier doré devant le titre. -->
+                        <TextBlock Text="&#xEA18;" FontFamily="Segoe MDL2 Assets" FontSize="22"
+                                   VerticalAlignment="Center" Margin="0,0,8,0"
+                                   Foreground="{StaticResource GoldIconBright}">
+                            <TextBlock.Effect>
+                                <DropShadowEffect Color="#FBBF24" BlurRadius="12" ShadowDepth="0" Opacity="0.7"/>
+                            </TextBlock.Effect>
+                        </TextBlock>
                         <TextBlock Text="IATECH-SHIELD " FontSize="20" FontWeight="Bold"
-                                   Foreground="{StaticResource TextPrimaryBrush}"/>
+                                   Foreground="{StaticResource GoldIconBright}">
+                            <TextBlock.Effect>
+                                <DropShadowEffect Color="#5A2E00" BlurRadius="2" ShadowDepth="1.2" Direction="270" Opacity="0.8"/>
+                            </TextBlock.Effect>
+                        </TextBlock>
                         <TextBlock Text="PRO" FontSize="20" FontWeight="Bold"
-                                   Foreground="{StaticResource AccentBrush}"/>
+                                   Foreground="{StaticResource GoldBrush}"/>
                         <TextBlock x:Name="HeaderVersion" Text="" FontSize="12" Foreground="{StaticResource TextMutedBrush}"
                                    VerticalAlignment="Bottom" Margin="6,0,0,3"/>
                     </StackPanel>
