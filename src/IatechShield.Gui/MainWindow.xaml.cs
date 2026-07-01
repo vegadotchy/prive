@@ -6608,7 +6608,7 @@ public partial class MainWindow : Window
     public sealed record AppLaunchItem(string App, string Who, DateTime When)
     { public string WhenText => When.ToString("dd/MM/yyyy HH:mm"); }
 
-    public sealed record ConnItem(string Kind, string Identity, string Method, DateTimeOffset When)
+    public sealed record HistoryConnEntry(string Kind, string Identity, string Method, DateTimeOffset When)
     { public string WhenText => When.ToString("dd/MM/yyyy HH:mm"); }
 
     public sealed record ProblemItem(string Message, string Source, DateTime When)
@@ -6617,7 +6617,7 @@ public partial class MainWindow : Window
     private string _historyTab = "sites";
     private List<HistoryEntry> _history = new();
     private List<AppLaunchItem> _apps = new();
-    private List<ConnItem> _conns = new();
+    private List<HistoryConnEntry> _conns = new();
     private List<ProblemItem> _problems = new();
 
     private void OnHistoryTab(object sender, RoutedEventArgs e)
@@ -6654,7 +6654,7 @@ public partial class MainWindow : Window
                     break;
                 case "conn":
                     var ev = await Task.Run(() => IatechShield.Tools.AccessLog.Load());
-                    _conns = ev.Select(a => new ConnItem(a.Kind, a.Identity, a.Method, a.Time)).ToList();
+                    _conns = ev.Select(a => new HistoryConnEntry(a.Kind, a.Identity, a.Method, a.Time)).ToList();
                     if (HistoryStatus is not null) HistoryStatus.Text = $"{_conns.Count} évènement(s) de connexion.";
                     break;
                 case "prob":
