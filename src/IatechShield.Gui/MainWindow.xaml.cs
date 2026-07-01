@@ -2249,41 +2249,14 @@ public partial class MainWindow : Window
     private sealed record VaultDto(string Id, string Title, string Username, string Password, string Url, string Notes);
 
     /// <summary>
-    /// Exige le mot de passe du coffre-fort avant d'y accéder (défini à la première
-    /// ouverture). Une fois validé, l'accès reste ouvert pour la session.
+    /// Exige la carte d'identité propriétaire avant d'accéder au coffre-fort.
+    /// Une fois la carte validée, l'accès reste ouvert pour la session (jusqu'à ce
+    /// qu'on quitte l'onglet, ce qui reverrouille le coffre).
     /// </summary>
     private bool EnsureVaultUnlocked()
     {
         if (_vaultUnlocked) return true;
-
-        string? hash = SecretVault.Load("vaultlock").GetValueOrDefault("hash");
-
-        if (string.IsNullOrWhiteSpace(hash))
-        {
-            // Première ouverture : on définit le mot de passe maître du coffre-fort.
-            var create = new PromptWindow("Coffre-fort",
-                "Définissez un mot de passe pour protéger l'accès au coffre-fort :", "Définir") { Owner = this };
-            if (create.ShowDialog() != true || create.Value.Length < 4)
-            {
-                MessageBox.Show("Mot de passe trop court (4 caractères minimum). Accès au coffre-fort annulé.",
-                    "Coffre-fort", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return false;
-            }
-            SecretVault.Save("vaultlock", new Dictionary<string, string> { ["hash"] = SecretHash.Hash(create.Value) });
-            _vaultUnlocked = true;
-            Log("Mot de passe du coffre-fort défini.");
-            return true;
-        }
-
-        var prompt = new PromptWindow("Coffre-fort verrouillé",
-            "Saisissez le mot de passe du coffre-fort :", "Déverrouiller") { Owner = this };
-        if (prompt.ShowDialog() != true)
-            return false;
-        if (!SecretHash.Verify(prompt.Value, hash))
-        {
-            MessageBox.Show("Mot de passe incorrect.", "Coffre-fort", MessageBoxButton.OK, MessageBoxImage.Error);
-            return false;
-        }
+        if (!CardAuth.Gate(this, "Ouvrir le coffre-fort", out _)) return false;
         _vaultUnlocked = true;
         return true;
     }
@@ -4380,7 +4353,7 @@ public partial class MainWindow : Window
 
     // -------------------------------------------- protection anti-altération ---
 
-    private string? _tamperHash;
+    private bool _tamperEnabled;
     private bool _tamperLoaded;
 
     private bool TamperEnabled
@@ -4390,64 +4363,41 @@ public partial class MainWindow : Window
             if (!_tamperLoaded)
             {
                 _tamperLoaded = true;
-                _tamperHash = SecretVault.Load("tamper").GetValueOrDefault("pwd");
+                _tamperEnabled = SecretVault.Load("tamper").GetValueOrDefault("enabled") == "1";
             }
-            return !string.IsNullOrEmpty(_tamperHash);
+            return _tamperEnabled;
         }
     }
 
-    /// <summary>Demande le mot de passe de protection ; true si absent ou correct.</summary>
+    /// <summary>Exige la carte d'identité propriétaire ; true si protection absente ou carte validée.</summary>
     private bool RequireTamperAuth(string action)
     {
         if (!TamperEnabled) return true;
-
-        string message = $"{action} — saisissez le mot de passe de protection.";
-        for (int attempt = 0; attempt < 5; attempt++)
-        {
-            var prompt = new PromptWindow("Protection par mot de passe", message, "Déverrouiller") { Owner = this };
-            if (prompt.ShowDialog() != true)
-                return false;
-            if (SecretHash.Verify(prompt.Value, _tamperHash!))
-                return true;
-            message = "Mot de passe incorrect. Réessayez.";
-        }
-        return false;
+        return CardAuth.Gate(this, action, out _);
     }
 
     private void OnSetTamperPassword(object sender, RoutedEventArgs e)
     {
-        // Changer un mot de passe existant exige d'abord l'ancien.
-        if (TamperEnabled && !RequireTamperAuth("Modifier le mot de passe de protection"))
-            return;
-
-        string pwd = TamperPwdInput.Password;
-        if (pwd.Length < 4)
-        {
-            TamperStatus.Text = "Le mot de passe doit faire au moins 4 caractères.";
-            return;
-        }
-
-        _tamperHash = SecretHash.Hash(pwd);
-        SecretVault.Save("tamper", new Dictionary<string, string> { ["pwd"] = _tamperHash });
-        TamperPwdInput.Clear();
-        TamperStatus.Text = "Protection par mot de passe activée.";
-        Log("Protection anti-altération activée.");
+        // Active la protection : la carte d'identité propriétaire devient la clé.
+        if (!CardAuth.Gate(this, "Activer la protection anti-altération", out _)) return;
+        _tamperEnabled = true;
+        SecretVault.Save("tamper", new Dictionary<string, string> { ["enabled"] = "1" });
+        if (TamperStatus is not null) TamperStatus.Text = "Protection activée : carte d'identité requise pour désactiver le temps réel ou quitter.";
+        Log("Protection anti-altération activée (carte d'identité).");
     }
 
     private void OnClearTamperPassword(object sender, RoutedEventArgs e)
     {
         if (!TamperEnabled)
         {
-            TamperStatus.Text = "Aucun mot de passe défini.";
+            if (TamperStatus is not null) TamperStatus.Text = "Aucune protection définie.";
             return;
         }
-        if (!RequireTamperAuth("Retirer le mot de passe de protection"))
-            return;
-
-        _tamperHash = null;
+        if (!CardAuth.Gate(this, "Retirer la protection anti-altération", out _)) return;
+        _tamperEnabled = false;
         SecretVault.Delete("tamper");
-        TamperStatus.Text = "Protection par mot de passe retirée.";
-        Log("Protection anti-altération retirée.");
+        if (TamperStatus is not null) TamperStatus.Text = "Protection retirée.";
+        Log("Protection anti-altération retirée (carte d'identité).");
     }
 
     // ---------------------------------------------- verrou de session (PIN) ---
@@ -5322,10 +5272,9 @@ public partial class MainWindow : Window
         catch { }
     }
 
-    // --- Verrou d'extinction & redémarrage (code PIN) -------------------------
+    // --- Verrou d'extinction & redémarrage (carte d'identité) ----------------
 
     private bool _shutdownLockEnabled;
-    private string? _shutdownPinHash;
     private bool _allowShutdownOnce;   // autorise UNE seule fermeture de session (action légitime via l'app)
     private bool _shutdownLockLoaded;
 
@@ -5336,8 +5285,7 @@ public partial class MainWindow : Window
         try
         {
             var cfg = SecretVault.Load("shutdownlock");
-            _shutdownPinHash = cfg.GetValueOrDefault("pin");
-            _shutdownLockEnabled = cfg.GetValueOrDefault("enabled") == "1" && !string.IsNullOrEmpty(_shutdownPinHash);
+            _shutdownLockEnabled = cfg.GetValueOrDefault("enabled") == "1";
         }
         catch { }
         _shutdownLockLoaded = true;
@@ -5356,102 +5304,38 @@ public partial class MainWindow : Window
             ShutdownLockSwitch.Unchecked += OnShutdownLockToggled;
         }
         if (ShutdownLockStatus is not null)
-        {
-            if (string.IsNullOrEmpty(_shutdownPinHash))
-                ShutdownLockStatus.Text = "Aucun code PIN défini — cliquez sur « Définir / changer le code PIN ».";
-            else
-                ShutdownLockStatus.Text = _shutdownLockEnabled
-                    ? "🔒 Verrou ACTIF : arrêt/redémarrage bloqués sans code PIN."
-                    : "🔓 Verrou inactif (code PIN défini).";
-        }
+            ShutdownLockStatus.Text = _shutdownLockEnabled
+                ? "🔒 Verrou ACTIF : arrêt/redémarrage bloqués sans la carte d'identité propriétaire."
+                : "🔓 Verrou inactif. Activez-le : la carte d'identité deviendra la clé.";
     }
 
-    /// <summary>Active / désactive le verrou. Toute désactivation exige le code PIN.</summary>
+    /// <summary>Active / désactive le verrou. Toute bascule exige la carte d'identité.</summary>
     private async void OnShutdownLockToggled(object sender, RoutedEventArgs e)
     {
         LoadShutdownLock();
         bool wantOn = ShutdownLockSwitch?.IsChecked == true;
 
-        if (wantOn)
+        if (!CardAuth.Gate(this, wantOn ? "Activer le verrou d'extinction" : "Désactiver le verrou d'extinction", out _))
         {
-            if (string.IsNullOrEmpty(_shutdownPinHash))
-            {
-                // Pas de PIN : on en demande un avant d'armer le verrou.
-                if (!SetShutdownPin()) { RefreshShutdownLockUi(); return; }
-            }
-            _shutdownLockEnabled = true;
-            SaveShutdownLock();
-            await ApplyShutdownHardeningAsync(true);
-            if (ShutdownLockStatus is not null)
-                ShutdownLockStatus.Text = "🔒 Verrou ACTIF : arrêt/redémarrage bloqués sans code PIN.";
-            Log("Verrou d'extinction activé.");
+            RefreshShutdownLockUi();   // remet l'interrupteur dans son état réel
+            return;
         }
-        else
-        {
-            // Désactivation : on exige le code PIN.
-            if (!PromptShutdownPin("Désactiver le verrou — entrez le code PIN."))
-            {
-                RefreshShutdownLockUi();   // remet l'interrupteur sur ON
-                return;
-            }
-            _shutdownLockEnabled = false;
-            SaveShutdownLock();
-            await ApplyShutdownHardeningAsync(false);
-            if (ShutdownLockStatus is not null)
-                ShutdownLockStatus.Text = "🔓 Verrou désactivé.";
-            Log("Verrou d'extinction désactivé.");
-        }
+
+        _shutdownLockEnabled = wantOn;
+        SaveShutdownLock();
+        await ApplyShutdownHardeningAsync(wantOn);
+        if (ShutdownLockStatus is not null)
+            ShutdownLockStatus.Text = wantOn
+                ? "🔒 Verrou ACTIF : arrêt/redémarrage bloqués sans la carte d'identité propriétaire."
+                : "🔓 Verrou désactivé.";
+        Log($"Verrou d'extinction {(wantOn ? "activé" : "désactivé")} (carte d'identité).");
     }
 
+    /// <summary>Enregistre / confirme la carte propriétaire du verrou.</summary>
     private void OnSetShutdownPin(object sender, RoutedEventArgs e)
     {
-        SetShutdownPin();
-        RefreshShutdownLockUi();
-    }
-
-    /// <summary>Définit ou change le code PIN du verrou. Renvoie true si défini.</summary>
-    private bool SetShutdownPin()
-    {
-        // Si un PIN existe déjà, on exige l'ancien avant d'en fixer un nouveau.
-        if (!string.IsNullOrEmpty(_shutdownPinHash) &&
-            !PromptShutdownPin("Code PIN actuel requis pour le changer."))
-            return false;
-
-        var p1 = new PromptWindow("Verrou d'extinction",
-            "Nouveau code PIN (4 chiffres ou plus) :", "Continuer") { Owner = this };
-        if (p1.ShowDialog() != true || p1.Value.Trim().Length < 4)
-        {
-            if (ShutdownLockStatus is not null) ShutdownLockStatus.Text = "Code PIN trop court (4 caractères minimum).";
-            return false;
-        }
-        var p2 = new PromptWindow("Verrou d'extinction",
-            "Confirmez le code PIN :", "Enregistrer") { Owner = this };
-        if (p2.ShowDialog() != true || p2.Value.Trim() != p1.Value.Trim())
-        {
-            if (ShutdownLockStatus is not null) ShutdownLockStatus.Text = "Les codes ne correspondent pas.";
-            return false;
-        }
-        _shutdownPinHash = SecretHash.Hash(p1.Value.Trim());
-        SaveShutdownLock();
-        if (ShutdownLockStatus is not null) ShutdownLockStatus.Text = "✓ Code PIN enregistré.";
-        Log("Code PIN du verrou d'extinction défini.");
-        return true;
-    }
-
-    /// <summary>Demande le code PIN et le vérifie. Renvoie true si correct.</summary>
-    private bool PromptShutdownPin(string message)
-    {
-        LoadShutdownLock();
-        if (string.IsNullOrEmpty(_shutdownPinHash)) return true;   // aucun PIN configuré
-        var prompt = new PromptWindow("Verrou d'extinction", message, "Valider") { Owner = this };
-        if (prompt.ShowDialog() != true) return false;
-        if (!SecretHash.Verify(prompt.Value.Trim(), _shutdownPinHash))
-        {
-            try { SoundFx.Alert(); } catch { }
-            if (ShutdownLockStatus is not null) ShutdownLockStatus.Text = "❌ Code PIN incorrect.";
-            return false;
-        }
-        return true;
+        if (CardAuth.Gate(this, "Enregistrer la carte propriétaire", out string who) && ShutdownLockStatus is not null)
+            ShutdownLockStatus.Text = $"✓ Carte propriétaire : {who}.";
     }
 
     private void SaveShutdownLock()
@@ -5460,7 +5344,6 @@ public partial class MainWindow : Window
         {
             SecretVault.Save("shutdownlock", new Dictionary<string, string>
             {
-                ["pin"] = _shutdownPinHash ?? "",
                 ["enabled"] = _shutdownLockEnabled ? "1" : "0",
             });
         }
@@ -5504,23 +5387,23 @@ public partial class MainWindow : Window
         catch { /* droits insuffisants : le veto logiciel (WM_QUERYENDSESSION) reste actif */ }
     }
 
-    /// <summary>Redémarrage autorisé : exige le code PIN puis lève le veto une fois.</summary>
+    /// <summary>Redémarrage autorisé : exige la carte d'identité puis lève le veto une fois.</summary>
     private void OnLockedRestart(object sender, RoutedEventArgs e)
     {
-        if (!PromptShutdownPin("Code PIN requis pour redémarrer.")) return;
+        if (!CardAuth.Gate(this, "Redémarrer l'ordinateur", out _)) return;
         _allowShutdownOnce = true;
         if (ShutdownLockStatus is not null) ShutdownLockStatus.Text = "🔁 Redémarrage autorisé dans 3 s…";
-        Log("Redémarrage autorisé par code PIN.");
+        Log("Redémarrage autorisé par carte d'identité.");
         RunHidden("shutdown.exe", "/r /t 3 /c \"IATECH-SHIELD — redémarrage autorisé\"");
     }
 
-    /// <summary>Arrêt autorisé : exige le code PIN puis lève le veto une fois.</summary>
+    /// <summary>Arrêt autorisé : exige la carte d'identité puis lève le veto une fois.</summary>
     private void OnLockedShutdown(object sender, RoutedEventArgs e)
     {
-        if (!PromptShutdownPin("Code PIN requis pour éteindre.")) return;
+        if (!CardAuth.Gate(this, "Éteindre l'ordinateur", out _)) return;
         _allowShutdownOnce = true;
         if (ShutdownLockStatus is not null) ShutdownLockStatus.Text = "⏻ Arrêt autorisé dans 3 s…";
-        Log("Arrêt autorisé par code PIN.");
+        Log("Arrêt autorisé par carte d'identité.");
         RunHidden("shutdown.exe", "/s /t 3 /c \"IATECH-SHIELD — arrêt autorisé\"");
     }
 
