@@ -62,9 +62,9 @@ public static class CardAuth
             if (!card.CardPresent)
             {
                 var retry = MessageBox.Show(owner!,
-                    "Aucune carte détectée dans le lecteur. Réessayer ?",
-                    "Carte d'identité", MessageBoxButton.RetryCancel, MessageBoxImage.Warning);
-                if (retry == MessageBoxResult.Retry) continue;
+                    "Aucune carte détectée dans le lecteur.\n\nInsérez la carte puis cliquez sur « Oui » pour réessayer.",
+                    "Carte d'identité", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                if (retry == MessageBoxResult.Yes) continue;
                 AccessLog.Record("Accès refusé (aucune carte)", "Carte d'identité (eID)", "—", action);
                 return false;
             }
