@@ -6753,6 +6753,108 @@ public partial class MainWindow : Window
         }
     }
 
+    // ---------------------------------------- Recherche d'options (in-app) -----
+
+    public sealed record FeatureHit(string Icon, string Label, string Category, string Tab);
+
+    // Registre des options : mot(s)-clé → onglet. Sert à la barre de recherche du Dashboard.
+    private static readonly List<(string Icon, string Label, string Category, string Tab, string[] Keys)> Features = new()
+    {
+        ("🛡️", "Protection en temps réel", "Protection", "Protection", new[]{"protection","temps reel","réel","bouclier","antivirus"}),
+        ("🔍", "Analyser / Scanner", "Protection", "Scan", new[]{"scan","analyse","analyser","virus","fichier"}),
+        ("🚨", "Radar de menaces", "Protection", "Menaces", new[]{"menace","threat","radar menace"}),
+        ("💚", "Tableau d'intégrité", "Protection", "Intégrité", new[]{"integrite","intégrité","score","secure boot","santé"}),
+        ("🧰", "Outils de protection", "Protection", "Outils", new[]{"outils","chiffrer","url","dossier"}),
+        ("🌐", "Analyse du réseau", "Réseau", "Réseau", new[]{"reseau","réseau","ip","connexions","tcp","bloquer ip","pays"}),
+        ("📡", "Radar réseau local", "Réseau", "Radar", new[]{"radar","appareils reseau","local","ports"}),
+        ("🗺️", "Carte mondiale", "Réseau", "Mondiale", new[]{"monde","mondiale","carte","géo","pays connexions"}),
+        ("🧱", "Pare-feu", "Réseau", "Firewall", new[]{"pare-feu","firewall","exception"}),
+        ("🔒", "VPN", "Réseau", "VPN", new[]{"vpn","tunnel"}),
+        ("🖥️", "Accès à distance", "Réseau", "Accès distant", new[]{"acces distant","distant","teamviewer","anydesk","remote"}),
+        ("⚙️", "Compte, famille & performances", "Système", "Système", new[]{"systeme","système","compte","famille","cpu","ram","performance","controle parental","parental"}),
+        ("📊", "Processus en direct", "Système", "Processus", new[]{"processus","process","tâches","taches"}),
+        ("🧹", "Optimisation", "Système", "Optimisation", new[]{"optimis","nettoyer","temp","dns","ram","défrag","demarrage","démarrage"}),
+        ("🔌", "Périphériques", "Système", "Périphériques", new[]{"peripherique","périphérique","usb","imprimante","materiel","matériel","clé"}),
+        ("📱", "Sécurité des appareils", "Système", "Appareil", new[]{"appareil","webcam","micro","bluetooth"}),
+        ("🎛️", "Contrôle système", "Système", "Contrôle", new[]{"controle","contrôle","redemarrer","redémarrer","eteindre","éteindre","shutdown","services","verrou extinction","pin","usb bloquer"}),
+        ("🧬", "ADN des programmes", "Intégrité", "ADN", new[]{"adn","confiance","empreinte programme"}),
+        ("👥", "Jumeau numérique", "Intégrité", "Jumeau", new[]{"jumeau","twin","empreinte systeme"}),
+        ("🕵️", "Investigation", "Historique", "Investigation", new[]{"investigation","incident","forensic","enquete","enquête"}),
+        ("📅", "Timeline de sécurité", "Historique", "Timeline", new[]{"timeline","chronologie"}),
+        ("📜", "Journal d'activité", "Historique", "Logs", new[]{"journal","logs","log","activite","activité"}),
+        ("🕘", "Historique (sites, apps…)", "Historique", "Historique", new[]{"historique","sites visités","navigation","applications ouvertes","problemes","problèmes"}),
+        ("🔑", "Registre des accès", "Historique", "Accès", new[]{"acces","accès","utilisateurs windows","connexions deconnexions","comptes"}),
+        ("🪪", "ID Registre (carte identité)", "Historique", "Registre ID", new[]{"registre id","carte identité","eid","id card"}),
+        ("🗝️", "Coffre-fort (mots de passe)", "Confidentialité", "Coffre-fort", new[]{"coffre","mot de passe","password","vault","identifiants"}),
+        ("📧", "Mail Shield", "Confidentialité", "Mail", new[]{"mail","email","e-mail","phishing","gmail","spam","pièce jointe"}),
+        ("🔎", "Recherche globale (fichiers)", "Confidentialité", "Recherche", new[]{"recherche","chercher fichier","trouver fichier","fichier partout"}),
+        ("🤖", "Copilote (IA)", "Assistant", "Copilote", new[]{"copilote","ia","assistant","chat","pourquoi bloqué"}),
+        ("🎯", "Centre de sécurité", "Assistant", "Centre", new[]{"centre","panic","sos","presse-papiers","mode panic"}),
+        ("🛠️", "Réglages", "Réglages", "Settings", new[]{"reglages","réglages","settings","clé api","api","licence","activer","abonnement","mise à jour"}),
+    };
+
+    private void OnAppSearch(object sender, TextChangedEventArgs e)
+    {
+        if (!_ready || AppSearchResults is null) return;
+        string q = (AppSearchInput?.Text ?? "").Trim();
+        if (AppSearchHint is not null) AppSearchHint.Visibility = q.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+        if (q.Length == 0) { AppSearchResults.Visibility = Visibility.Collapsed; AppSearchResults.ItemsSource = null; return; }
+
+        string ql = q.ToLowerInvariant();
+        var hits = Features
+            .Where(f => f.Label.ToLowerInvariant().Contains(ql)
+                     || f.Category.ToLowerInvariant().Contains(ql)
+                     || f.Keys.Any(k => k.Contains(ql) || ql.Contains(k)))
+            .Select(f => new FeatureHit(f.Icon, f.Label, "Catégorie : " + f.Category, f.Tab))
+            .Take(12).ToList();
+        AppSearchResults.ItemsSource = hits;
+        AppSearchResults.Visibility = hits.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void OnAppSearchKey(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter || AppSearchResults?.ItemsSource is not IEnumerable<FeatureHit> hits) return;
+        var first = hits.FirstOrDefault();
+        if (first is not null) GoToFeature(first);
+    }
+
+    private void OnAppSearchPick(object sender, SelectionChangedEventArgs e)
+    {
+        if (AppSearchResults?.SelectedItem is FeatureHit hit) GoToFeature(hit);
+    }
+
+    private void GoToFeature(FeatureHit hit)
+    {
+        if (AppSearchInput is not null) AppSearchInput.Text = "";
+        if (AppSearchResults is not null) { AppSearchResults.Visibility = Visibility.Collapsed; AppSearchResults.ItemsSource = null; }
+        NavigateToTab(hit.Tab);
+    }
+
+    /// <summary>Sélectionne l'onglet de navigation dont le libellé correspond.</summary>
+    private void NavigateToTab(string tab)
+    {
+        foreach (var rb in FindVisualChildren<System.Windows.Controls.RadioButton>(this))
+        {
+            if (rb.GroupName == "nav" && (rb.Content as string) == tab)
+            {
+                rb.IsChecked = true;   // déclenche OnNav → ShowPage
+                return;
+            }
+        }
+        ShowPage(tab);   // repli si le bouton n'est pas trouvé
+    }
+
+    private static IEnumerable<T> FindVisualChildren<T>(DependencyObject root) where T : DependencyObject
+    {
+        int count = System.Windows.Media.VisualTreeHelper.GetChildrenCount(root);
+        for (int i = 0; i < count; i++)
+        {
+            var child = System.Windows.Media.VisualTreeHelper.GetChild(root, i);
+            if (child is T t) yield return t;
+            foreach (var sub in FindVisualChildren<T>(child)) yield return sub;
+        }
+    }
+
     // ------------------------------------------------- Recherche globale -------
 
     private CancellationTokenSource? _searchCts;
