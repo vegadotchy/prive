@@ -170,6 +170,8 @@
                                      Tag="&#xE77B;" Content="Registre ID" Checked="OnNav"/>
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE9F5;" Content="Contrôle" Checked="OnNav"/>
+                        <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
+                                     Tag="&#xE81C;" Content="Historique" Checked="OnNav"/>
                 </StackPanel>
             </Border>
 
@@ -1517,6 +1519,147 @@
                                     </StackPanel>
                                 </Border>
                             </StackPanel>
+                        </ScrollViewer>
+                    </Grid>
+
+                    <!-- ==================== PAGE : HISTORIQUE (tout) ==================== -->
+                    <Grid x:Name="PageHistory" Visibility="Collapsed">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,6">
+                            <TextBlock Text="Historique" Style="{StaticResource PageTitle}"/>
+                            <Button Style="{StaticResource GhostButton}" Content="🔄 Actualiser" Click="OnRefreshHistory"
+                                    Margin="14,0,0,0" VerticalAlignment="Center"/>
+                            <Button Style="{StaticResource GhostButton}" Content="📤 Exporter (CSV)" Click="OnExportHistory"
+                                    Margin="8,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+
+                        <!-- Sous-onglets -->
+                        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,8">
+                            <Button x:Name="HistTabSites" Style="{StaticResource GhostButton}" Content="🌐 Sites visités" Tag="sites" Click="OnHistoryTab" Margin="0,0,8,0"/>
+                            <Button x:Name="HistTabApps" Style="{StaticResource GhostButton}" Content="🖥️ Applications" Tag="apps" Click="OnHistoryTab" Margin="0,0,8,0"/>
+                            <Button x:Name="HistTabConn" Style="{StaticResource GhostButton}" Content="🔐 Connexions" Tag="conn" Click="OnHistoryTab" Margin="0,0,8,0"/>
+                            <Button x:Name="HistTabProb" Style="{StaticResource GhostButton}" Content="⚠️ Problèmes" Tag="prob" Click="OnHistoryTab"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,8">
+                            <TextBox x:Name="HistorySearch" Width="280" Background="#0A1726" Foreground="{StaticResource TextPrimaryBrush}"
+                                     BorderBrush="{StaticResource PanelStrokeBrush}" Padding="8" FontSize="12"
+                                     VerticalContentAlignment="Center" TextChanged="OnHistorySearch"/>
+                            <TextBlock x:Name="HistoryHint" Text="Sites visités dans Chrome, Edge, Brave, Opera, Vivaldi et Firefox (tous profils)."
+                                       Foreground="{StaticResource TextMutedBrush}" FontSize="11"
+                                       VerticalAlignment="Center" Margin="12,0,0,0"/>
+                            <TextBlock x:Name="HistoryStatus" Text="" Foreground="{StaticResource GoldBrush}" FontSize="11"
+                                       VerticalAlignment="Center" Margin="12,0,0,0"/>
+                        </StackPanel>
+
+                        <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto">
+                            <Grid>
+                                <!-- Sites visités -->
+                                <ItemsControl x:Name="HistoryList">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Style="{StaticResource Card}" Margin="0,0,0,6" Padding="12,8">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <StackPanel Grid.Column="0">
+                                                        <TextBlock Text="{Binding Title}" Foreground="{StaticResource TextPrimaryBrush}"
+                                                                   FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                                        <TextBlock Text="{Binding Url}" Foreground="{StaticResource AccentBrush}"
+                                                                   FontSize="11" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
+                                                    </StackPanel>
+                                                    <StackPanel Grid.Column="1" HorizontalAlignment="Right" Margin="12,0,0,0">
+                                                        <Border Background="#12324A" CornerRadius="6" Padding="6,2" HorizontalAlignment="Right">
+                                                            <TextBlock Text="{Binding Browser}" Foreground="{StaticResource GoldBrush}" FontSize="10" FontWeight="Bold"/>
+                                                        </Border>
+                                                        <TextBlock Text="{Binding VisitedText}" Foreground="{StaticResource TextMutedBrush}"
+                                                                   FontSize="10" HorizontalAlignment="Right" Margin="0,4,0,0"/>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <!-- Applications ouvertes -->
+                                <ItemsControl x:Name="AppsList" Visibility="Collapsed">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Style="{StaticResource Card}" Margin="0,0,0,6" Padding="12,8">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <StackPanel Grid.Column="0">
+                                                        <TextBlock Text="{Binding App}" Foreground="{StaticResource TextPrimaryBrush}"
+                                                                   FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                                        <TextBlock Text="{Binding Who}" Foreground="{StaticResource AccentBrush}"
+                                                                   FontSize="11" Margin="0,2,0,0"/>
+                                                    </StackPanel>
+                                                    <TextBlock Grid.Column="1" Text="{Binding WhenText}" Foreground="{StaticResource TextMutedBrush}"
+                                                               FontSize="10" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="12,0,0,0"/>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <!-- Connexions / déconnexions -->
+                                <ItemsControl x:Name="HistoryConnList" Visibility="Collapsed">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Style="{StaticResource Card}" Margin="0,0,0,6" Padding="12,8">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <StackPanel Grid.Column="0">
+                                                        <TextBlock Foreground="{StaticResource TextPrimaryBrush}" FontSize="13" FontWeight="SemiBold">
+                                                            <Run Text="{Binding Kind}"/><Run Text=" — "/><Run Text="{Binding Identity}"/>
+                                                        </TextBlock>
+                                                        <TextBlock Text="{Binding Method}" Foreground="{StaticResource AccentBrush}" FontSize="11" Margin="0,2,0,0"/>
+                                                    </StackPanel>
+                                                    <TextBlock Grid.Column="1" Text="{Binding WhenText}" Foreground="{StaticResource TextMutedBrush}"
+                                                               FontSize="10" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="12,0,0,0"/>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <!-- Problèmes survenus -->
+                                <ItemsControl x:Name="ProblemsList" Visibility="Collapsed">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Style="{StaticResource Card}" Margin="0,0,0,6" Padding="12,8">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <StackPanel Grid.Column="0">
+                                                        <TextBlock Text="{Binding Message}" Foreground="#FCA5A5"
+                                                                   FontSize="12" TextWrapping="Wrap"/>
+                                                        <TextBlock Text="{Binding Source}" Foreground="{StaticResource TextMutedBrush}"
+                                                                   FontSize="10" Margin="0,2,0,0"/>
+                                                    </StackPanel>
+                                                    <TextBlock Grid.Column="1" Text="{Binding WhenText}" Foreground="{StaticResource TextMutedBrush}"
+                                                               FontSize="10" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="12,0,0,0"/>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </Grid>
                         </ScrollViewer>
                     </Grid>
 

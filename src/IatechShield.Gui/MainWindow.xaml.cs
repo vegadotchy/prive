@@ -174,6 +174,7 @@ public partial class MainWindow : Window
             "Accès distant" => PageRemote,
             "Registre ID" => PageIdRegister,
             "Contrôle" => PageControl,
+            "Historique" => PageHistory,
             _ => PageDashboard
         };
         page.Visibility = Visibility.Visible;
@@ -279,6 +280,11 @@ public partial class MainWindow : Window
         {
             StopIdRegisterTicker();
             RefreshShutdownLockUi();
+        }
+        else if (page == PageHistory)
+        {
+            StopIdRegisterTicker();
+            _ = BuildHistoryAsync();
         }
         else
         {
@@ -6593,6 +6599,221 @@ public partial class MainWindow : Window
     {
         try { Process.Start(new ProcessStartInfo(file, args) { UseShellExecute = true }); }
         catch (Exception ex) { Log($"Ouverture impossible ({file}) : {ex.Message}"); }
+    }
+
+    // ------------------------------------------------------ Historique ---------
+    // Onglet unique regroupant : sites visités, applications ouvertes (avec qui/quand),
+    // connexions/déconnexions, et problèmes survenus.
+
+    public sealed record AppLaunchItem(string App, string Who, DateTime When)
+    { public string WhenText => When.ToString("dd/MM/yyyy HH:mm"); }
+
+    public sealed record ConnItem(string Kind, string Identity, string Method, DateTimeOffset When)
+    { public string WhenText => When.ToString("dd/MM/yyyy HH:mm"); }
+
+    public sealed record ProblemItem(string Message, string Source, DateTime When)
+    { public string WhenText => When.ToString("dd/MM/yyyy HH:mm"); }
+
+    private string _historyTab = "sites";
+    private List<HistoryEntry> _history = new();
+    private List<AppLaunchItem> _apps = new();
+    private List<ConnItem> _conns = new();
+    private List<ProblemItem> _problems = new();
+
+    private void OnHistoryTab(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: string tab }) _historyTab = tab;
+        // Bascule la visibilité des quatre listes.
+        if (HistoryList is not null) HistoryList.Visibility = _historyTab == "sites" ? Visibility.Visible : Visibility.Collapsed;
+        if (AppsList is not null) AppsList.Visibility = _historyTab == "apps" ? Visibility.Visible : Visibility.Collapsed;
+        if (HistoryConnList is not null) HistoryConnList.Visibility = _historyTab == "conn" ? Visibility.Visible : Visibility.Collapsed;
+        if (ProblemsList is not null) ProblemsList.Visibility = _historyTab == "prob" ? Visibility.Visible : Visibility.Collapsed;
+        if (HistoryHint is not null)
+            HistoryHint.Text = _historyTab switch
+            {
+                "apps" => "Applications lancées (dossier Prefetch de Windows) — avec la personne connectée à ce moment.",
+                "conn" => "Connexions et déconnexions à IATECH-SHIELD (PIN, Windows Hello, carte d'identité…).",
+                "prob" => "Problèmes : plantages d'IATECH-SHIELD + erreurs des journaux d'événements Windows.",
+                _ => "Sites visités dans Chrome, Edge, Brave, Opera, Vivaldi et Firefox (tous profils)."
+            };
+        _ = BuildHistoryAsync();
+    }
+
+    private async Task BuildHistoryAsync()
+    {
+        if (HistoryStatus is not null) HistoryStatus.Text = "Lecture…";
+        try
+        {
+            switch (_historyTab)
+            {
+                case "apps":
+                    var (runs, sessions) = await Task.Run(() =>
+                        (AppLaunchHistory.Read(), IatechShield.Tools.EidSessionLog.Load()));
+                    _apps = runs.Select(r => new AppLaunchItem(r.App, WhoAt(r.When, sessions), r.When)).ToList();
+                    if (HistoryStatus is not null) HistoryStatus.Text = $"{_apps.Count} application(s) récemment lancée(s).";
+                    break;
+                case "conn":
+                    var ev = await Task.Run(() => IatechShield.Tools.AccessLog.Load());
+                    _conns = ev.Select(a => new ConnItem(a.Kind, a.Identity, a.Method, a.Time)).ToList();
+                    if (HistoryStatus is not null) HistoryStatus.Text = $"{_conns.Count} évènement(s) de connexion.";
+                    break;
+                case "prob":
+                    _problems = await BuildProblemsAsync();
+                    if (HistoryStatus is not null) HistoryStatus.Text = $"{_problems.Count} problème(s) enregistré(s).";
+                    break;
+                default:
+                    var entries = await Task.Run(() => BrowserHistory.Read());
+                    _history = entries;
+                    if (HistoryStatus is not null)
+                        HistoryStatus.Text = entries.Count == 0
+                            ? "Aucun historique trouvé (navigateurs non installés ou aucun profil)."
+                            : $"{entries.Count} pages — {entries.Select(e => e.Browser).Distinct().Count()} navigateur(s).";
+                    break;
+            }
+            ApplyHistoryFilter();
+        }
+        catch (Exception ex)
+        {
+            if (HistoryStatus is not null) HistoryStatus.Text = $"Échec : {ex.Message}";
+        }
+    }
+
+    /// <summary>Identité connectée par carte d'identité à l'instant donné (sinon utilisateur Windows).</summary>
+    private static string WhoAt(DateTime when, IReadOnlyList<IatechShield.Tools.EidSession> sessions)
+    {
+        var w = new DateTimeOffset(when);
+        foreach (var s in sessions)
+        {
+            var end = s.DisconnectedAt ?? DateTimeOffset.MaxValue;
+            if (w >= s.ConnectedAt && w <= end)
+                return $"👤 {s.FirstNames} {s.Name} (carte d'identité)".Trim();
+        }
+        return $"👤 {Environment.UserName} (session Windows)";
+    }
+
+    private static async Task<List<ProblemItem>> BuildProblemsAsync()
+    {
+        var list = new List<ProblemItem>();
+        // 1) Plantages internes d'IATECH-SHIELD (crash.log).
+        try
+        {
+            string crash = System.IO.Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "IatechShield", "crash.log");
+            if (System.IO.File.Exists(crash))
+            {
+                foreach (var block in System.IO.File.ReadAllText(crash)
+                             .Split(new[] { "\n\n" }, StringSplitOptions.RemoveEmptyEntries))
+                {
+                    string first = block.Split('\n')[0].Trim();
+                    DateTime when = DateTime.MinValue;
+                    if (first.StartsWith("[") && first.Contains(']'))
+                    {
+                        string ts = first.Substring(1, first.IndexOf(']') - 1);
+                        DateTime.TryParse(ts, out when);
+                    }
+                    string msg = first.Contains(']') ? first[(first.IndexOf(']') + 1)..].Trim() : first;
+                    list.Add(new ProblemItem(msg.Length > 300 ? msg[..300] : msg, "IATECH-SHIELD", when));
+                }
+            }
+        }
+        catch { }
+
+        // 2) Erreurs des journaux d'événements Windows (Application + Système).
+        try
+        {
+            string raw = await RunPs(
+                "Get-WinEvent -FilterHashtable @{LogName='Application','System'; Level=1,2} -MaxEvents 40 " +
+                "-ErrorAction SilentlyContinue | ForEach-Object { $_.TimeCreated.ToString('yyyy-MM-dd HH:mm:ss') + '|' + " +
+                "$_.ProviderName + '|' + ($_.Message -replace '\\r?\\n',' ') } | Out-String");
+            if (!raw.StartsWith("ERREUR"))
+                foreach (var row in raw.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    var p = row.Split('|');
+                    if (p.Length < 3) continue;
+                    DateTime.TryParse(p[0].Trim(), out DateTime when);
+                    string msg = p[2].Trim();
+                    list.Add(new ProblemItem(msg.Length > 300 ? msg[..300] : msg, "Windows : " + p[1].Trim(), when));
+                }
+        }
+        catch { }
+
+        return list.OrderByDescending(p => p.When).ToList();
+    }
+
+    private void ApplyHistoryFilter()
+    {
+        string q = (HistorySearch?.Text ?? "").Trim();
+        bool M(string? s) => q.Length == 0 || (s?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false);
+        switch (_historyTab)
+        {
+            case "apps":
+                if (AppsList is not null)
+                    AppsList.ItemsSource = _apps.Where(a => M(a.App) || M(a.Who)).Take(1500).ToList();
+                break;
+            case "conn":
+                if (HistoryConnList is not null)
+                    HistoryConnList.ItemsSource = _conns.Where(c => M(c.Kind) || M(c.Identity) || M(c.Method)).Take(1500).ToList();
+                break;
+            case "prob":
+                if (ProblemsList is not null)
+                    ProblemsList.ItemsSource = _problems.Where(p => M(p.Message) || M(p.Source)).Take(1500).ToList();
+                break;
+            default:
+                if (HistoryList is not null)
+                    HistoryList.ItemsSource = _history.Where(e => M(e.Title) || M(e.Url) || M(e.Browser)).Take(1500).ToList();
+                break;
+        }
+    }
+
+    private void OnRefreshHistory(object sender, RoutedEventArgs e) => _ = BuildHistoryAsync();
+
+    private void OnHistorySearch(object sender, TextChangedEventArgs e)
+    {
+        if (!_ready) return;
+        ApplyHistoryFilter();
+    }
+
+    private void OnExportHistory(object sender, RoutedEventArgs e)
+    {
+        var dlg = new Microsoft.Win32.SaveFileDialog
+        {
+            Title = "Exporter l'historique",
+            Filter = "CSV (*.csv)|*.csv",
+            FileName = $"historique-{_historyTab}.csv"
+        };
+        if (dlg.ShowDialog(this) != true) return;
+        static string Esc(string s) => "\"" + (s ?? "").Replace("\"", "\"\"") + "\"";
+        try
+        {
+            var sb = new System.Text.StringBuilder();
+            switch (_historyTab)
+            {
+                case "apps":
+                    sb.AppendLine("Date;Application;Ouvert par");
+                    foreach (var a in _apps) sb.AppendLine($"{Esc(a.WhenText)};{Esc(a.App)};{Esc(a.Who)}");
+                    break;
+                case "conn":
+                    sb.AppendLine("Date;Évènement;Identité;Méthode");
+                    foreach (var c in _conns) sb.AppendLine($"{Esc(c.WhenText)};{Esc(c.Kind)};{Esc(c.Identity)};{Esc(c.Method)}");
+                    break;
+                case "prob":
+                    sb.AppendLine("Date;Source;Message");
+                    foreach (var p in _problems) sb.AppendLine($"{Esc(p.WhenText)};{Esc(p.Source)};{Esc(p.Message)}");
+                    break;
+                default:
+                    sb.AppendLine("Date;Navigateur;Titre;URL");
+                    foreach (var h in _history) sb.AppendLine($"{Esc(h.VisitedText)};{Esc(h.Browser)};{Esc(h.Title)};{Esc(h.Url)}");
+                    break;
+            }
+            System.IO.File.WriteAllText(dlg.FileName, sb.ToString(), System.Text.Encoding.UTF8);
+            if (HistoryStatus is not null) HistoryStatus.Text = $"✓ Exporté : {System.IO.Path.GetFileName(dlg.FileName)}";
+            Log($"Historique ({_historyTab}) exporté.");
+        }
+        catch (Exception ex)
+        {
+            if (HistoryStatus is not null) HistoryStatus.Text = $"Échec de l'export : {ex.Message}";
+        }
     }
 
     private static async Task<string> RunPs(string command)
