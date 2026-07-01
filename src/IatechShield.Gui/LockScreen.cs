@@ -228,19 +228,16 @@ public sealed class LockScreen : Window
             return;   // en mode auto, on attend silencieusement
         }
 
-        // Seule la carte propriétaire enregistrée peut déverrouiller (si une est enregistrée).
-        if (CardAuth.IsEnrolled)
+        // Mode carte : toute carte d'identité (eID) déverrouille et est autorisée.
+        if (_cardOnly)
         {
             if (!info.IsBelgianEid)
             {
                 if (manual) Fail("Carte non reconnue : carte d'identité électronique requise.");
                 return;
             }
-            if (!string.Equals(CardAuth.Fingerprint(info), CardAuth.OwnerFingerprint, StringComparison.OrdinalIgnoreCase))
-            {
-                Fail("Cette carte n'est pas la carte propriétaire enregistrée.");
-                return;
-            }
+            // Nouvelle carte : on l'ajoute aux cartes autorisées (mêmes fonctionnalités).
+            CardAuth.Register(info, out _);
         }
 
         UnlockMethod = "Carte d'identité (eID)";

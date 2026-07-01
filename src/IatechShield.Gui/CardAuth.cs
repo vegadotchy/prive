@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Windows;
@@ -6,26 +8,33 @@ using IatechShield.Tools;
 namespace IatechShield.Gui;
 
 /// <summary>
-/// Authentification unique par carte d'identité (eID). Remplace tous les mots de passe
-/// et codes PIN de l'application : la carte devient la clé. À la première utilisation,
-/// l'empreinte de la carte (dérivée du numéro national) est mémorisée comme « carte
-/// propriétaire ». Ensuite, seule cette carte, physiquement insérée, autorise les
-/// actions ; une fois retirée, tout redevient inaccessible. Chaque tentative (réussie
-/// ou refusée) est enregistrée dans l'historique des accès.
+/// Authentification par carte d'identité (eID). La carte remplace tous les mots de passe
+/// et codes PIN. Modèle multi-cartes : toute carte d'identité insérée déverrouille et
+/// obtient les mêmes fonctionnalités ; chaque nouvelle carte est automatiquement ajoutée
+/// à la liste des cartes autorisées. Une fois la carte retirée, tout redevient
+/// inaccessible. Chaque tentative (réussie ou refusée) est tracée dans l'historique.
 /// </summary>
 public static class CardAuth
 {
     private const string Vault = "cardauth";
+    private const string Prefix = "card_";   // clés « card_<empreinte> » = nom du porteur
 
-    /// <summary>Vrai si une carte propriétaire a déjà été enregistrée.</summary>
-    public static bool IsEnrolled =>
-        !string.IsNullOrEmpty(SecretVault.Load(Vault).GetValueOrDefault("owner"));
+    /// <summary>Vrai si au moins une carte est enregistrée.</summary>
+    public static bool IsEnrolled => SecretVault.Load(Vault).Keys.Any(k => k.StartsWith(Prefix));
 
-    /// <summary>Nom du propriétaire enregistré (pour affichage), ou chaîne vide.</summary>
-    public static string OwnerName => SecretVault.Load(Vault).GetValueOrDefault("ownername") ?? "";
+    /// <summary>Nom de la première carte enregistrée (pour affichage), ou chaîne vide.</summary>
+    public static string OwnerName
+    {
+        get
+        {
+            var cfg = SecretVault.Load(Vault);
+            var first = cfg.FirstOrDefault(kv => kv.Key.StartsWith(Prefix));
+            return first.Value ?? "";
+        }
+    }
 
-    /// <summary>Empreinte de la carte propriétaire enregistrée, ou chaîne vide.</summary>
-    public static string OwnerFingerprint => SecretVault.Load(Vault).GetValueOrDefault("owner") ?? "";
+    /// <summary>Nombre de cartes autorisées.</summary>
+    public static int AuthorizedCount => SecretVault.Load(Vault).Keys.Count(k => k.StartsWith(Prefix));
 
     /// <summary>Empreinte stable d'une carte (numéro national haché en SHA-256).</summary>
     public static string Fingerprint(CardInfo card)
@@ -35,13 +44,33 @@ public static class CardAuth
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes("IATECH-eID:" + basis)));
     }
 
-    /// <summary>Réinitialise la carte propriétaire (à protéger derrière une vérification).</summary>
+    /// <summary>Vrai si cette carte fait déjà partie des cartes autorisées.</summary>
+    public static bool IsAuthorized(CardInfo card) =>
+        SecretVault.Load(Vault).ContainsKey(Prefix + Fingerprint(card));
+
+    /// <summary>Ajoute une carte à la liste des cartes autorisées (si nouvelle).</summary>
+    public static bool Register(CardInfo card, out bool isNew)
+    {
+        isNew = false;
+        if (!card.IsBelgianEid) return false;
+        var cfg = SecretVault.Load(Vault);
+        string key = Prefix + Fingerprint(card);
+        if (!cfg.ContainsKey(key))
+        {
+            cfg[key] = card.DisplayIdentity;
+            SecretVault.Save(Vault, cfg);
+            isNew = true;
+        }
+        return true;
+    }
+
+    /// <summary>Supprime toutes les cartes enregistrées.</summary>
     public static void Reset() => SecretVault.Delete(Vault);
 
     /// <summary>
-    /// Porte d'authentification : demande d'insérer la carte, la lit et vérifie qu'il
-    /// s'agit bien de la carte propriétaire. Renvoie true si l'action est autorisée.
-    /// La première carte valide insérée devient automatiquement la carte propriétaire.
+    /// Porte d'authentification : demande d'insérer une carte, la lit et l'accepte.
+    /// Toute carte d'identité (eID) valide déverrouille ; une nouvelle carte est ajoutée
+    /// automatiquement à la liste des cartes autorisées (mêmes fonctionnalités).
     /// </summary>
     public static bool Gate(Window? owner, string action, out string identity)
     {
@@ -49,7 +78,7 @@ public static class CardAuth
         while (true)
         {
             var ask = MessageBox.Show(owner!,
-                $"🪪 Insérez votre carte d'identité dans le lecteur pour :\n\n« {action} »\n\nPuis cliquez sur OK.",
+                $"🪪 Insérez une carte d'identité dans le lecteur pour :\n\n« {action} »\n\nPuis cliquez sur OK.",
                 "IATECH-SHIELD — Carte d'identité requise",
                 MessageBoxButton.OKCancel, MessageBoxImage.Information);
             if (ask != MessageBoxResult.OK)
@@ -80,35 +109,14 @@ public static class CardAuth
             }
 
             identity = card.DisplayIdentity;
-            string fp = Fingerprint(card);
-            var cfg = SecretVault.Load(Vault);
-            string ownerFp = cfg.GetValueOrDefault("owner") ?? "";
-
-            if (ownerFp.Length == 0)
-            {
-                // Première utilisation : cette carte devient la carte propriétaire.
-                cfg["owner"] = fp;
-                cfg["ownername"] = identity;
-                SecretVault.Save(Vault, cfg);
-                AccessLog.Record("Carte enregistrée (propriétaire)", "Carte d'identité (eID)", identity, action);
+            Register(card, out bool isNew);
+            AccessLog.Record(isNew ? "Carte ajoutée (autorisée)" : "Autorisation par carte",
+                "Carte d'identité (eID)", identity, action);
+            if (isNew)
                 MessageBox.Show(owner!,
-                    $"Cette carte ({identity}) est désormais votre carte propriétaire.\n\n" +
-                    "Elle seule pourra déverrouiller IATECH-SHIELD.",
-                    "Carte enregistrée", MessageBoxButton.OK, MessageBoxImage.Information);
-                return true;
-            }
-
-            if (string.Equals(fp, ownerFp, StringComparison.OrdinalIgnoreCase))
-            {
-                AccessLog.Record("Autorisation par carte", "Carte d'identité (eID)", identity, action);
-                return true;
-            }
-
-            AccessLog.Record("Accès REFUSÉ (carte non autorisée)", "Carte d'identité (eID)", identity, action);
-            MessageBox.Show(owner!,
-                "Cette carte n'est pas la carte propriétaire enregistrée. Accès refusé.",
-                "Accès refusé", MessageBoxButton.OK, MessageBoxImage.Error);
-            return false;
+                    $"Nouvelle carte autorisée : {identity}.\nElle a désormais les mêmes fonctionnalités.",
+                    "Carte ajoutée", MessageBoxButton.OK, MessageBoxImage.Information);
+            return true;
         }
     }
 }
