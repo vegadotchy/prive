@@ -104,9 +104,14 @@
                                    FontSize="9" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,1,0,0"/>
                     </StackPanel>
 
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <StackPanel>
                         <RadioButton x:Name="NavDashboard" Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE80F;" IsChecked="True" Content="Dashboard" Checked="OnNav"/>
+                        <RadioButton x:Name="NavSearch" Style="{StaticResource NavButton}" GroupName="nav"
+                                     Tag="&#xE721;" Content="Recherche" Checked="OnNav"/>
+                        <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
+                                     Tag="&#xE715;" Content="Mail" Checked="OnNav"/>
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE72E;" Content="Protection" Checked="OnNav"/>
                         <RadioButton x:Name="NavScan" Style="{StaticResource NavButton}" GroupName="nav"
@@ -132,11 +137,13 @@
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE9D2;" Content="Intégrité" Checked="OnNav"/>
                     </StackPanel>
+                    </ScrollViewer>
                 </DockPanel>
             </Border>
 
             <!-- ===================== BARRE LATÉRALE DROITE ===================== -->
             <Border Grid.Column="2" Grid.Row="0" Background="#0A1726" CornerRadius="0,16,0,0">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel Margin="0,18">
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE8EC;" Content="Jumeau" Checked="OnNav"/>
@@ -173,6 +180,7 @@
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE81C;" Content="Historique" Checked="OnNav"/>
                 </StackPanel>
+                </ScrollViewer>
             </Border>
 
             <!-- =========================== CONTENU =========================== -->
@@ -1663,6 +1671,122 @@
                         </ScrollViewer>
                     </Grid>
 
+                    <!-- ==================== PAGE : RECHERCHE GLOBALE ==================== -->
+                    <Grid x:Name="PageSearch" Visibility="Collapsed">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <TextBlock Grid.Row="0" Text="Recherche globale" Style="{StaticResource PageTitle}"/>
+                        <TextBlock Grid.Row="1" Text="Cherche un fichier ou un dossier PARTOUT : tous les disques (interne, externe, USB), dans les moindres sous-dossiers et fichiers système."
+                                   Foreground="{StaticResource TextMutedBrush}" FontSize="12" Margin="0,0,0,10" TextWrapping="Wrap"/>
+                        <Grid Grid.Row="2" Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="SearchAllInput" Grid.Column="0" Background="#0A1726" Foreground="{StaticResource TextPrimaryBrush}"
+                                     BorderBrush="{StaticResource PanelStrokeBrush}" Padding="10" FontSize="13"
+                                     VerticalContentAlignment="Center" KeyDown="OnSearchAllKey"/>
+                            <Button x:Name="SearchAllButton" Grid.Column="1" Style="{StaticResource GhostButton}" Content="🔎 Rechercher"
+                                    Click="OnGlobalSearch" Margin="10,0,0,0"/>
+                            <Button x:Name="SearchStopButton" Grid.Column="2" Style="{StaticResource GhostButton}" Content="⏹ Arrêter"
+                                    Click="OnStopGlobalSearch" Margin="8,0,0,0" IsEnabled="False"/>
+                        </Grid>
+                        <TextBlock x:Name="SearchAllStatus" Grid.Row="2" VerticalAlignment="Bottom" Text=""
+                                   Foreground="{StaticResource GoldBrush}" FontSize="11" Margin="0,44,0,0" TextTrimming="CharacterEllipsis"/>
+                        <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto" Margin="0,6,0,0">
+                            <ItemsControl x:Name="SearchResultsList">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Style="{StaticResource Card}" Margin="0,0,0,5" Padding="12,7">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0">
+                                                    <TextBlock Text="{Binding Name}" Foreground="{StaticResource TextPrimaryBrush}"
+                                                               FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Text="{Binding FullPath}" Foreground="{StaticResource TextMutedBrush}"
+                                                               FontSize="10" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="10,0,10,0">
+                                                    <TextBlock Text="{Binding Kind}" Foreground="{StaticResource GoldBrush}" FontSize="10" HorizontalAlignment="Right"/>
+                                                    <TextBlock Text="{Binding SizeText}" Foreground="{StaticResource TextMutedBrush}" FontSize="10" HorizontalAlignment="Right"/>
+                                                </StackPanel>
+                                                <Button Grid.Column="2" Style="{StaticResource GhostButton}" Content="📂 Ouvrir" Height="28"
+                                                        Click="OnOpenSearchHit" Tag="{Binding FullPath}" VerticalAlignment="Center"/>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Grid>
+
+                    <!-- ==================== PAGE : MAIL SHIELD ==================== -->
+                    <Grid x:Name="PageMail" Visibility="Collapsed">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel>
+                                <TextBlock Text="Mail Shield" Style="{StaticResource PageTitle}"/>
+                                <TextBlock Text="Analyse anti-phishing, anti-arnaque (BEC), usurpation d'identité, liens et pièces jointes malveillants, rançongiciels."
+                                           Foreground="{StaticResource TextMutedBrush}" FontSize="12" Margin="0,0,0,12" TextWrapping="Wrap"/>
+
+                                <!-- Connexion aux boîtes mail -->
+                                <Border Style="{StaticResource Card}">
+                                    <StackPanel>
+                                        <TextBlock Text="📥 Connecter une boîte mail (analyse automatique)" Foreground="{StaticResource GoldBrush}" FontWeight="SemiBold" FontSize="14"/>
+                                        <TextBlock Text="Avec votre autorisation, IATECH-SHIELD se connecte via l'API du fournisseur pour analyser les nouveaux e-mails, les pièces jointes et les liens, et vous avertir avant ouverture."
+                                                   Foreground="{StaticResource TextMutedBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,8"/>
+                                        <WrapPanel>
+                                            <Button Content="Connecter Gmail" Style="{StaticResource GhostButton}" Tag="gmail" Click="OnConnectMail" Margin="0,0,8,8"/>
+                                            <Button Content="Connecter Outlook / Office 365" Style="{StaticResource GhostButton}" Tag="outlook" Click="OnConnectMail" Margin="0,0,8,8"/>
+                                            <Button Content="Connecter Yahoo" Style="{StaticResource GhostButton}" Tag="yahoo" Click="OnConnectMail" Margin="0,0,8,8"/>
+                                            <Button Content="Connecter Proton" Style="{StaticResource GhostButton}" Tag="proton" Click="OnConnectMail" Margin="0,0,8,8"/>
+                                        </WrapPanel>
+                                        <TextBlock x:Name="MailConnectStatus" Text="" Foreground="{StaticResource AccentBrush}" FontSize="11" Margin="0,2,0,0" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Analyse manuelle -->
+                                <Border Style="{StaticResource Card}" Margin="0,12,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="🔬 Analyser un e-mail maintenant" Foreground="{StaticResource GoldBrush}" FontWeight="SemiBold" FontSize="14"/>
+                                        <TextBlock Text="Ouvrez un fichier .eml, ou collez l'e-mail brut (avec les en-têtes) ci-dessous, puis analysez."
+                                                   Foreground="{StaticResource TextMutedBrush}" FontSize="11" Margin="0,4,0,8" TextWrapping="Wrap"/>
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                            <Button Content="📄 Analyser un fichier .eml…" Style="{StaticResource GhostButton}" Click="OnAnalyzeEmlFile" Margin="0,0,8,0"/>
+                                            <Button Content="🔬 Analyser le texte collé" Style="{StaticResource GhostButton}" Click="OnAnalyzePastedMail"/>
+                                        </StackPanel>
+                                        <TextBox x:Name="MailRawInput" Background="#0A1726" Foreground="{StaticResource TextPrimaryBrush}"
+                                                 BorderBrush="{StaticResource PanelStrokeBrush}" Padding="8" FontSize="12" Height="120"
+                                                 AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Résultat -->
+                                <Border x:Name="MailResultCard" Style="{StaticResource Card}" Margin="0,12,0,0" Visibility="Collapsed">
+                                    <StackPanel>
+                                        <TextBlock x:Name="MailVerdictText" Text="" FontSize="20" FontWeight="Bold"/>
+                                        <TextBlock x:Name="MailMeta" Text="" Foreground="{StaticResource TextMutedBrush}" FontSize="11" Margin="0,4,0,8" TextWrapping="Wrap"/>
+                                        <ItemsControl x:Name="MailReasonsList">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding}" Foreground="{StaticResource TextPrimaryBrush}" FontSize="12" Margin="0,2,0,0" TextWrapping="Wrap"/>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Grid>
+
                     <!-- ==================== PAGE : OUTILS ==================== -->
                     <Grid x:Name="PageTools" Visibility="Collapsed">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
@@ -2590,11 +2714,31 @@
                                         <TextBlock Text="🚨 Mode Panic" Foreground="#FF6B6B" FontWeight="SemiBold" FontSize="14"/>
                                         <TextBlock Text="En cas d'urgence : coupe Internet, bloque les périphériques USB, arrête les processus suspects (lancés depuis les dossiers temporaires/Téléchargements) et verrouille la session. Réversible."
                                                    Foreground="{StaticResource TextMutedBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,10"/>
-                                        <StackPanel Orientation="Horizontal">
-                                            <Button x:Name="PanicButton" Content="ACTIVER LE MODE PANIC" Click="OnPanicEngage"
-                                                    Background="#E5484D" Foreground="White" BorderThickness="0" Padding="16,9" Cursor="Hand" FontWeight="Bold"/>
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <!-- Bouton rond « SOS » -->
+                                            <Button x:Name="PanicButton" Click="OnPanicEngage" Width="118" Height="118"
+                                                    Cursor="Hand" Background="Transparent" BorderThickness="0" ToolTip="Activer le mode Panic">
+                                                <Button.Template>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Grid>
+                                                            <Ellipse Fill="#E5484D" Stroke="#FF8A8A" StrokeThickness="3">
+                                                                <Ellipse.Effect>
+                                                                    <DropShadowEffect Color="#E5484D" BlurRadius="26" ShadowDepth="0" Opacity="0.95"/>
+                                                                </Ellipse.Effect>
+                                                            </Ellipse>
+                                                            <Ellipse Margin="12" Stroke="#88FFFFFF" StrokeThickness="1.5" Fill="Transparent"/>
+                                                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                                <TextBlock Text="SOS" Foreground="White" FontWeight="Bold" FontSize="34"
+                                                                           HorizontalAlignment="Center"/>
+                                                                <TextBlock Text="MODE PANIC" Foreground="#FFE0E0" FontSize="9" FontWeight="SemiBold"
+                                                                           HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                                            </StackPanel>
+                                                        </Grid>
+                                                    </ControlTemplate>
+                                                </Button.Template>
+                                            </Button>
                                             <Button x:Name="PanicOffButton" Style="{StaticResource GhostButton}" Content="Rétablir (réseau + USB)"
-                                                    Click="OnPanicDisengage" Margin="10,0,0,0"/>
+                                                    Click="OnPanicDisengage" Margin="16,0,0,0" VerticalAlignment="Center"/>
                                         </StackPanel>
                                         <TextBlock x:Name="PanicStatus" Text="" Foreground="{StaticResource AccentBrush}" FontSize="11" Margin="0,10,0,0" TextWrapping="Wrap"/>
                                     </StackPanel>

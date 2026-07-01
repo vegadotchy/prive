@@ -175,6 +175,8 @@ public partial class MainWindow : Window
             "Registre ID" => PageIdRegister,
             "Contrôle" => PageControl,
             "Historique" => PageHistory,
+            "Recherche" => PageSearch,
+            "Mail" => PageMail,
             _ => PageDashboard
         };
         page.Visibility = Visibility.Visible;
@@ -6814,6 +6816,191 @@ public partial class MainWindow : Window
         {
             if (HistoryStatus is not null) HistoryStatus.Text = $"Échec de l'export : {ex.Message}";
         }
+    }
+
+    // ------------------------------------------------- Recherche globale -------
+
+    private CancellationTokenSource? _searchCts;
+    private readonly List<SearchHit> _searchHits = new();
+    private readonly object _searchLock = new();
+    private DispatcherTimer? _searchUiTimer;
+    private string _searchCurrentDir = "";
+
+    private void OnSearchAllKey(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter) OnGlobalSearch(sender, e);
+    }
+
+    private void OnGlobalSearch(object sender, RoutedEventArgs e)
+    {
+        string q = (SearchAllInput?.Text ?? "").Trim();
+        if (q.Length < 2)
+        {
+            if (SearchAllStatus is not null) SearchAllStatus.Text = "Tapez au moins 2 caractères.";
+            return;
+        }
+        // Annule une recherche précédente éventuelle.
+        _searchCts?.Cancel();
+        lock (_searchLock) _searchHits.Clear();
+        if (SearchResultsList is not null) SearchResultsList.ItemsSource = null;
+
+        _searchCts = new CancellationTokenSource();
+        var ct = _searchCts.Token;
+        if (SearchStopButton is not null) SearchStopButton.IsEnabled = true;
+        if (SearchAllButton is not null) SearchAllButton.IsEnabled = false;
+        if (SearchAllStatus is not null) SearchAllStatus.Text = "Recherche en cours sur tous les disques…";
+
+        // Rafraîchissement périodique de la liste (évite d'inonder l'UI).
+        _searchUiTimer?.Stop();
+        _searchUiTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
+        _searchUiTimer.Tick += (_, _) => RefreshSearchResults(false);
+        _searchUiTimer.Start();
+
+        Log($"Recherche globale : « {q} ».");
+        Task.Run(() =>
+        {
+            try
+            {
+                GlobalSearch.Run(q, ct,
+                    hit => { lock (_searchLock) _searchHits.Add(hit); },
+                    dir => _searchCurrentDir = dir);
+            }
+            catch { }
+            finally
+            {
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    _searchUiTimer?.Stop();
+                    RefreshSearchResults(true);
+                    if (SearchStopButton is not null) SearchStopButton.IsEnabled = false;
+                    if (SearchAllButton is not null) SearchAllButton.IsEnabled = true;
+                }));
+            }
+        }, ct);
+    }
+
+    private void RefreshSearchResults(bool done)
+    {
+        List<SearchHit> snapshot;
+        lock (_searchLock) snapshot = _searchHits.ToList();
+        if (SearchResultsList is not null) SearchResultsList.ItemsSource = snapshot;
+        if (SearchAllStatus is not null)
+        {
+            string tail = done ? "Terminé." : $"En cours… ({_searchCurrentDir})";
+            SearchAllStatus.Text = $"{snapshot.Count} résultat(s). {tail}";
+        }
+    }
+
+    private void OnStopGlobalSearch(object sender, RoutedEventArgs e)
+    {
+        _searchCts?.Cancel();
+        _searchUiTimer?.Stop();
+        RefreshSearchResults(true);
+        if (SearchStopButton is not null) SearchStopButton.IsEnabled = false;
+        if (SearchAllButton is not null) SearchAllButton.IsEnabled = true;
+        if (SearchAllStatus is not null) SearchAllStatus.Text += " (arrêté)";
+    }
+
+    private void OnOpenSearchHit(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: string path }) return;
+        try
+        {
+            // Sélectionne le fichier/dossier dans l'Explorateur Windows.
+            Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{path}\"") { UseShellExecute = true });
+        }
+        catch (Exception ex) { if (SearchAllStatus is not null) SearchAllStatus.Text = $"Impossible d'ouvrir : {ex.Message}"; }
+    }
+
+    // ----------------------------------------------------- Mail Shield ---------
+
+    private void OnConnectMail(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: string provider }) return;
+        // La synchronisation automatique nécessite des identifiants OAuth du fournisseur
+        // (comme pour itsme). On enregistre le choix et on guide l'utilisateur.
+        string name = provider switch
+        {
+            "gmail" => "Gmail (Google)",
+            "outlook" => "Outlook / Office 365 (Microsoft)",
+            "yahoo" => "Yahoo Mail",
+            "proton" => "Proton Mail",
+            _ => provider
+        };
+        var dlg = new PromptWindow("Connecter " + name,
+            $"Pour l'analyse automatique via l'API {name}, collez l'identifiant OAuth (Client ID) fourni par le service.\n\n" +
+            "Laissez vide pour l'instant : vous pouvez déjà analyser manuellement un e-mail (.eml) plus bas.",
+            "Enregistrer") { Owner = this };
+        if (dlg.ShowDialog() == true && !string.IsNullOrWhiteSpace(dlg.Value))
+        {
+            try
+            {
+                var cfg = SecretVault.Load("mailshield");
+                cfg[provider + "_clientid"] = dlg.Value.Trim();
+                SecretVault.Save("mailshield", cfg);
+                if (MailConnectStatus is not null) MailConnectStatus.Text = $"✓ {name} enregistré. La synchronisation automatique s'activera à la prochaine mise à jour.";
+            }
+            catch (Exception ex) { if (MailConnectStatus is not null) MailConnectStatus.Text = $"Échec : {ex.Message}"; }
+        }
+        else if (MailConnectStatus is not null)
+            MailConnectStatus.Text = "Analyse manuelle disponible ci-dessous (fichier .eml ou texte collé).";
+    }
+
+    private void OnAnalyzeEmlFile(object sender, RoutedEventArgs e)
+    {
+        var dlg = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "Analyser un e-mail",
+            Filter = "E-mails (*.eml;*.msg)|*.eml;*.msg|Tous (*.*)|*.*"
+        };
+        if (dlg.ShowDialog(this) != true) return;
+        try { ShowMailVerdict(MailShield.AnalyzeFile(dlg.FileName)); }
+        catch (Exception ex) { ShowMailError(ex.Message); }
+    }
+
+    private void OnAnalyzePastedMail(object sender, RoutedEventArgs e)
+    {
+        string raw = MailRawInput?.Text ?? "";
+        if (raw.Trim().Length == 0) { ShowMailError("Collez d'abord un e-mail dans la zone de texte."); return; }
+        try { ShowMailVerdict(MailShield.AnalyzeRaw(raw)); }
+        catch (Exception ex) { ShowMailError(ex.Message); }
+    }
+
+    private void ShowMailVerdict(MailVerdict v)
+    {
+        if (MailResultCard is null) return;
+        MailResultCard.Visibility = Visibility.Visible;
+        var color = v.Level switch
+        {
+            "DANGEREUX" => System.Windows.Media.Color.FromRgb(0xE5, 0x48, 0x4D),
+            "SUSPECT" => System.Windows.Media.Color.FromRgb(0xF5, 0xA6, 0x23),
+            _ => System.Windows.Media.Color.FromRgb(0x3F, 0xB9, 0x50)
+        };
+        if (MailVerdictText is not null)
+        {
+            MailVerdictText.Text = $"{v.LevelIcon} {v.Level} — score {v.Score}";
+            MailVerdictText.Foreground = new System.Windows.Media.SolidColorBrush(color);
+        }
+        if (MailMeta is not null)
+            MailMeta.Text = $"De : {v.From}\nObjet : {v.Subject}" +
+                (v.Date.Length > 0 ? $"\nDate : {v.Date}" : "") +
+                (v.Links.Count > 0 ? $"\n{v.Links.Count} lien(s)" : "") +
+                (v.Attachments.Count > 0 ? $" · {v.Attachments.Count} pièce(s) jointe(s) : {string.Join(", ", v.Attachments)}" : "");
+        if (MailReasonsList is not null) MailReasonsList.ItemsSource = v.Reasons;
+        Log($"Mail Shield : {v.Level} (score {v.Score}) — {v.Subject}");
+        if (v.Level == "DANGEREUX") { try { SoundFx.Threat(); } catch { } }
+    }
+
+    private void ShowMailError(string message)
+    {
+        if (MailResultCard is not null) MailResultCard.Visibility = Visibility.Visible;
+        if (MailVerdictText is not null)
+        {
+            MailVerdictText.Text = "Analyse impossible";
+            MailVerdictText.Foreground = System.Windows.Media.Brushes.OrangeRed;
+        }
+        if (MailMeta is not null) MailMeta.Text = message;
+        if (MailReasonsList is not null) MailReasonsList.ItemsSource = null;
     }
 
     private static async Task<string> RunPs(string command)
