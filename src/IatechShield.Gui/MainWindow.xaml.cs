@@ -127,7 +127,6 @@ public partial class MainWindow : Window
         PageVault.Visibility = Visibility.Collapsed;
         PageCentre.Visibility = Visibility.Collapsed;
         PageIntegrity.Visibility = Visibility.Collapsed;
-        PageTwin.Visibility = Visibility.Collapsed;
         PageInvestigation.Visibility = Visibility.Collapsed;
         PageCopilot.Visibility = Visibility.Collapsed;
         PageDevice.Visibility = Visibility.Collapsed;
@@ -161,7 +160,6 @@ public partial class MainWindow : Window
             "Coffre-fort" => PageVault,
             "Centre" => PageCentre,
             "Intégrité" => PageIntegrity,
-            "Jumeau" => PageTwin,
             "Investigation" => PageInvestigation,
             "Copilote" => PageCopilot,
             "Appareil" => PageDevice,
@@ -2770,7 +2768,7 @@ public partial class MainWindow : Window
 
             if (sensitive)
             {
-                Notify("⚠ Jumeau numérique", "Des éléments sensibles (services/pilotes/démarrage/hosts) ont changé.", "Jumeau");
+                Notify("⚠ Jumeau numérique", "Des éléments sensibles (services/pilotes/démarrage/hosts) ont changé.", "ADN");
                 CopilotAlert("Le jumeau numérique a détecté des modifications sur des éléments sensibles (services, pilotes, démarrage ou fichier hosts). Cela peut indiquer une infection ou une altération — vérifiez la liste dans l'onglet Jumeau.");
             }
         }
@@ -6778,7 +6776,7 @@ public partial class MainWindow : Window
         ("📱", "Sécurité des appareils", "Système", "Appareil", new[]{"appareil","webcam","micro","bluetooth"}),
         ("🎛️", "Contrôle système", "Système", "Contrôle", new[]{"controle","contrôle","redemarrer","redémarrer","eteindre","éteindre","shutdown","services","verrou extinction","pin","usb bloquer"}),
         ("🧬", "ADN des programmes", "Intégrité", "ADN", new[]{"adn","confiance","empreinte programme"}),
-        ("👥", "Jumeau numérique", "Intégrité", "Jumeau", new[]{"jumeau","twin","empreinte systeme"}),
+        ("👥", "Jumeau numérique", "Intégrité", "ADN", new[]{"jumeau","twin","empreinte systeme"}),
         ("🕵️", "Investigation", "Historique", "Investigation", new[]{"investigation","incident","forensic","enquete","enquête"}),
         ("📅", "Timeline de sécurité", "Historique", "Timeline", new[]{"timeline","chronologie"}),
         ("📜", "Journal d'activité", "Historique", "Logs", new[]{"journal","logs","log","activite","activité"}),

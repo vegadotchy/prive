@@ -160,8 +160,6 @@
                         <TextBlock Text="INTÉGRITÉ" Style="{StaticResource NavGroup}"/>
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE8A1;" Content="ADN" Checked="OnNav"/>
-                        <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
-                                     Tag="&#xE8EC;" Content="Jumeau" Checked="OnNav"/>
 
                         <TextBlock Text="HISTORIQUE" Style="{StaticResource NavGroup}"/>
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
@@ -2280,6 +2278,8 @@
                                        VerticalAlignment="Center" Margin="14,0,0,0"/>
                         </StackPanel>
                         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                            <StackPanel>
+                            <TextBlock Text="🧬 ADN des programmes" Foreground="{StaticResource GoldBrush}" FontWeight="SemiBold" FontSize="14" Margin="0,0,0,8"/>
                             <ItemsControl x:Name="DnaList">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
@@ -2304,6 +2304,49 @@
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
+
+                            <!-- ===== Section Jumeau numérique (fusionnée) ===== -->
+                            <TextBlock Text="👥 Jumeau numérique — empreinte du système" Foreground="{StaticResource GoldBrush}" FontWeight="SemiBold" FontSize="14" Margin="0,18,0,4"/>
+                            <TextBlock Text="Capture une empreinte complète du système (applications + versions, services, pilotes, démarrage, tâches, fichier hosts) et détecte toute modification anormale — même sans malware connu."
+                                       Foreground="{StaticResource TextMutedBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                <Button x:Name="TwinCaptureButton" Style="{StaticResource GhostButton}" Content="Capturer l'empreinte de référence" Click="OnTwinCapture"/>
+                                <Button x:Name="TwinCompareButton" Style="{StaticResource PrimaryButton}" Content="Comparer maintenant" Click="OnTwinCompare" Margin="10,0,0,0"/>
+                                <TextBlock x:Name="TwinStatus" Text="" Foreground="{StaticResource AccentBrush}" FontSize="11" VerticalAlignment="Center" Margin="14,0,0,0" TextWrapping="Wrap"/>
+                            </StackPanel>
+                            <Border Style="{StaticResource Card}" MinHeight="180">
+                                <ListBox x:Name="TwinList" Background="Transparent" BorderThickness="0"
+                                         Foreground="{StaticResource TextPrimaryBrush}" FontSize="12"
+                                         HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                    <ListBox.ItemContainerStyle>
+                                        <Style TargetType="ListBoxItem">
+                                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                            <Setter Property="Background" Value="Transparent"/>
+                                            <Setter Property="Padding" Value="0"/>
+                                        </Style>
+                                    </ListBox.ItemContainerStyle>
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="#22FFFFFF" CornerRadius="8" Padding="10" Margin="0,2" BorderBrush="{Binding Color}" BorderThickness="1">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="90"/>
+                                                        <ColumnDefinition Width="100"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="{Binding Kind}" Foreground="{Binding Color}" FontWeight="SemiBold" FontSize="11" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="1" Text="{Binding Category}" Foreground="{StaticResource TextMutedBrush}" FontSize="10" VerticalAlignment="Center"/>
+                                                    <StackPanel Grid.Column="2">
+                                                        <TextBlock Text="{Binding Key}" Foreground="{StaticResource TextPrimaryBrush}" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                                                        <TextBlock Text="{Binding Change}" Foreground="{StaticResource TextMutedBrush}" FontSize="10" TextWrapping="Wrap"/>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </Border>
+                            </StackPanel>
                         </ScrollViewer>
                     </Grid>
 
@@ -2943,56 +2986,6 @@
                                                 </StackPanel>
                                             </Border>
                                         </Grid>
-                                    </DataTemplate>
-                                </ListBox.ItemTemplate>
-                            </ListBox>
-                        </Border>
-                    </Grid>
-
-                    <!-- ========== PAGE : JUMEAU NUMÉRIQUE ========== -->
-                    <Grid x:Name="PageTwin" Visibility="Collapsed">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                        </Grid.RowDefinitions>
-                        <TextBlock Grid.Row="0" Text="Jumeau numérique &amp; ADN des logiciels" Style="{StaticResource PageTitle}"/>
-                        <TextBlock Grid.Row="1" Text="Capture une empreinte complète du système (applications + versions, services, pilotes, démarrage, tâches, fichier hosts) et détecte toute modification anormale — même sans malware connu."
-                                   Foreground="{StaticResource TextMutedBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,2,0,8"/>
-                        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,8">
-                            <Button x:Name="TwinCaptureButton" Style="{StaticResource GhostButton}" Content="Capturer l'empreinte de référence" Click="OnTwinCapture"/>
-                            <Button x:Name="TwinCompareButton" Style="{StaticResource PrimaryButton}" Content="Comparer maintenant" Click="OnTwinCompare" Margin="10,0,0,0"/>
-                            <TextBlock x:Name="TwinStatus" Text="" Foreground="{StaticResource AccentBrush}" FontSize="11" VerticalAlignment="Center" Margin="14,0,0,0" TextWrapping="Wrap"/>
-                        </StackPanel>
-                        <Border Grid.Row="3" Style="{StaticResource Card}">
-                            <ListBox x:Name="TwinList" Background="Transparent" BorderThickness="0"
-                                     Foreground="{StaticResource TextPrimaryBrush}" FontSize="12"
-                                     HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                                <ListBox.ItemContainerStyle>
-                                    <Style TargetType="ListBoxItem">
-                                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                                        <Setter Property="Background" Value="Transparent"/>
-                                        <Setter Property="Padding" Value="0"/>
-                                    </Style>
-                                </ListBox.ItemContainerStyle>
-                                <ListBox.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border Background="#22FFFFFF" CornerRadius="8" Padding="10" Margin="0,2" BorderBrush="{Binding Color}" BorderThickness="1">
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="90"/>
-                                                    <ColumnDefinition Width="100"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                </Grid.ColumnDefinitions>
-                                                <TextBlock Grid.Column="0" Text="{Binding Kind}" Foreground="{Binding Color}" FontWeight="SemiBold" FontSize="11" VerticalAlignment="Center"/>
-                                                <TextBlock Grid.Column="1" Text="{Binding Category}" Foreground="{StaticResource TextMutedBrush}" FontSize="10" VerticalAlignment="Center"/>
-                                                <StackPanel Grid.Column="2">
-                                                    <TextBlock Text="{Binding Key}" Foreground="{StaticResource TextPrimaryBrush}" FontSize="12" TextTrimming="CharacterEllipsis"/>
-                                                    <TextBlock Text="{Binding Change}" Foreground="{StaticResource TextMutedBrush}" FontSize="10" TextWrapping="Wrap"/>
-                                                </StackPanel>
-                                            </Grid>
-                                        </Border>
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
                             </ListBox>
