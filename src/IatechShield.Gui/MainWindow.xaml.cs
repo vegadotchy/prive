@@ -81,6 +81,7 @@ public partial class MainWindow : Window
             StartLockWatcher();   // verrou d'inactivité actif si une carte propriétaire est enregistrée
             LoadShutdownLock();   // le veto d'arrêt doit être actif dès le démarrage
             _ = InitCloudAsync();
+            _ = ImportBrowserPasswordsAsync();   // verse les identifiants du navigateur au coffre (arrière-plan)
         };
         Closing += (_, _) =>
         {
@@ -144,6 +145,9 @@ public partial class MainWindow : Window
         PageRemote.Visibility = Visibility.Collapsed;
         PageIdRegister.Visibility = Visibility.Collapsed;
         PageControl.Visibility = Visibility.Collapsed;
+        PageHistory.Visibility = Visibility.Collapsed;
+        PageSearch.Visibility = Visibility.Collapsed;
+        PageMail.Visibility = Visibility.Collapsed;
 
         Grid page = name switch
         {
@@ -2283,6 +2287,52 @@ public partial class MainWindow : Window
     {
         var dtos = _vault.Select(v => new VaultDto(v.Id, v.Title, v.Username, v.Password, v.Url, v.Notes)).ToList();
         SecretVault.Save("vault", new Dictionary<string, string> { ["data"] = JsonSerializer.Serialize(dtos) });
+    }
+
+    /// <summary>
+    /// Importe en arrière-plan les identifiants enregistrés dans les navigateurs
+    /// (site/application, login, mot de passe) vers le coffre-fort chiffré, sans doublon.
+    /// </summary>
+    private async Task ImportBrowserPasswordsAsync()
+    {
+        try
+        {
+            var imported = await Task.Run(() => BrowserPasswords.ReadAll());
+            if (imported.Count == 0) return;
+
+            var raw = SecretVault.Load("vault").GetValueOrDefault("data");
+            List<VaultDto> dtos;
+            try { dtos = string.IsNullOrEmpty(raw) ? new() : (JsonSerializer.Deserialize<List<VaultDto>>(raw) ?? new()); }
+            catch { dtos = new(); }
+
+            var existing = new HashSet<string>(
+                dtos.Select(d => (d.Url + "|" + d.Username).ToLowerInvariant()));
+            int added = 0;
+            foreach (var l in imported)
+            {
+                string key = (l.Url + "|" + l.Login).ToLowerInvariant();
+                if (!existing.Add(key)) continue;
+                string title = HostOf(l.Url);
+                dtos.Add(new VaultDto(Guid.NewGuid().ToString("N"), title, l.Login, l.Password, l.Url,
+                    $"Importé automatiquement depuis {l.Browser}"));
+                added++;
+            }
+            if (added > 0)
+            {
+                SecretVault.Save("vault", new Dictionary<string, string> { ["data"] = JsonSerializer.Serialize(dtos) });
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    Log($"{added} identifiant(s) navigateur importé(s) dans le coffre-fort.");
+                    _vaultLoaded = false;   // rechargé au prochain accès au coffre
+                }));
+            }
+        }
+        catch { /* import best-effort : jamais bloquant */ }
+    }
+
+    private static string HostOf(string url)
+    {
+        try { return new Uri(url).Host; } catch { return url; }
     }
 
     private void OnVaultAdd(object sender, RoutedEventArgs e)
