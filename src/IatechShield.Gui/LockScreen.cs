@@ -20,6 +20,7 @@ public sealed class LockScreen : Window
     private readonly string? _pinHash;
     private readonly string? _passwordHash;
     private readonly bool _helloEnabled;
+    private readonly bool _cardOnly;
     private readonly PasswordBox _pin = new();
     private readonly TextBlock _error = new();
     private readonly Button _unlockButton;
@@ -43,11 +44,12 @@ public sealed class LockScreen : Window
     private int _lockoutRemaining;
     private static readonly int[] LockoutSeconds = { 60, 300, 900, 1800, 3600 }; // 1, 5, 15, 30, 60 min
 
-    public LockScreen(string? pinHash, string? passwordHash = null, bool helloEnabled = false)
+    public LockScreen(string? pinHash, string? passwordHash = null, bool helloEnabled = false, bool cardOnly = false)
     {
         _pinHash = pinHash;
         _passwordHash = passwordHash;
-        _helloEnabled = helloEnabled;
+        _helloEnabled = helloEnabled && !cardOnly;
+        _cardOnly = cardOnly;
 
         WindowStyle = WindowStyle.None;
         WindowState = WindowState.Maximized;
@@ -97,7 +99,9 @@ public sealed class LockScreen : Window
         });
         center.Children.Add(new TextBlock
         {
-            Text = "Saisissez votre code PIN ou votre mot de passe",
+            Text = _cardOnly
+                ? "Insérez votre carte d'identité propriétaire pour déverrouiller"
+                : "Saisissez votre code PIN ou votre mot de passe",
             Foreground = new SolidColorBrush(Color.FromRgb(0x94, 0xA3, 0xB8)),
             FontSize = 12,
             HorizontalAlignment = HorizontalAlignment.Center,
@@ -112,6 +116,7 @@ public sealed class LockScreen : Window
         _pin.Foreground = Brushes.White;
         _pin.BorderBrush = new SolidColorBrush(Color.FromRgb(0x22, 0xD3, 0xE8));
         _pin.KeyDown += (_, e) => { if (e.Key == Key.Enter) TryUnlock(); };
+        _pin.Visibility = _cardOnly ? Visibility.Collapsed : Visibility.Visible;
         center.Children.Add(_pin);
 
         _error.Foreground = new SolidColorBrush(Color.FromRgb(0xFF, 0x5C, 0x5C));
@@ -128,7 +133,8 @@ public sealed class LockScreen : Window
             Padding = new Thickness(20, 8, 20, 8),
             Margin = new Thickness(0, 16, 0, 0),
             HorizontalAlignment = HorizontalAlignment.Center,
-            Cursor = Cursors.Hand
+            Cursor = Cursors.Hand,
+            Visibility = _cardOnly ? Visibility.Collapsed : Visibility.Visible
         };
         _unlockButton.Click += (_, _) => TryUnlock();
         center.Children.Add(_unlockButton);
@@ -220,6 +226,21 @@ public sealed class LockScreen : Window
         {
             if (manual) Fail("Aucune carte détectée. Insérez votre carte d'identité dans le lecteur.");
             return;   // en mode auto, on attend silencieusement
+        }
+
+        // Seule la carte propriétaire enregistrée peut déverrouiller (si une est enregistrée).
+        if (CardAuth.IsEnrolled)
+        {
+            if (!info.IsBelgianEid)
+            {
+                if (manual) Fail("Carte non reconnue : carte d'identité électronique requise.");
+                return;
+            }
+            if (!string.Equals(CardAuth.Fingerprint(info), CardAuth.OwnerFingerprint, StringComparison.OrdinalIgnoreCase))
+            {
+                Fail("Cette carte n'est pas la carte propriétaire enregistrée.");
+                return;
+            }
         }
 
         UnlockMethod = "Carte d'identité (eID)";

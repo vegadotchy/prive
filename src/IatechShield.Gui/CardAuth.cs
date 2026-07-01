@@ -24,6 +24,9 @@ public static class CardAuth
     /// <summary>Nom du propriétaire enregistré (pour affichage), ou chaîne vide.</summary>
     public static string OwnerName => SecretVault.Load(Vault).GetValueOrDefault("ownername") ?? "";
 
+    /// <summary>Empreinte de la carte propriétaire enregistrée, ou chaîne vide.</summary>
+    public static string OwnerFingerprint => SecretVault.Load(Vault).GetValueOrDefault("owner") ?? "";
+
     /// <summary>Empreinte stable d'une carte (numéro national haché en SHA-256).</summary>
     public static string Fingerprint(CardInfo card)
     {

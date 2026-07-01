@@ -78,6 +78,7 @@ public partial class MainWindow : Window
             SoundFx.ReactorStartup();   // démarrage « réacteur » à l'ouverture du dashboard
             IatechShield.Tools.AccessLog.Record("Connexion", "Session Windows", Environment.UserName, "Ouverture d'IATECH-SHIELD PRO");
             StartCardRemovalWatcher();
+            StartLockWatcher();   // verrou d'inactivité actif si une carte propriétaire est enregistrée
             LoadShutdownLock();   // le veto d'arrêt doit être actif dès le démarrage
             _ = InitCloudAsync();
         };
@@ -4416,7 +4417,7 @@ public partial class MainWindow : Window
     private bool _lockShowing;
     private bool _lockSettingsLoaded;
 
-    private bool LockConfigured => !string.IsNullOrEmpty(_lockPinHash) || !string.IsNullOrEmpty(_lockPasswordHash) || _lockHello;
+    private bool LockConfigured => CardAuth.IsEnrolled || !string.IsNullOrEmpty(_lockPinHash) || !string.IsNullOrEmpty(_lockPasswordHash) || _lockHello;
 
     private void LoadLockConfig()
     {
@@ -4431,7 +4432,7 @@ public partial class MainWindow : Window
     private void StartLockWatcher()
     {
         LoadLockConfig();
-        if (string.IsNullOrEmpty(_lockPinHash) && string.IsNullOrEmpty(_lockPasswordHash)) return;
+        if (!LockConfigured) return;
 
         _lockTimer ??= new DispatcherTimer { Interval = TimeSpan.FromSeconds(15) };
         _lockTimer.Tick -= OnLockTick;
@@ -4442,7 +4443,7 @@ public partial class MainWindow : Window
     private void OnLockTick(object? sender, EventArgs e)
     {
         if (_lockShowing) return;
-        if (string.IsNullOrEmpty(_lockPinHash) && string.IsNullOrEmpty(_lockPasswordHash)) return;
+        if (!LockConfigured) return;
         if (IdleMilliseconds() >= _lockDelayMs)
             ShowLockScreen();
     }
@@ -4490,7 +4491,7 @@ public partial class MainWindow : Window
                     Log("Carte d'identité retirée : alarme + verrouillage automatique.");
                     // Alarme sonore continue : ne s'arrête qu'au déverrouillage (code PIN).
                     SoundFx.StartAlarm();
-                    Notify("⚠️ Carte retirée", "Carte d'identité retirée du lecteur. Entrez le code PIN pour arrêter l'alarme.", "Contrôle");
+                    Notify("⚠️ Carte retirée", "Carte d'identité retirée. Réinsérez la carte propriétaire pour déverrouiller et arrêter l'alarme.", "Contrôle");
                     try
                     {
                         ShowLockScreen();   // modal : bloque jusqu'au déverrouillage par code PIN
@@ -4519,7 +4520,8 @@ public partial class MainWindow : Window
             IatechShield.Tools.AccessLog.Record("Verrouillage", "—", Environment.UserName, "Session verrouillée");
             // Le verrouillage clôt toute session eID en cours (déconnexion).
             IatechShield.Tools.EidSessionLog.EndSession();
-            var lockScreen = new LockScreen(_lockPinHash, _lockPasswordHash, _lockHello) { Owner = this };
+            // Si une carte propriétaire est enregistrée : déverrouillage carte-uniquement.
+            var lockScreen = new LockScreen(_lockPinHash, _lockPasswordHash, _lockHello, cardOnly: CardAuth.IsEnrolled) { Owner = this };
             lockScreen.ShowDialog();
             // Session déverrouillée : on consigne qui a accédé et par quel moyen.
             IatechShield.Tools.AccessLog.Record("Déverrouillage", lockScreen.UnlockMethod,
