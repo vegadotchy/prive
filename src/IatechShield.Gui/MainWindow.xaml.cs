@@ -6917,33 +6917,101 @@ public partial class MainWindow : Window
     private void OnConnectMail(object sender, RoutedEventArgs e)
     {
         if (sender is not FrameworkElement { Tag: string provider }) return;
-        // La synchronisation automatique nécessite des identifiants OAuth du fournisseur
-        // (comme pour itsme). On enregistre le choix et on guide l'utilisateur.
+        if (provider == "gmail") { _ = ConnectGmailAsync(); return; }
+
+        // Outlook / Yahoo / Proton : câblage à venir (Proton n'a pas d'API publique).
         string name = provider switch
         {
-            "gmail" => "Gmail (Google)",
             "outlook" => "Outlook / Office 365 (Microsoft)",
             "yahoo" => "Yahoo Mail",
             "proton" => "Proton Mail",
             _ => provider
         };
-        var dlg = new PromptWindow("Connecter " + name,
-            $"Pour l'analyse automatique via l'API {name}, collez l'identifiant OAuth (Client ID) fourni par le service.\n\n" +
-            "Laissez vide pour l'instant : vous pouvez déjà analyser manuellement un e-mail (.eml) plus bas.",
-            "Enregistrer") { Owner = this };
-        if (dlg.ShowDialog() == true && !string.IsNullOrWhiteSpace(dlg.Value))
+        if (MailConnectStatus is not null)
+            MailConnectStatus.Text = provider == "proton"
+                ? "Proton n'expose pas d'API publique (chiffrement de bout en bout) : utilisez le Proton Mail Bridge, ou l'analyse manuelle d'un .eml ci-dessous."
+                : $"La connexion {name} arrive bientôt. Pour l'instant : Gmail (bouton dédié) ou analyse manuelle d'un .eml ci-dessous.";
+    }
+
+    /// <summary>Flux OAuth Gmail complet : consentement navigateur puis lecture des e-mails.</summary>
+    private async Task ConnectGmailAsync()
+    {
+        var cfg = SecretVault.Load("mailshield");
+        string clientId = cfg.GetValueOrDefault("gmail_clientid") ?? "";
+        string secret = cfg.GetValueOrDefault("gmail_secret") ?? "";
+
+        if (string.IsNullOrWhiteSpace(clientId))
         {
-            try
-            {
-                var cfg = SecretVault.Load("mailshield");
-                cfg[provider + "_clientid"] = dlg.Value.Trim();
-                SecretVault.Save("mailshield", cfg);
-                if (MailConnectStatus is not null) MailConnectStatus.Text = $"✓ {name} enregistré. La synchronisation automatique s'activera à la prochaine mise à jour.";
-            }
-            catch (Exception ex) { if (MailConnectStatus is not null) MailConnectStatus.Text = $"Échec : {ex.Message}"; }
+            var idDlg = new PromptWindow("Connecter Gmail",
+                "Collez le « Client ID » OAuth (console.cloud.google.com → Identifiants → ID client OAuth, type « Application de bureau ») :",
+                "Suivant") { Owner = this };
+            if (idDlg.ShowDialog() != true || string.IsNullOrWhiteSpace(idDlg.Value)) return;
+            clientId = idDlg.Value.Trim();
         }
-        else if (MailConnectStatus is not null)
-            MailConnectStatus.Text = "Analyse manuelle disponible ci-dessous (fichier .eml ou texte collé).";
+        if (string.IsNullOrWhiteSpace(secret))
+        {
+            var secDlg = new PromptWindow("Connecter Gmail",
+                "Collez le « Client Secret » associé :", "Se connecter") { Owner = this };
+            if (secDlg.ShowDialog() != true || string.IsNullOrWhiteSpace(secDlg.Value)) return;
+            secret = secDlg.Value.Trim();
+        }
+
+        try
+        {
+            if (MailConnectStatus is not null) MailConnectStatus.Text = "Ouverture du consentement Google dans le navigateur…";
+            var tokens = await GmailClient.AuthorizeAsync(clientId, secret, CancellationToken.None);
+            cfg["gmail_clientid"] = clientId;
+            cfg["gmail_secret"] = secret;
+            if (!string.IsNullOrEmpty(tokens.RefreshToken)) cfg["gmail_refresh"] = tokens.RefreshToken!;
+            SecretVault.Save("mailshield", cfg);
+            if (MailConnectStatus is not null) MailConnectStatus.Text = "✓ Gmail connecté. Analyse de vos e-mails récents…";
+            Log("Gmail connecté (OAuth).");
+            await ScanGmailWithTokenAsync(tokens.AccessToken);
+        }
+        catch (Exception ex)
+        {
+            if (MailConnectStatus is not null) MailConnectStatus.Text = $"Échec de la connexion Gmail : {ex.Message}";
+        }
+    }
+
+    private async void OnScanGmailInbox(object sender, RoutedEventArgs e)
+    {
+        var cfg = SecretVault.Load("mailshield");
+        string clientId = cfg.GetValueOrDefault("gmail_clientid") ?? "";
+        string secret = cfg.GetValueOrDefault("gmail_secret") ?? "";
+        string refresh = cfg.GetValueOrDefault("gmail_refresh") ?? "";
+        if (string.IsNullOrWhiteSpace(refresh) || string.IsNullOrWhiteSpace(clientId))
+        {
+            await ConnectGmailAsync();
+            return;
+        }
+        try
+        {
+            if (MailConnectStatus is not null) MailConnectStatus.Text = "Connexion à Gmail…";
+            string access = await GmailClient.RefreshAsync(clientId, secret, refresh, CancellationToken.None);
+            await ScanGmailWithTokenAsync(access);
+        }
+        catch (Exception ex)
+        {
+            if (MailConnectStatus is not null) MailConnectStatus.Text = $"Échec : {ex.Message} (reconnectez Gmail).";
+        }
+    }
+
+    private async Task ScanGmailWithTokenAsync(string accessToken)
+    {
+        if (MailConnectStatus is not null) MailConnectStatus.Text = "Lecture et analyse des e-mails récents…";
+        var raws = await GmailClient.ListRecentRawAsync(accessToken, 20, CancellationToken.None);
+        var verdicts = await Task.Run(() =>
+            raws.Select(r => { try { return MailShield.AnalyzeRaw(r.Raw); } catch { return null; } })
+                .Where(v => v is not null).Select(v => v!)
+                .OrderByDescending(v => v.Score).ToList());
+        if (MailInboxList is not null) MailInboxList.ItemsSource = verdicts;
+        int dangerous = verdicts.Count(v => v.Level == "DANGEREUX");
+        int suspect = verdicts.Count(v => v.Level == "SUSPECT");
+        if (MailConnectStatus is not null)
+            MailConnectStatus.Text = $"✓ {verdicts.Count} e-mail(s) analysé(s) — {dangerous} dangereux, {suspect} suspect(s).";
+        if (dangerous > 0) { try { SoundFx.Threat(); } catch { } Notify("Mail Shield", $"{dangerous} e-mail(s) dangereux détecté(s) dans Gmail.", "Mail"); }
+        Log($"Gmail analysé : {verdicts.Count} e-mails ({dangerous} dangereux).");
     }
 
     private void OnAnalyzeEmlFile(object sender, RoutedEventArgs e)

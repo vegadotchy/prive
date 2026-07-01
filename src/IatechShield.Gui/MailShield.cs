@@ -20,6 +20,9 @@ public sealed class MailVerdict
     public List<string> Attachments { get; } = new();
 
     public string LevelIcon => Level switch { "DANGEREUX" => "⛔", "SUSPECT" => "⚠️", _ => "✅" };
+    public string LevelHex => Level switch { "DANGEREUX" => "#E5484D", "SUSPECT" => "#F5A623", _ => "#3FB950" };
+    public string ScoreLine => $"{LevelIcon} {Level} · score {Score}";
+    public string ReasonsSummary => string.Join("   ·   ", Reasons.Take(3));
 }
 
 /// <summary>
