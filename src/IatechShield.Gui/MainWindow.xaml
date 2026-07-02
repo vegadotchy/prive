@@ -1270,13 +1270,14 @@
                                                             </StackPanel>
                                                             <TextBlock Text="{Binding StatusText}" Foreground="{StaticResource TextMutedBrush}" FontSize="10" Margin="0,2,0,0"/>
                                                         </StackPanel>
-                                                        <WrapPanel Grid.Column="1" VerticalAlignment="Center" MaxWidth="430">
-                                                            <Button Content="{Binding ToggleRoleLabel}" Style="{StaticResource GhostButton}" Height="28" Click="OnToggleUserRole" Tag="{Binding}" Margin="0,0,6,4"/>
-                                                            <Button Content="{Binding ToggleEnabledLabel}" Style="{StaticResource GhostButton}" Height="28" Click="OnToggleUserEnabled" Tag="{Binding}" Margin="0,0,6,4"/>
-                                                            <Button Content="Mot de passe" Style="{StaticResource GhostButton}" Height="28" Click="OnSetUserPin" Tag="{Binding}" Margin="0,0,6,4"/>
-                                                            <Button Content="Forcer MDP" Style="{StaticResource GhostButton}" Height="28" Click="OnForcePwdChange" Tag="{Binding}" Margin="0,0,6,4"/>
-                                                            <Button Content="Supprimer" Style="{StaticResource GhostButton}" Height="28" Click="OnDeleteUser" Tag="{Binding}" Margin="0,0,0,4"/>
-                                                        </WrapPanel>
+                                                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                            <Button Content="{Binding ToggleRoleLabel}" Style="{StaticResource GhostButton}" Height="30" FontSize="11" Click="OnToggleUserRole" Tag="{Binding}" Margin="0,0,6,0"/>
+                                                            <Button Content="{Binding ToggleEnabledLabel}" Style="{StaticResource GhostButton}" Height="30" FontSize="11" Click="OnToggleUserEnabled" Tag="{Binding}" Margin="0,0,6,0"/>
+                                                            <Button Content="Mot de passe" Style="{StaticResource GhostButton}" Height="30" FontSize="11" Click="OnSetUserPin" Tag="{Binding}" Margin="0,0,6,0"/>
+                                                            <Button Content="Forcer MDP" Style="{StaticResource GhostButton}" Height="30" FontSize="11" Click="OnForcePwdChange" Tag="{Binding}" Margin="0,0,6,0"/>
+                                                            <Button Content="🗑 Supprimer" Style="{StaticResource GhostButton}" Height="30" FontSize="11" Click="OnDeleteUser" Tag="{Binding}"
+                                                                    Foreground="#FF6B6B" BorderBrush="#FF6B6B"/>
+                                                        </StackPanel>
                                                     </Grid>
                                                 </Border>
                                             </DataTemplate>
