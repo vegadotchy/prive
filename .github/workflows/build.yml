@@ -1,0 +1,73 @@
+name: Build IATECH-SHIELD PRO (.exe)
+
+# Compile l'interface graphique (WPF) + la CLI + l'installateur .exe sur une
+# machine Windows fournie par GitHub. Les résultats sont téléchargeables dans
+# l'onglet "Actions".
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Installer .NET SDK 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Publier l'interface graphique (WPF, win-x64)
+        run: >
+          dotnet publish src/IatechShield.Gui/IatechShield.Gui.csproj
+          -c Release -r win-x64 --self-contained true
+          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+          -o dist
+
+      - name: Publier la CLI (win-x64)
+        run: >
+          dotnet publish src/IatechShield/IatechShield.csproj
+          -c Release -r win-x64 --self-contained true
+          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+          -o dist
+
+      - name: Publier le générateur de licences (outil éditeur)
+        run: >
+          dotnet publish src/IatechShield.KeyGen/IatechShield.KeyGen.csproj
+          -c Release -r win-x64 --self-contained true
+          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+          -o keygen
+
+      - name: Installer Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Construire l'installateur .exe
+        run: >
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" installer\iatech-shield.iss
+
+      # 1) Application complète (interface + CLI), utilisable sans installation.
+      - name: Publier l'application (artefact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: iatech-shield-app-win-x64
+          path: dist/
+
+      # 2) Installateur .exe à télécharger et lancer.
+      - name: Publier l'installateur (artefact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: IatechShield-Setup
+          path: installer/Output/*.exe
+
+      # 3) Générateur de licences — réservé à l'éditeur, NE PAS distribuer aux clients.
+      - name: Publier le générateur de licences (artefact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: iatech-keygen-EDITEUR-PRIVE
+          path: keygen/

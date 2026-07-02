@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>iatech-shield-gui</AssemblyName>
+    <RootNamespace>IatechShield.Gui</RootNamespace>
+    <Product>IATECH-SHIELD PRO</Product>
+    <Version>0.16.9</Version>
+    <AssemblyVersion>0.16.9.0</AssemblyVersion>
+    <FileVersion>0.16.9.0</FileVersion>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>icon.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\IatechShield.Core\IatechShield.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Lecture des bases d'historique des navigateurs (fichiers SQLite). -->
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.10" />
+    <!-- Analyse des e-mails (Mail Shield) : parsing MIME, en-têtes, pièces jointes. -->
+    <PackageReference Include="MimeKit" Version="4.8.0" />
+    <!-- Dictée vocale du Copilote (reconnaissance vocale Windows). -->
+    <PackageReference Include="System.Speech" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="icon.ico" />
+  </ItemGroup>
+
+  <!-- Évite l'ambiguïté MessageBox/Application entre WPF et WinForms :
+       on retire les using globaux WinForms (types WinForms qualifiés à la main). -->
+  <ItemGroup>
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
+
+</Project>

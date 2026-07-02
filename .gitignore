@@ -1,0 +1,18 @@
+# Build .NET
+bin/
+obj/
+*.user
+
+# Quarantaine locale (ne jamais committer)
+**/quarantine/
+
+# Sortie de l'installateur Inno Setup
+installer/Output/
+
+# Dossier de publication intermédiaire
+dist/
+
+# Clés privées de licence — NE JAMAIS COMMITTER
+keys/
+*.private.pem
+private.pem

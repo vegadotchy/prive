@@ -1,0 +1,239 @@
+name: Release IATECH-SHIELD PRO
+
+# Publie une Release GitHub avec l'installateur .exe et l'application autonome.
+# Déclenchement : à la création d'un tag de version (ex: v0.1.0), ou manuellement.
+
+on:
+  push:
+    branches: ["**"]      # déclenché si le message de commit contient [release]
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Numéro de version (ex: v0.1.0)"
+        required: true
+        default: "v0.1.0"
+
+permissions:
+  contents: write   # nécessaire pour créer la Release et y joindre des fichiers
+
+jobs:
+  release:
+    runs-on: windows-latest
+    # Ne publie que sur tag, déclenchement manuel, ou commit marqué [release].
+    if: >
+      startsWith(github.ref, 'refs/tags/') ||
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.head_commit.message, '[release]')
+
+    steps:
+      - name: Déterminer la version
+        id: ver
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=v0.12.2" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Installer .NET SDK 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Publier l'interface graphique (WPF, win-x64)
+        run: >
+          dotnet publish src/IatechShield.Gui/IatechShield.Gui.csproj
+          -c Release -r win-x64 --self-contained true
+          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+          -o dist
+
+      - name: Publier la CLI (win-x64)
+        run: >
+          dotnet publish src/IatechShield/IatechShield.csproj
+          -c Release -r win-x64 --self-contained true
+          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+          -o dist
+
+      - name: Publier le générateur de licences (outil éditeur, win-x64)
+        run: >
+          dotnet publish src/IatechShield.KeyGen/IatechShield.KeyGen.csproj
+          -c Release -r win-x64 --self-contained true
+          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+          -o keygen
+
+      - name: Signer les exécutables de l'application (si certificat configuré)
+        shell: pwsh
+        env:
+          PFX_B64: ${{ secrets.CODE_SIGN_PFX_BASE64 }}
+          PFX_PWD: ${{ secrets.CODE_SIGN_PASSWORD }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:PFX_B64)) {
+            Write-Host "Aucun certificat (secret CODE_SIGN_PFX_BASE64 absent) — exécutables NON signés."
+            exit 0
+          }
+          $pfx = Join-Path $env:RUNNER_TEMP "iatech-codesign.pfx"
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:PFX_B64))
+          $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" |
+                      Sort-Object FullName | Select-Object -Last 1
+          $files = Get-ChildItem -Path dist,keygen -Filter *.exe -Recurse | ForEach-Object { $_.FullName }
+          foreach ($f in $files) {
+            & $signtool.FullName sign /f $pfx /p $env:PFX_PWD /fd SHA256 `
+              /tr http://timestamp.digicert.com /td SHA256 /d "IATECH-SHIELD PRO" $f
+          }
+          Remove-Item $pfx -Force
+          Write-Host "Exécutables signés."
+
+      - name: Installer Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Construire l'installateur .exe
+        run: >
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" installer\iatech-shield.iss
+
+      - name: Signer l'installateur (si certificat configuré)
+        shell: pwsh
+        env:
+          PFX_B64: ${{ secrets.CODE_SIGN_PFX_BASE64 }}
+          PFX_PWD: ${{ secrets.CODE_SIGN_PASSWORD }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:PFX_B64)) {
+            Write-Host "Aucun certificat — installateur NON signé (Windows affichera « éditeur inconnu »)."
+            exit 0
+          }
+          $pfx = Join-Path $env:RUNNER_TEMP "iatech-codesign.pfx"
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:PFX_B64))
+          $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" |
+                      Sort-Object FullName | Select-Object -Last 1
+          foreach ($f in (Get-ChildItem installer\Output\*.exe | ForEach-Object { $_.FullName })) {
+            & $signtool.FullName sign /f $pfx /p $env:PFX_PWD /fd SHA256 `
+              /tr http://timestamp.digicert.com /td SHA256 /d "IATECH-SHIELD PRO" $f
+          }
+          Remove-Item $pfx -Force
+          Write-Host "Installateur signé."
+
+      - name: Compresser l'application autonome
+        run: Compress-Archive -Path dist\* -DestinationPath IatechShield-App-win-x64.zip -Force
+
+      - name: Compresser l'outil éditeur (générateur de licences)
+        run: Compress-Archive -Path keygen\* -DestinationPath IatechShield-KeyGen-win-x64.zip -Force
+
+      - name: Publier la Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: IATECH-SHIELD PRO ${{ steps.ver.outputs.tag }}
+          tag_name: ${{ steps.ver.outputs.tag }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          body: |
+            ## IATECH-SHIELD PRO — antivirus Windows
+
+            ### Nouveautés 0.12.2
+            - 🚀 **Onglet Optimisation** : 18 actions (accélérer la RAM, vider temp/DNS/corbeille/cache miniatures, renouveler le bail Internet, défragmenter, nettoyage de disque, mode hautes performances, Winsock, + accès direct aux outils Windows) et un bouton **Optimisation rapide** tout-en-un
+            - ⚙️ **Top 3 RAM + Top 3 CPU** sur le dashboard avec **arrêt en 1 clic**
+
+            ### Nouveautés 0.11.0
+            - 🧠 **Vue système temps réel** : nouvel onglet **Processus** — graphe HUD des processus reliés à un hub central, taille selon la mémoire, **rouge si non reconnu/suspect**, clic = détails (PID, mémoire, confiance)
+            - 💚 **Panneau « Niveau de sécurité » animé** (page Intégrité) : jauges qui se remplissent + valeurs réelles + état des menaces
+            - 🔔 **Notifications maison futuristes** (fond noir, triangle rouge, bordure cyan, cliquables)
+
+            ### Nouveautés 0.10.6
+            - 🖥️ **Analyse rapide = ordinateur complet** : le bouton lance directement l'analyse de **tous les disques** (plus de boîte de dialogue)
+            - ⏸ **Pause / Reprendre** + ⏹ **Arrêter** pendant l'analyse (boutons opérationnels)
+
+            ### Nouveautés 0.10.4
+            - 🔁 **Abonnements** : les boutons **Mensuel** et **Annuel** mènent aux pages d'**abonnement** (renouvellement automatique) ; **À vie** reste un paiement unique en 1 clic
+
+            ### Nouveautés 0.10.3
+            - 🛒 **Achat en 1 clic** : les boutons Mensuel / Annuel / À vie **ajoutent directement le produit au panier** sur iatechfutur.be (liens panier Shopify)
+
+            ### Nouveautés 0.10.2
+            - 🌙 **Écran de veille spectaculaire** : **gros cœur cyan** (style dashboard) entouré de cercles et de nœuds en orbite, **éclairs électriques** qui parcourent l'écran, et le message « Votre ordinateur et votre vie privée sont protégés par IATECH-SHIELD PRO »
+            - 🔐 **Coffre-fort** : le mot de passe est **redemandé à chaque retour** dans l'onglet
+
+            ### Nouveautés 0.10.1
+            - ⏹ **Arrêt du scan corrigé** : le bouton « Arrêter » interrompt désormais l'analyse **immédiatement**, même pendant l'inventaire d'un disque entier
+
+            ### Nouveautés 0.10.0
+            - 👤 **Comptes clients (Google + e-mail)** : connectez-vous pour **lier votre licence à votre compte** ; après réinstallation, il suffit de se reconnecter — plus besoin de ressaisir la clé
+            - ⏹ **Bouton « Arrêter le scan »** : interrompez à tout moment une analyse (disque / dossier / fichier)
+            - 🌙 **Écran de veille** : écran noir avec **cœur battant** ; au réveil, l'**écran de verrouillage** (PIN / mot de passe) protège l'accès
+            - 🔐 **Coffre-fort protégé** : un **mot de passe** est désormais requis pour ouvrir le coffre-fort
+            - 🔔 **Notifications cliquables** : cliquez une alerte pour ouvrir l'app **directement sur l'onglet concerné** (menaces, etc.)
+            - 🎨 **Interface plus vivante** : dégradés intenses, **touches dorées**, effets de survol animés
+
+            ### Nouveautés 0.9.5
+            - 🎉 **Écran de félicitations** après activation : logo + **coche verte** et « Licence activée pour … / à vie »
+            - ✅ Le bouton **« Activer »** devient **vert « ✓ Activé »** une fois la licence posée
+            - ⏳ **Compte à rebours** (jours / heures / minutes) pour les licences mensuelles et annuelles ; mention **« Licence à vie »** pour les achats définitifs — le bandeau « Essai — 15 j » disparaît
+
+            ### Nouveautés 0.9.4
+            - 🛒 **Boutique intégrée** : les formules **Mensuel / Annuel / À vie** ouvrent directement la boutique **iatechfutur.be** pour l'achat
+            - 🔒 **Verrou d'essai** : à la fin des **15 jours d'essai**, le logiciel se fige sur le dashboard avec le message **« Licence requise »** et un lien d'achat — réactivé instantanément après saisie de la clé
+
+            ### Nouveautés 0.9.1
+            - 📊 **Dashboard temps réel** : **CPU** et **RAM** en direct (jauges) + carte **Informations système** (Windows + version, processeur, RAM, carte graphique, disques, date d'installation)
+            - 🔐 **Verrou renforcé** : compteur de tentatives + **blocage progressif** (1→5→15→30→60 min) et **sirène d'alerte** 3 s en cas d'échec
+
+            ### 0.9.0
+            - 🌐 **Statut VPN en direct** : connecté/durée, **débit ↓/↑**, volumes, IP locale, **IP publique + pays + opérateur**
+            - 🧩 **Extension navigateur** (Chrome/Edge) : propose d'**enregistrer les identifiants** saisis dans le coffre-fort (canal 100% local)
+            - 🏷️ **Installateur professionnel** : **logo bouclier** dans « Programmes et fonctionnalités », éditeur IATECHFUTUR, icône du setup
+
+            ### 0.8.0
+            - 🎨 **Dashboard dynamique** : cœur central agrandi qui **bat** + nœuds en orbite + **bandeau KPI animé** (compteurs)
+            - 🖥️ **Mode plein écran** (F11) + **pied de page** « Powered by IATECHFUTUR® » + © 2026
+            - 🔐 **Verrouillage du PC** : mot de passe / **code PIN** / **Windows Hello** (visage, empreinte) — bouton corrigé
+            - 🗝️ **Coffre-fort** : **import CSV** (Google/Edge/Chrome), import navigateur, **export protégé** par mot de passe
+            - 🤖 **Clé IA dans l'app** : collez votre clé Anthropic dans Réglages (chiffrée, sans variable d'env ni redémarrage)
+            - 📡 **Radar** : actions de correction par appareil (ouvrir l'admin, **bloquer au pare-feu**, conseils)
+
+            ### 0.7.0
+            - 📡 **Radar du réseau local** : appareils, ports, type (routeur/caméra IP/NAS/imprimante/objet connecté), vulnérabilités, alerte « nouveau »
+            - 💚 **Tableau de bord d'intégrité** : Sécurité, Performances, Confidentialité, Vulnérabilités, Température, Santé SSD, Batterie
+            - 🧬 **Jumeau numérique & ADN des logiciels** : empreinte complète du système + détection de toute modification anormale
+            - 📷 **Protection webcam/micro** · 🎮 **Mode Gamer** (notifications suspendues, analyse allégée)
+            - 🕵️ **Centre d'investigation** : chronologie forensique des incidents + **export de rapport**
+            - ✨ **Écran de démarrage doré** « POWERED BY IATECHFUTUR »
+
+            ### 0.6.0
+            - 🛡️ **Centre de sécurité** : **score /100** + recommandations, **Mode Panic** (coupe réseau/USB, arrête processus suspects, verrouille), **surveillance du presse-papiers** (anti-vol crypto)
+            - 🤖 **Copilote cybersécurité (IA)** : conversation, **relecture des menaces** en langage clair, **détection d'arnaques** (phishing), **analyse prédictive** d'un fichier, alertes proactives *(nécessite ANTHROPIC_API_KEY)*
+
+            ### 0.5.0
+            - 🗝️ **Coffre-fort** : onglet de stockage des mots de passe (chiffré DPAPI), afficher/copier/générer
+            - 🌍 **Installateur multilingue** : choix **arabe / français / anglais** au démarrage
+            - 🛡️ **Assistant d'installation** aux couleurs du bouclier + **progression en pourcentage**
+
+            ### 0.4.1
+            - 🔒 **VPN** amélioré : **profils multiples** (enregistrer/charger/supprimer), champ « clé secrète » masqué selon le type, **déconnexion auto** à la fermeture
+
+            ### 0.4.0
+            - 🔒 **VPN** intégré (client Windows L2TP/IPSec, SSTP, PPTP) — compatible serveur VPN **Synology**
+            - 🛡️ **Protection par mot de passe** (anti-altération) : requis pour quitter ou désactiver le temps réel
+            - 📺 **Verrou de session** : écran plein écran au logo + **code PIN** après inactivité
+
+            ### Déjà présent (0.3.0)
+            - 🛡️ Icône logo + arrière-plan (systray) + notifications
+            - ⚡ Scan parallèle multi-cœurs + barre de progression
+            - 🧠 Heuristique sans signature · 📜 règles YARA · 🌐 réputation VirusTotal
+            - 🎨 Accent par onglet + animations · 🔄 mise à jour auto · 🔐 activation en ligne
+
+            **Téléchargements :**
+            - `IatechShield-Setup-*.exe` — installateur Windows (recommandé)
+            - `IatechShield-App-win-x64.zip` — application autonome (sans installation)
+
+            > ⚠️ L'application demande les droits administrateur (UAC) au lancement.
+            > Windows SmartScreen peut afficher « éditeur inconnu » (exe non signé) :
+            > cliquez sur « Informations complémentaires » → « Exécuter quand même ».
+          files: |
+            installer/Output/*.exe
+            IatechShield-App-win-x64.zip
+            IatechShield-KeyGen-win-x64.zip

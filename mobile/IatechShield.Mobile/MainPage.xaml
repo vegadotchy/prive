@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="IatechShield.Mobile.MainPage"
+             BackgroundColor="{StaticResource Bg}"
+             Title="IATECH-SHIELD PRO">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="22" Spacing="18">
+
+            <!-- En-tête -->
+            <VerticalStackLayout HorizontalOptions="Center" Spacing="2" Margin="0,16,0,0">
+                <Label Text="🛡️" FontSize="56" HorizontalOptions="Center"/>
+                <Label HorizontalOptions="Center" FontSize="26" FontAttributes="Bold">
+                    <Label.FormattedText>
+                        <FormattedString>
+                            <Span Text="IATECH-" TextColor="{StaticResource TextPrimary}"/>
+                            <Span Text="SHIELD PRO" TextColor="{StaticResource Accent}"/>
+                        </FormattedString>
+                    </Label.FormattedText>
+                </Label>
+                <Label Text="Votre bouclier numérique" FontSize="13"
+                       TextColor="{StaticResource TextMuted}" HorizontalOptions="Center"/>
+            </VerticalStackLayout>
+
+            <!-- État de protection -->
+            <Border BackgroundColor="{StaticResource BgCard}" StrokeThickness="0" Padding="18"
+                    StrokeShape="RoundRectangle 16">
+                <VerticalStackLayout Spacing="6">
+                    <Label Text="✓ Protégé" FontSize="22" FontAttributes="Bold"
+                           TextColor="{StaticResource Green}"/>
+                    <Label x:Name="StatusLabel" Text="Protection en temps réel active."
+                           FontSize="13" TextColor="{StaticResource TextMuted}"/>
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Compte & licence -->
+            <Border BackgroundColor="{StaticResource BgCard}" StrokeThickness="0" Padding="18"
+                    StrokeShape="RoundRectangle 16">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Mon compte" FontSize="16" FontAttributes="Bold"
+                           TextColor="{StaticResource TextPrimary}"/>
+                    <Label x:Name="AccountLabel" Text="Non connecté"
+                           FontSize="13" TextColor="{StaticResource TextMuted}"/>
+                    <Label x:Name="LicenseLabel" Text=""
+                           FontSize="13" TextColor="{StaticResource Accent}"/>
+                    <Button x:Name="AccountButton" Text="Se connecter (Google / e-mail)"
+                            BackgroundColor="{StaticResource Accent}" TextColor="#06101B"
+                            FontAttributes="Bold" CornerRadius="12" HeightRequest="46"
+                            Clicked="OnAccountClicked"/>
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Fonctions -->
+            <Border BackgroundColor="{StaticResource BgCard}" StrokeThickness="0" Padding="18"
+                    StrokeShape="RoundRectangle 16">
+                <VerticalStackLayout Spacing="14">
+                    <Label Text="Fonctions" FontSize="16" FontAttributes="Bold"
+                           TextColor="{StaticResource TextPrimary}"/>
+                    <Label Text="🌐  VPN sécurisé" TextColor="{StaticResource TextPrimary}"/>
+                    <Label Text="🔐  Coffre-fort de mots de passe" TextColor="{StaticResource TextPrimary}"/>
+                    <Label Text="🌍  Protection navigation / anti-phishing" TextColor="{StaticResource TextPrimary}"/>
+                    <Label Text="📶  Contrôle de sécurité du Wi-Fi" TextColor="{StaticResource TextPrimary}"/>
+                    <Label Text="🤖  Assistant cybersécurité (IA)" TextColor="{StaticResource TextPrimary}"/>
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Bouton boutique -->
+            <Button x:Name="BuyButton" Text="🛒  Voir les offres sur iatechfutur.be"
+                    BackgroundColor="{StaticResource Accent}" TextColor="#06101B"
+                    FontAttributes="Bold" CornerRadius="12" HeightRequest="52"
+                    Clicked="OnBuyClicked"/>
+
+            <Label Text="Powered by IATECHFUTUR®" FontSize="12"
+                   TextColor="{StaticResource TextMuted}" HorizontalOptions="Center" Margin="0,8,0,0"/>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

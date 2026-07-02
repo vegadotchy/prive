@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="456" height="456" viewBox="0 0 456 456" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M228 96 L344 140 V236 C344 308 296 352 228 376 C160 352 112 308 112 236 V140 Z"
+        fill="#0E2233" stroke="#22D3E8" stroke-width="14" stroke-linejoin="round"/>
+  <path d="M228 300 C196 274 178 256 178 232 C178 214 192 202 208 202 C218 202 226 208 228 218 C230 208 238 202 248 202 C264 202 278 214 278 232 C278 256 260 274 228 300 Z"
+        fill="#22D3E8"/>
+</svg>

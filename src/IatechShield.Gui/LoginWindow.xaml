@@ -1,0 +1,87 @@
+<Window x:Class="IatechShield.Gui.LoginWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Mon compte — IATECH-SHIELD PRO" Height="560" Width="460"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        FontFamily="Segoe UI">
+
+    <Border CornerRadius="16" Background="{StaticResource WindowBackground}"
+            BorderBrush="{StaticResource PanelStrokeBrush}" BorderThickness="1">
+        <Grid Margin="26">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Titre -->
+            <Grid Grid.Row="0" MouseLeftButtonDown="OnDrag" Background="Transparent">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="Mon " FontSize="20" FontWeight="Bold"
+                               Foreground="{StaticResource TextPrimaryBrush}"/>
+                    <TextBlock Text="compte" FontSize="20" FontWeight="Bold"
+                               Foreground="{StaticResource AccentBrush}"/>
+                </StackPanel>
+                <Button Content="&#xE711;" Click="OnClose" Style="{x:Null}" HorizontalAlignment="Right"
+                        FontFamily="Segoe MDL2 Assets" FontSize="11" Width="30" Height="26"
+                        Foreground="{StaticResource TextMutedBrush}" Background="Transparent"
+                        BorderThickness="0" Cursor="Hand"/>
+            </Grid>
+
+            <TextBlock Grid.Row="1" Margin="0,8,0,0" TextWrapping="Wrap" FontSize="12"
+                       Foreground="{StaticResource TextMutedBrush}"
+                       Text="Connectez-vous pour lier votre licence à votre compte. Après une réinstallation, il suffira de vous reconnecter — pas besoin de ressaisir la clé."/>
+
+            <!-- Formulaire -->
+            <StackPanel Grid.Row="2" Margin="0,18,0,0" VerticalAlignment="Top">
+
+                <!-- Connexion Google -->
+                <Button x:Name="GoogleButton" Height="42" Cursor="Hand" Click="OnGoogle"
+                        Background="White" BorderThickness="0">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <TextBlock Text="G" FontWeight="Bold" FontSize="16" Foreground="#4285F4" VerticalAlignment="Center"/>
+                        <TextBlock Text="Continuer avec Google" Foreground="#1F2937" FontWeight="SemiBold"
+                                   FontSize="13" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+
+                <Grid Margin="0,16,0,8">
+                    <Border Height="1" Background="{StaticResource PanelStrokeBrush}" VerticalAlignment="Center"/>
+                    <Border Background="{StaticResource WindowBackground}" HorizontalAlignment="Center" Padding="10,0">
+                        <TextBlock Text="ou par e-mail" Foreground="{StaticResource TextMutedBrush}" FontSize="11"/>
+                    </Border>
+                </Grid>
+
+                <TextBlock Text="Adresse e-mail" Foreground="{StaticResource TextPrimaryBrush}" FontSize="12" Margin="0,4,0,4"/>
+                <TextBox x:Name="EmailInput" Height="34" Padding="8,0" VerticalContentAlignment="Center"
+                         Background="#0A1726" Foreground="{StaticResource TextPrimaryBrush}"
+                         BorderBrush="{StaticResource PanelStrokeBrush}"/>
+
+                <TextBlock Text="Mot de passe" Foreground="{StaticResource TextPrimaryBrush}" FontSize="12" Margin="0,12,0,4"/>
+                <PasswordBox x:Name="PasswordInput" Height="34" Padding="8,0" VerticalContentAlignment="Center"
+                             Background="#0A1726" Foreground="{StaticResource TextPrimaryBrush}"
+                             BorderBrush="{StaticResource PanelStrokeBrush}"/>
+
+                <Grid Margin="0,16,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Button Grid.Column="0" Content="Se connecter" Style="{StaticResource PrimaryButton}"
+                            Click="OnSignIn" Margin="0,0,5,0"/>
+                    <Button Grid.Column="1" Content="Créer un compte" Style="{StaticResource GhostButton}"
+                            Click="OnSignUp" Margin="5,0,0,0"/>
+                </Grid>
+
+                <TextBlock x:Name="StatusText" Margin="0,14,0,0" FontSize="12" TextWrapping="Wrap"
+                           Foreground="{StaticResource TextMutedBrush}"/>
+            </StackPanel>
+
+            <TextBlock Grid.Row="3" FontSize="10" Foreground="{StaticResource TextMutedBrush}"
+                       TextWrapping="Wrap" HorizontalAlignment="Center" TextAlignment="Center"
+                       Text="Connexion sécurisée — vos données ne servent qu'à retrouver votre licence."/>
+        </Grid>
+    </Border>
+</Window>

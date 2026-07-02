@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>IatechShield.ActivationServer</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Réutilise LicenseCodec / License du moteur principal pour signer des licences
+         strictement compatibles avec la vérification hors-ligne de l'application. -->
+    <ProjectReference Include="..\..\src\IatechShield.Core\IatechShield.Core.csproj" />
+  </ItemGroup>
+
+</Project>

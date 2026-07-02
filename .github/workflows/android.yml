@@ -1,0 +1,50 @@
+name: Build Android (MAUI)
+
+# Compile l'application mobile IATECH-SHIELD PRO (Android) et publie un APK
+# téléchargeable et installable directement sur un téléphone (signé en debug).
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "mobile/**"
+      - ".github/workflows/android.yml"
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Installer .NET SDK 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Installer le workload MAUI Android
+        run: dotnet workload install maui-android
+
+      - name: Restaurer
+        run: dotnet restore mobile/IatechShield.Mobile/IatechShield.Mobile.csproj
+
+      - name: Compiler l'APK (Debug, signé et installable)
+        run: >
+          dotnet build mobile/IatechShield.Mobile/IatechShield.Mobile.csproj
+          -c Debug -f net9.0-android --no-restore
+          -p:AndroidPackageFormat=apk
+
+      - name: Localiser l'APK
+        id: apk
+        run: |
+          file=$(find mobile -name "*-Signed.apk" | head -n1)
+          if [ -z "$file" ]; then file=$(find mobile -name "*.apk" | head -n1); fi
+          echo "Trouvé : $file"
+          echo "path=$file" >> "$GITHUB_OUTPUT"
+
+      - name: Publier l'APK (artifact téléchargeable)
+        uses: actions/upload-artifact@v4
+        with:
+          name: IATECH-SHIELD-PRO-Android-APK
+          path: ${{ steps.apk.outputs.path }}
+          if-no-files-found: error

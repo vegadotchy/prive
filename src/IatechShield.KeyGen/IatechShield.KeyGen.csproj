@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>iatech-keygen</AssemblyName>
+    <RootNamespace>IatechShield.KeyGen</RootNamespace>
+    <Product>IATECH-SHIELD PRO — Générateur de licences</Product>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\IatechShield.Core\IatechShield.Core.csproj" />
+  </ItemGroup>
+
+</Project>
