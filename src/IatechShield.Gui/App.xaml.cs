@@ -103,15 +103,14 @@ public partial class App : Application
             while (true)
             {
                 var card = EidReader.Read();
-                bool ok = card.CardPresent && card.IsBelgianEid
-                          && (!CardAuth.IsEnrolled || CardAuth.IsAuthorized(card));
+                // On exige simplement une carte d'identité belge présente : peu importe
+                // laquelle. Son identité est lue et envoyée par e-mail à IATECHFUTUR.
+                bool ok = card.CardPresent && card.IsBelgianEid;
                 if (ok) { authorized = card; break; }
 
                 string why = !card.CardPresent
                     ? "Aucune carte détectée dans le lecteur."
-                    : !card.IsBelgianEid
-                        ? "La carte insérée n'est pas une carte d'identité belge (eID)."
-                        : "Cette carte n'est pas autorisée pour ce poste.";
+                    : "La carte insérée n'est pas une carte d'identité belge (eID).";
 
                 var again = MessageBox.Show(
                     "Pour désinstaller IATECH-SHIELD PRO, insérez votre carte d'identité (eID) " +
@@ -129,14 +128,14 @@ public partial class App : Application
                 }
             }
 
-            // Autorisé : on enregistre la carte (si première fois) et on envoie le rapport.
+            // Carte lue : on envoie l'e-mail indiquant qui désinstalle, puis on autorise.
             CardAuth.Register(authorized!, out _);
             try { UninstallReport.BuildAndSendAsync(authorized!).GetAwaiter().GetResult(); } catch { }
             MessageBox.Show(
                 $"Carte reconnue — {authorized!.DisplayIdentity}.\n\n" +
-                "La désinstallation va démarrer. Un rapport (poste, localisation, identité) " +
-                "a été transmis à IATECHFUTUR.",
-                "IATECH-SHIELD PRO — Désinstallation autorisée",
+                $"Un e-mail informant que la désinstallation est effectuée par {authorized!.DisplayIdentity} " +
+                "a été envoyé à IATECHFUTUR.\n\nLa désinstallation va démarrer.",
+                "IATECH-SHIELD PRO — Désinstallation",
                 MessageBoxButton.OK, MessageBoxImage.Information);
             code = 0;
         }
