@@ -987,17 +987,27 @@
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="90"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBox x:Name="SmtpHost" Grid.Column="0" Background="#0A1726" Foreground="White" CaretBrush="White"
-                                                 BorderBrush="{StaticResource PanelStrokeBrush}" Padding="8" FontSize="12" VerticalContentAlignment="Center"
-                                                 Tag="Serveur SMTP (ex. smtp.gmail.com)"/>
-                                        <TextBox x:Name="SmtpPort" Grid.Column="1" Background="#0A1726" Foreground="White" CaretBrush="White" Text="587"
-                                                 BorderBrush="{StaticResource PanelStrokeBrush}" Padding="8" FontSize="12" VerticalContentAlignment="Center" Margin="8,0,0,0"/>
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="Serveur SMTP" Foreground="{StaticResource AccentBrush}" FontSize="11" FontWeight="SemiBold" Margin="2,0,0,2"/>
+                                            <TextBox x:Name="SmtpHost" Background="#0A1726" Foreground="White" CaretBrush="White"
+                                                     BorderBrush="{StaticResource PanelStrokeBrush}" Padding="8" FontSize="12" VerticalContentAlignment="Center"/>
+                                            <TextBlock Text="Exemple : smtp.gmail.com" Foreground="{StaticResource TextMutedBrush}" FontSize="9" Margin="2,2,0,0"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                                            <TextBlock Text="Port" Foreground="{StaticResource AccentBrush}" FontSize="11" FontWeight="SemiBold" Margin="2,0,0,2"/>
+                                            <TextBox x:Name="SmtpPort" Background="#0A1726" Foreground="White" CaretBrush="White" Text="587"
+                                                     BorderBrush="{StaticResource PanelStrokeBrush}" Padding="8" FontSize="12" VerticalContentAlignment="Center"/>
+                                        </StackPanel>
                                     </Grid>
+                                    <TextBlock Text="Utilisateur (adresse e-mail d'envoi)" Foreground="{StaticResource AccentBrush}" FontSize="11" FontWeight="SemiBold" Margin="2,0,0,2"/>
                                     <TextBox x:Name="SmtpUser" Background="#0A1726" Foreground="White" CaretBrush="White" Margin="0,0,0,6"
-                                             BorderBrush="{StaticResource PanelStrokeBrush}" Padding="8" FontSize="12" VerticalContentAlignment="Center"
-                                             Tag="Utilisateur (adresse d'envoi)"/>
-                                    <PasswordBox x:Name="SmtpPass" Background="#0A1726" Foreground="White" Margin="0,0,0,6"
+                                             BorderBrush="{StaticResource PanelStrokeBrush}" Padding="8" FontSize="12" VerticalContentAlignment="Center"/>
+                                    <TextBlock Text="Mot de passe d'application" Foreground="{StaticResource AccentBrush}" FontSize="11" FontWeight="SemiBold" Margin="2,0,0,2"/>
+                                    <PasswordBox x:Name="SmtpPass" Background="#0A1726" Foreground="White" Margin="0,0,0,2"
                                                  BorderBrush="{StaticResource PanelStrokeBrush}" Padding="8" FontSize="12" VerticalContentAlignment="Center"/>
+                                    <TextBlock Text="⚠ Pas votre mot de passe habituel — un « mot de passe d'application » (Gmail : Compte Google → Sécurité → Mots de passe des applications)."
+                                               Foreground="{StaticResource TextMutedBrush}" FontSize="9" Margin="2,0,0,6" TextWrapping="Wrap"/>
+                                    <TextBlock Text="Destinataire du rapport" Foreground="{StaticResource AccentBrush}" FontSize="11" FontWeight="SemiBold" Margin="2,0,0,2"/>
                                     <TextBox x:Name="SmtpTo" Background="#0A1726" Foreground="White" CaretBrush="White" Margin="0,0,0,8"
                                              Text="iatechfutur@iatechfutur.be"
                                              BorderBrush="{StaticResource PanelStrokeBrush}" Padding="8" FontSize="12" VerticalContentAlignment="Center"/>
