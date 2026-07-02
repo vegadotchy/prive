@@ -971,8 +971,44 @@
                                         <Button x:Name="ApiKeyGetButton" Grid.Column="2" Style="{StaticResource GhostButton}"
                                                 Content="Obtenir une clé" Click="OnGetApiKey" Margin="8,0,0,0"/>
                                     </Grid>
+                                    <TextBlock Text="💡 IA GRATUITE : collez plutôt une clé Google Gemini (« AIza… ») obtenue gratuitement sur aistudio.google.com."
+                                               Foreground="{StaticResource GoldBrush}" FontSize="10" Margin="0,8,0,0" TextWrapping="Wrap"/>
                                 </StackPanel>
                             </Border>
+
+                            <!-- Rapport de désinstallation par e-mail (SMTP) -->
+                            <Border Style="{StaticResource Card}" Margin="0,12,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="📧 Rapport de désinstallation (SMTP)" Foreground="{StaticResource GoldBrush}" FontWeight="SemiBold" FontSize="13"/>
+                                    <TextBlock Text="À la désinstallation (autorisée par carte d'identité), un rapport est envoyé automatiquement à cette adresse via ce compte SMTP. Ex. Gmail : serveur smtp.gmail.com, port 587, utilisateur = votre adresse, mot de passe = « mot de passe d'application » (pas votre mot de passe habituel). Stocké chiffré sur ce PC."
+                                               Foreground="{StaticResource TextMutedBrush}" FontSize="10" Margin="0,4,0,8" TextWrapping="Wrap"/>
+                                    <Grid Margin="0,0,0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="90"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox x:Name="SmtpHost" Grid.Column="0" Background="#0A1726" Foreground="White" CaretBrush="White"
+                                                 BorderBrush="{StaticResource PanelStrokeBrush}" Padding="8" FontSize="12" VerticalContentAlignment="Center"
+                                                 Tag="Serveur SMTP (ex. smtp.gmail.com)"/>
+                                        <TextBox x:Name="SmtpPort" Grid.Column="1" Background="#0A1726" Foreground="White" CaretBrush="White" Text="587"
+                                                 BorderBrush="{StaticResource PanelStrokeBrush}" Padding="8" FontSize="12" VerticalContentAlignment="Center" Margin="8,0,0,0"/>
+                                    </Grid>
+                                    <TextBox x:Name="SmtpUser" Background="#0A1726" Foreground="White" CaretBrush="White" Margin="0,0,0,6"
+                                             BorderBrush="{StaticResource PanelStrokeBrush}" Padding="8" FontSize="12" VerticalContentAlignment="Center"
+                                             Tag="Utilisateur (adresse d'envoi)"/>
+                                    <PasswordBox x:Name="SmtpPass" Background="#0A1726" Foreground="White" Margin="0,0,0,6"
+                                                 BorderBrush="{StaticResource PanelStrokeBrush}" Padding="8" FontSize="12" VerticalContentAlignment="Center"/>
+                                    <TextBox x:Name="SmtpTo" Background="#0A1726" Foreground="White" CaretBrush="White" Margin="0,0,0,8"
+                                             Text="iatechfutur@iatechfutur.be"
+                                             BorderBrush="{StaticResource PanelStrokeBrush}" Padding="8" FontSize="12" VerticalContentAlignment="Center"/>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Button Content="💾 Enregistrer" Style="{StaticResource GhostButton}" Click="OnSaveSmtp" Margin="0,0,8,0"/>
+                                        <Button Content="✉️ Tester l'envoi" Style="{StaticResource GhostButton}" Click="OnTestSmtp"/>
+                                        <TextBlock x:Name="SmtpStatus" Text="" Foreground="{StaticResource AccentBrush}" FontSize="11" VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+
                             <Border Style="{StaticResource Card}" Margin="0,12,0,0">
                                 <StackPanel>
                                     <TextBlock Text="📱 Connexion itsme (déverrouillage par notification téléphone)" Foreground="{StaticResource GoldBrush}" FontWeight="SemiBold" FontSize="13"/>

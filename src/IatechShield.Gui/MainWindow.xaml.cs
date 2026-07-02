@@ -207,6 +207,7 @@ public partial class MainWindow : Window
                 TamperStatus.Text = TamperEnabled ? "Protection par mot de passe activée." : "Aucun mot de passe défini.";
             LoadLockSettings();
             LoadItsmeConfig();
+            LoadSmtpConfig();
             OnRefreshQuarantine(this, new RoutedEventArgs());
         }
         else if (page == PageSystem)
@@ -3741,6 +3742,79 @@ public partial class MainWindow : Window
     {
         try { Process.Start(new ProcessStartInfo("https://console.anthropic.com/settings/keys") { UseShellExecute = true }); }
         catch (Exception ex) { ApiKeyStatusText.Text = $"Ouverture impossible : {ex.Message}"; }
+    }
+
+    // ------------------------------ SMTP (rapport de désinstallation) -----------
+
+    private void LoadSmtpConfig()
+    {
+        var s = SecretVault.Load("smtp");
+        if (SmtpHost is not null) SmtpHost.Text = s.GetValueOrDefault("host") ?? "";
+        if (SmtpPort is not null) SmtpPort.Text = s.GetValueOrDefault("port") ?? "587";
+        if (SmtpUser is not null) SmtpUser.Text = s.GetValueOrDefault("user") ?? "";
+        if (SmtpTo is not null) SmtpTo.Text = SecretVault.Load("uninstall").GetValueOrDefault("email") ?? "iatechfutur@iatechfutur.be";
+        if (SmtpStatus is not null)
+            SmtpStatus.Text = string.IsNullOrWhiteSpace(s.GetValueOrDefault("host"))
+                ? "Non configuré (repli : e-mail pré-rempli à la désinstallation)."
+                : "✓ SMTP configuré.";
+    }
+
+    private void SaveSmtpFromFields()
+    {
+        var cfg = new Dictionary<string, string>
+        {
+            ["host"] = SmtpHost?.Text.Trim() ?? "",
+            ["port"] = SmtpPort?.Text.Trim() ?? "587",
+            ["user"] = SmtpUser?.Text.Trim() ?? "",
+        };
+        // On ne réécrit le mot de passe que s'il a été saisi (sinon on garde l'ancien).
+        string pass = SmtpPass?.Password ?? "";
+        cfg["pass"] = pass.Length > 0 ? pass : (SecretVault.Load("smtp").GetValueOrDefault("pass") ?? "");
+        SecretVault.Save("smtp", cfg);
+        SecretVault.Save("uninstall", new Dictionary<string, string> { ["email"] = SmtpTo?.Text.Trim() ?? "iatechfutur@iatechfutur.be" });
+    }
+
+    private void OnSaveSmtp(object sender, RoutedEventArgs e)
+    {
+        SaveSmtpFromFields();
+        if (SmtpStatus is not null) SmtpStatus.Text = "✓ Configuration SMTP enregistrée (chiffrée).";
+        Log("Configuration SMTP (rapport de désinstallation) enregistrée.");
+    }
+
+    private async void OnTestSmtp(object sender, RoutedEventArgs e)
+    {
+        SaveSmtpFromFields();
+        var s = SecretVault.Load("smtp");
+        string host = s.GetValueOrDefault("host") ?? "";
+        string to = SmtpTo?.Text.Trim() ?? "";
+        if (host.Length == 0 || to.Length == 0)
+        {
+            if (SmtpStatus is not null) SmtpStatus.Text = "Renseignez au moins le serveur SMTP et le destinataire.";
+            return;
+        }
+        if (SmtpStatus is not null) SmtpStatus.Text = "Envoi du test…";
+        try
+        {
+            await Task.Run(() =>
+            {
+                using var msg = new System.Net.Mail.MailMessage(s.GetValueOrDefault("user") ?? to, to,
+                    "✅ Test IATECH-SHIELD — rapport de désinstallation",
+                    $"Test réussi depuis {Environment.MachineName} le {DateTime.Now:yyyy-MM-dd HH:mm}. " +
+                    "Les rapports de désinstallation seront envoyés à cette adresse.");
+                using var client = new System.Net.Mail.SmtpClient(host)
+                {
+                    Port = int.TryParse(s.GetValueOrDefault("port"), out int p) ? p : 587,
+                    EnableSsl = true,
+                    Credentials = new System.Net.NetworkCredential(s.GetValueOrDefault("user"), s.GetValueOrDefault("pass"))
+                };
+                client.Send(msg);
+            });
+            if (SmtpStatus is not null) SmtpStatus.Text = $"✓ Test envoyé à {to}. Vérifiez la boîte de réception.";
+        }
+        catch (Exception ex)
+        {
+            if (SmtpStatus is not null) SmtpStatus.Text = $"❌ Échec : {ex.Message}";
+        }
     }
 
     // ----------------------------------------------------- Configuration itsme -
