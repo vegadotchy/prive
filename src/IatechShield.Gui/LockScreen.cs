@@ -194,6 +194,23 @@ public sealed class LockScreen : Window
             TextWrapping = TextWrapping.Wrap
         });
 
+        // Mention légale (RGPD) : traçabilité des accès par carte d'identité.
+        center.Children.Add(new TextBlock
+        {
+            Text = "* En insérant votre carte d'identité, la session est déverrouillée et vos " +
+                   "données d'identification (nom, prénom, ainsi que la date et l'heure de " +
+                   "connexion et de déconnexion) sont enregistrées à des fins de contrôle et " +
+                   "de traçabilité de sécurité.",
+            Foreground = new SolidColorBrush(Color.FromRgb(0x55, 0x6E, 0x82)),
+            FontSize = 9,
+            FontStyle = FontStyles.Italic,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            TextAlignment = TextAlignment.Center,
+            Margin = new Thickness(0, 18, 0, 0),
+            MaxWidth = 340,
+            TextWrapping = TextWrapping.Wrap
+        });
+
         root.Children.Add(center);
         Content = root;
         Loaded += (_, _) =>
