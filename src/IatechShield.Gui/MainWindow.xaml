@@ -1638,7 +1638,9 @@
                                 <ItemsControl x:Name="HistoryList">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Border Style="{StaticResource Card}" Margin="0,0,0,6" Padding="12,8">
+                                            <Border Style="{StaticResource Card}" Margin="0,0,0,6" Padding="12,8"
+                                                    Cursor="Hand" Background="#0A1726" ToolTip="Ouvrir ce lien dans le navigateur"
+                                                    MouseLeftButtonUp="OnHistoryLinkClick" Tag="{Binding Url}">
                                                 <Grid>
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="*"/>
@@ -1648,7 +1650,8 @@
                                                         <TextBlock Text="{Binding Title}" Foreground="{StaticResource TextPrimaryBrush}"
                                                                    FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
                                                         <TextBlock Text="{Binding Url}" Foreground="{StaticResource AccentBrush}"
-                                                                   FontSize="11" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
+                                                                   FontSize="11" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"
+                                                                   TextDecorations="Underline"/>
                                                     </StackPanel>
                                                     <StackPanel Grid.Column="1" HorizontalAlignment="Right" Margin="12,0,0,0">
                                                         <Border Background="#12324A" CornerRadius="6" Padding="6,2" HorizontalAlignment="Right">

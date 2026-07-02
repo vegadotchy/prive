@@ -6697,6 +6697,14 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>Ouvre le lien d'un site de l'historique dans le navigateur par défaut.</summary>
+    private void OnHistoryLinkClick(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: string url } || string.IsNullOrWhiteSpace(url)) return;
+        try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); }
+        catch (Exception ex) { if (HistoryStatus is not null) HistoryStatus.Text = $"Impossible d'ouvrir : {ex.Message}"; }
+    }
+
     private void OnRefreshHistory(object sender, RoutedEventArgs e) => _ = BuildHistoryAsync();
 
     private void OnHistorySearch(object sender, TextChangedEventArgs e)
