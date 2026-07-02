@@ -7119,6 +7119,81 @@ public partial class MainWindow : Window
         catch (Exception ex) { if (HistoryStatus is not null) HistoryStatus.Text = $"Impossible d'ouvrir : {ex.Message}"; }
     }
 
+    /// <summary>Bloque le domaine d'un site de l'historique (fichier hosts → inaccessible).</summary>
+    private async void OnBlockHistorySite(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: string url } || string.IsNullOrWhiteSpace(url)) return;
+        string domain;
+        try { domain = new Uri(url).Host; } catch { domain = url; }
+        if (domain.StartsWith("www.", StringComparison.OrdinalIgnoreCase)) domain = domain[4..];
+        if (string.IsNullOrWhiteSpace(domain)) return;
+
+        var confirm = new PromptWindow("Bloquer le site",
+            $"Bloquer « {domain} » sur ce PC (tous les navigateurs) ? Tapez OUI.", "Bloquer") { Owner = this };
+        if (confirm.ShowDialog() != true || !string.Equals(confirm.Value.Trim(), "OUI", StringComparison.OrdinalIgnoreCase))
+            return;
+
+        if (HistoryStatus is not null) HistoryStatus.Text = $"Blocage de {domain}…";
+        string d = domain.Replace("'", "").Replace("\"", "").Replace(" ", "");
+        string ps = "$h='C:\\Windows\\System32\\drivers\\etc\\hosts'; " +
+                    $"Add-Content -Path $h -Value '0.0.0.0 {d}'; " +
+                    $"Add-Content -Path $h -Value '0.0.0.0 www.{d}'; " +
+                    "ipconfig /flushdns | Out-Null; if($?){'OK'}";
+        string res = await RunPs(ps);
+        bool ok = res.Contains("OK");
+        if (ok) { IatechShield.Tools.AccessLog.Record("Blocage réseau", "Domaine", d, "Bloqué depuis l'historique (hosts)"); Log($"Site bloqué : {d}."); }
+        if (HistoryStatus is not null)
+            HistoryStatus.Text = ok ? $"🚫 « {d} » bloqué (fichier hosts). Débloquez-le dans Contrôle → Réseau si besoin." : "❌ Échec : droits administrateur requis.";
+    }
+
+    /// <summary>Bloque l'accès réseau d'une application (règle de pare-feu sortante + entrante).</summary>
+    private async void OnBlockApp(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: string exe } || string.IsNullOrWhiteSpace(exe)) return;
+        string? path = ResolveExePath(exe);
+        if (path is null)
+        {
+            if (HistoryStatus is not null) HistoryStatus.Text = $"Chemin introuvable pour « {exe} » (application non enregistrée).";
+            return;
+        }
+        var confirm = new PromptWindow("Bloquer l'application",
+            $"Empêcher « {exe} » d'accéder à Internet ? Tapez OUI.", "Bloquer") { Owner = this };
+        if (confirm.ShowDialog() != true || !string.Equals(confirm.Value.Trim(), "OUI", StringComparison.OrdinalIgnoreCase))
+            return;
+
+        if (HistoryStatus is not null) HistoryStatus.Text = $"Blocage réseau de {exe}…";
+        string p = path.Replace("'", "''");
+        string rule = "IATECH-App-Block " + exe;
+        string ps = $"New-NetFirewallRule -DisplayName '{rule}' -Direction Outbound -Program '{p}' -Action Block -ErrorAction SilentlyContinue | Out-Null; " +
+                    $"New-NetFirewallRule -DisplayName '{rule}' -Direction Inbound -Program '{p}' -Action Block -ErrorAction SilentlyContinue | Out-Null; if($?){{'OK'}}";
+        string res = await RunPs(ps);
+        bool ok = res.Contains("OK");
+        if (ok) { IatechShield.Tools.AccessLog.Record("Blocage réseau", "Application", exe, "Accès Internet bloqué (pare-feu)"); Log($"Application bloquée (réseau) : {exe}."); }
+        if (HistoryStatus is not null)
+            HistoryStatus.Text = ok ? $"🚫 « {exe} » ne peut plus accéder à Internet (pare-feu)." : "❌ Échec : droits administrateur requis.";
+    }
+
+    /// <summary>Résout le chemin complet d'un exécutable via le registre « App Paths ».</summary>
+    private static string? ResolveExePath(string exe)
+    {
+        (Microsoft.Win32.RegistryKey Root, string Path)[] locs =
+        {
+            (Microsoft.Win32.Registry.LocalMachine, @"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\" + exe),
+            (Microsoft.Win32.Registry.LocalMachine, @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\App Paths\" + exe),
+            (Microsoft.Win32.Registry.CurrentUser, @"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\" + exe),
+        };
+        foreach (var (root, path) in locs)
+        {
+            try
+            {
+                using var key = root.OpenSubKey(path);
+                if (key?.GetValue(null) is string p && System.IO.File.Exists(p.Trim('"'))) return p.Trim('"');
+            }
+            catch { }
+        }
+        return null;
+    }
+
     private void OnRefreshHistory(object sender, RoutedEventArgs e) => _ = BuildHistoryAsync();
 
     private void OnHistorySearch(object sender, TextChangedEventArgs e)

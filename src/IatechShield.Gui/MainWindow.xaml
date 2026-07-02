@@ -1703,9 +1703,14 @@
                                                                    TextDecorations="Underline"/>
                                                     </StackPanel>
                                                     <StackPanel Grid.Column="1" HorizontalAlignment="Right" Margin="12,0,0,0">
-                                                        <Border Background="#12324A" CornerRadius="6" Padding="6,2" HorizontalAlignment="Right">
-                                                            <TextBlock Text="{Binding Browser}" Foreground="{StaticResource GoldBrush}" FontSize="10" FontWeight="Bold"/>
-                                                        </Border>
+                                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                                            <Border Background="#12324A" CornerRadius="6" Padding="6,2">
+                                                                <TextBlock Text="{Binding Browser}" Foreground="{StaticResource GoldBrush}" FontSize="10" FontWeight="Bold"/>
+                                                            </Border>
+                                                            <Button Content="🚫 Bloquer" Style="{StaticResource GhostButton}" Height="26" FontSize="10"
+                                                                    Click="OnBlockHistorySite" Tag="{Binding Url}" Margin="8,0,0,0"
+                                                                    Foreground="#FF6B6B" BorderBrush="#FF6B6B" ToolTip="Bloquer ce site sur ce PC"/>
+                                                        </StackPanel>
                                                         <TextBlock Text="{Binding VisitedText}" Foreground="{StaticResource TextMutedBrush}"
                                                                    FontSize="10" HorizontalAlignment="Right" Margin="0,4,0,0"/>
                                                     </StackPanel>
@@ -1731,8 +1736,13 @@
                                                         <TextBlock Text="{Binding Who}" Foreground="{StaticResource AccentBrush}"
                                                                    FontSize="11" Margin="0,2,0,0"/>
                                                     </StackPanel>
-                                                    <TextBlock Grid.Column="1" Text="{Binding WhenText}" Foreground="{StaticResource TextMutedBrush}"
-                                                               FontSize="10" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="12,0,0,0"/>
+                                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
+                                                        <Button Content="🚫 Bloquer réseau" Style="{StaticResource GhostButton}" Height="26" FontSize="10"
+                                                                Click="OnBlockApp" Tag="{Binding App}" Margin="0,0,10,0"
+                                                                Foreground="#FF6B6B" BorderBrush="#FF6B6B" ToolTip="Empêcher cette application d'accéder à Internet"/>
+                                                        <TextBlock Text="{Binding WhenText}" Foreground="{StaticResource TextMutedBrush}"
+                                                                   FontSize="10" VerticalAlignment="Center" HorizontalAlignment="Right"/>
+                                                    </StackPanel>
                                                 </Grid>
                                             </Border>
                                         </DataTemplate>
