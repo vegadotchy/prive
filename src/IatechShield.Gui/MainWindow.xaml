@@ -2235,15 +2235,32 @@
                                             <Border Style="{StaticResource Card}" Margin="0,0,0,8" Padding="14">
                                                 <Grid>
                                                     <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
                                                         <ColumnDefinition Width="*"/>
                                                         <ColumnDefinition Width="Auto"/>
                                                     </Grid.ColumnDefinitions>
-                                                    <StackPanel Grid.Column="0">
+                                                    <!-- Triangle rouge d'alerte en cas de problème -->
+                                                    <TextBlock Grid.Column="0" Text="⚠️" FontSize="20" VerticalAlignment="Center" Margin="0,0,10,0"
+                                                               Visibility="{Binding WarningVisibility}"/>
+                                                    <StackPanel Grid.Column="1">
                                                         <TextBlock Text="{Binding Name}" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="13"/>
-                                                        <TextBlock Text="{Binding Sub}" Foreground="{StaticResource TextMutedBrush}" FontSize="11" Margin="0,2,0,0"/>
+                                                        <TextBlock Text="{Binding Sub}" Foreground="{Binding StatusColor}" FontSize="11" Margin="0,2,0,0"/>
+                                                        <!-- Niveau consommable / toner -->
+                                                        <StackPanel Orientation="Horizontal" Margin="0,6,0,0" Visibility="{Binding TonerVisibility}">
+                                                            <TextBlock Text="{Binding Toner}" Foreground="{Binding TonerColor}" FontSize="10" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                            <ProgressBar Style="{StaticResource Meter}" Width="140" Height="7" Maximum="100"
+                                                                         Value="{Binding TonerPct}" Foreground="{Binding TonerColor}" VerticalAlignment="Center"/>
+                                                        </StackPanel>
                                                     </StackPanel>
-                                                    <Button Grid.Column="1" Content="File d'attente" Style="{StaticResource GhostButton}"
-                                                            Click="OnOpenPrinterQueue" Tag="{Binding Name}" VerticalAlignment="Center"/>
+                                                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Visibility="{Binding ActionsVisibility}">
+                                                        <Button Content="File d'attente" Style="{StaticResource GhostButton}" Height="30"
+                                                                Click="OnOpenPrinterQueue" Tag="{Binding RawName}" Margin="0,0,6,0"/>
+                                                        <Button Content="★ Par défaut" Style="{StaticResource GhostButton}" Height="30"
+                                                                Click="OnSetDefaultPrinter" Tag="{Binding RawName}" Margin="0,0,6,0"/>
+                                                        <Button Content="🗑️ Désinstaller" Style="{StaticResource GhostButton}" Height="30"
+                                                                Click="OnUninstallPrinter" Tag="{Binding RawName}"
+                                                                Foreground="#FF6B6B" BorderBrush="#FF6B6B"/>
+                                                    </StackPanel>
                                                 </Grid>
                                             </Border>
                                         </DataTemplate>

@@ -80,6 +80,11 @@ public partial class MainWindow : Window
             StartCardRemovalWatcher();
             StartLockWatcher();   // verrou d'inactivité actif si une carte propriétaire est enregistrée
             LoadShutdownLock();   // le veto d'arrêt doit être actif dès le démarrage
+            // Si le verrou d'extinction est actif : au démarrage (y compris après un arrêt
+            // forcé par appui long), on verrouille immédiatement — déverrouillage carte only.
+            if (_shutdownLockEnabled && CardAuth.IsEnrolled)
+                Dispatcher.BeginInvoke(new Action(ShowLockScreen),
+                    System.Windows.Threading.DispatcherPriority.Loaded);
             _ = InitCloudAsync();
             _ = ImportBrowserPasswordsAsync();   // verse les identifiants du navigateur au coffre (arrière-plan)
         };
@@ -697,7 +702,15 @@ public partial class MainWindow : Window
     public sealed class PrinterItem
     {
         public string Name { get; set; } = "";
+        public string RawName { get; set; } = "";
         public string Sub { get; set; } = "";
+        public string Toner { get; set; } = "";
+        public System.Windows.Media.Brush StatusColor { get; set; } = System.Windows.Media.Brushes.Cyan;
+        public double TonerPct { get; set; } = 100;
+        public System.Windows.Media.Brush TonerColor { get; set; } = System.Windows.Media.Brushes.Cyan;
+        public Visibility TonerVisibility { get; set; } = Visibility.Collapsed;
+        public Visibility WarningVisibility { get; set; } = Visibility.Collapsed;
+        public Visibility ActionsVisibility { get; set; } = Visibility.Visible;
     }
 
     /// <summary>Élément de liste « disque / périphérique de stockage ».</summary>
@@ -766,28 +779,131 @@ public partial class MainWindow : Window
         }
     }
 
-    private void BuildPrinters()
+    private readonly HashSet<string> _printerProblems = new(StringComparer.OrdinalIgnoreCase);
+
+    private void BuildPrinters() => _ = BuildPrintersAsync();
+
+    private async Task BuildPrintersAsync()
     {
         if (PrintersList is null) return;
         var items = new List<PrinterItem>();
+        string? defaultName = null;
+        try { defaultName = new System.Drawing.Printing.PrinterSettings().PrinterName; } catch { }
+
+        // État détaillé via WMI (statut, erreurs, bourrage, toner, hors ligne).
+        var errorState = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var offline = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
         try
         {
-            string? defaultName = null;
-            try { defaultName = new System.Drawing.Printing.PrinterSettings().PrinterName; } catch { }
+            string raw = await RunPs(
+                "(Get-CimInstance Win32_Printer -ErrorAction SilentlyContinue | ForEach-Object { " +
+                "\"$($_.Name)|$([int]$_.DetectedErrorState)|$([int][bool]$_.WorkOffline)\" }) -join ';;'");
+            if (!raw.StartsWith("ERREUR"))
+                foreach (var row in raw.Split(new[] { ";;" }, StringSplitOptions.RemoveEmptyEntries))
+                {
+                    var p = row.Split('|');
+                    if (p.Length < 3) continue;
+                    errorState[p[0].Trim()] = int.TryParse(p[1], out int es) ? es : 0;
+                    offline[p[0].Trim()] = p[2].Trim() == "1";
+                }
+        }
+        catch { }
+
+        try
+        {
             foreach (string name in System.Drawing.Printing.PrinterSettings.InstalledPrinters)
             {
                 bool isDefault = string.Equals(name, defaultName, StringComparison.OrdinalIgnoreCase);
+                int es = errorState.GetValueOrDefault(name, 2);
+                bool off = offline.GetValueOrDefault(name, false);
+                var (statusText, color, isProblem, tonerPct, tonerText, tonerColor, showToner) = InterpretPrinter(es, off);
+
                 items.Add(new PrinterItem
                 {
                     Name = isDefault ? $"{name}   ★ par défaut" : name,
-                    Sub = "Imprimante installée — cliquez « File d'attente » pour gérer les impressions."
+                    RawName = name,
+                    Sub = statusText,
+                    StatusColor = new SolidColorBrush(color),
+                    WarningVisibility = isProblem ? Visibility.Visible : Visibility.Collapsed,
+                    Toner = tonerText,
+                    TonerPct = tonerPct,
+                    TonerColor = new SolidColorBrush(tonerColor),
+                    TonerVisibility = showToner ? Visibility.Visible : Visibility.Collapsed,
                 });
+
+                // Notification (popup) au passage en état de problème.
+                if (isProblem)
+                {
+                    if (_printerProblems.Add(name))
+                        Notify("⚠️ Imprimante : " + name, statusText, "Périphériques");
+                }
+                else _printerProblems.Remove(name);
             }
         }
         catch { }
+
         if (items.Count == 0)
-            items.Add(new PrinterItem { Name = "Aucune imprimante installée", Sub = "Cliquez « ➕ Ajouter une imprimante » ci-dessus pour en installer une." });
+            items.Add(new PrinterItem
+            {
+                Name = "Aucune imprimante installée",
+                Sub = "Cliquez « ➕ Ajouter une imprimante » ci-dessus pour en installer une.",
+                ActionsVisibility = Visibility.Collapsed
+            });
         PrintersList.ItemsSource = items;
+    }
+
+    /// <summary>Traduit l'état WMI d'une imprimante en statut, couleur et niveau de consommable.</summary>
+    private static (string status, Color color, bool problem, double tonerPct, string tonerText, Color tonerColor, bool showToner)
+        InterpretPrinter(int detectedErrorState, bool offline)
+    {
+        Color green = Color.FromRgb(0x22, 0xC5, 0x5E);
+        Color amber = Color.FromRgb(0xF5, 0x9E, 0x0B);
+        Color red = Color.FromRgb(0xEF, 0x44, 0x44);
+        Color gray = Color.FromRgb(0x94, 0xA3, 0xB8);
+
+        if (offline && detectedErrorState is 2 or 0)
+            return ("⚪ Hors ligne", gray, true, 0, "", gray, false);
+
+        return detectedErrorState switch
+        {
+            3  => ("⚠️ Papier bas", amber, true, 100, "", green, false),
+            4  => ("⛔ Plus de papier", red, true, 100, "", green, false),
+            5  => ("⚠️ Toner / cartouche bas", amber, true, 20, "🟠 Toner bas (~20 %)", amber, true),
+            6  => ("⛔ Toner / cartouche vide", red, true, 0, "🔴 Toner vide (0 %)", red, true),
+            7  => ("⚠️ Capot ouvert", amber, true, 100, "", green, false),
+            8  => ("⛔ Bourrage papier", red, true, 100, "", green, false),
+            9  => ("⚪ Hors ligne", gray, true, 0, "", gray, false),
+            10 => ("⛔ Maintenance requise", red, true, 100, "", green, false),
+            11 => ("⚠️ Bac de sortie plein", amber, true, 100, "", green, false),
+            _  => ("🟢 Prête — consommables OK", green, false, 100, "🟢 Consommables OK", green, true),
+        };
+    }
+
+    private async void OnUninstallPrinter(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: string name } || string.IsNullOrWhiteSpace(name)) return;
+        var confirm = new PromptWindow("Désinstaller l'imprimante",
+            $"Désinstaller « {name} » ? Tapez OUI.", "Désinstaller") { Owner = this };
+        if (confirm.ShowDialog() != true || !string.Equals(confirm.Value.Trim(), "OUI", StringComparison.OrdinalIgnoreCase))
+            return;
+        string n = name.Replace("'", "''");
+        string res = await RunPs($"Remove-Printer -Name '{n}' -ErrorAction Stop; if($?){{'OK'}}");
+        if (!res.Contains("OK"))
+            res = await RunPs($"rundll32 printui.dll,PrintUIEntry /dl /n \"{name}\" /q; if($?){{'OK'}}");
+        if (DevicesStatus is not null)
+            DevicesStatus.Text = res.Contains("OK") ? $"✓ Imprimante « {name} » désinstallée." : $"❌ Échec : {res}";
+        if (res.Contains("OK")) Log($"Imprimante désinstallée : {name}.");
+        BuildPrinters();
+    }
+
+    private async void OnSetDefaultPrinter(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: string name } || string.IsNullOrWhiteSpace(name)) return;
+        string n = name.Replace("'", "''");
+        string res = await RunPs($"(New-Object -ComObject WScript.Network).SetDefaultPrinter('{n}'); if($?){{'OK'}}");
+        if (DevicesStatus is not null)
+            DevicesStatus.Text = res.Contains("OK") ? $"✓ « {name} » définie par défaut." : $"❌ Échec : {res}";
+        BuildPrinters();
     }
 
     private void BuildDrives()
@@ -5550,6 +5666,12 @@ public partial class MainWindow : Window
                 await RunHiddenAsync("cmd.exe", "/c powercfg -setacvalueindex SCHEME_CURRENT SUB_BUTTONS LIDACTION 0");
                 await RunHiddenAsync("cmd.exe", "/c powercfg -setdcvalueindex SCHEME_CURRENT SUB_BUTTONS LIDACTION 0");
                 await RunHiddenAsync("cmd.exe", "/c powercfg -setactive SCHEME_CURRENT");
+                // Démarrage automatique (tâche planifiée élevée) : après un arrêt forcé
+                // (appui long), IATECH-SHIELD redémarre AVEC Windows et reverrouille le PC.
+                string exe = Environment.ProcessPath ?? "";
+                if (exe.Length > 0)
+                    await RunHiddenAsync("cmd.exe",
+                        $"/c schtasks /create /tn \"IatechShieldGuard\" /tr \"\\\"{exe}\\\"\" /sc onlogon /rl highest /f");
             }
             else
             {
@@ -5558,6 +5680,8 @@ public partial class MainWindow : Window
                 await RunHiddenAsync("cmd.exe", "/c powercfg -setacvalueindex SCHEME_CURRENT SUB_BUTTONS PBUTTONACTION 3");
                 await RunHiddenAsync("cmd.exe", "/c powercfg -setdcvalueindex SCHEME_CURRENT SUB_BUTTONS PBUTTONACTION 3");
                 await RunHiddenAsync("cmd.exe", "/c powercfg -setactive SCHEME_CURRENT");
+                // On retire le démarrage automatique de garde.
+                await RunHiddenAsync("cmd.exe", "/c schtasks /delete /tn \"IatechShieldGuard\" /f");
             }
             // Recharge les stratégies Explorer pour application immédiate.
             await RunHiddenAsync("cmd.exe", "/c taskkill /f /im explorer.exe & start explorer.exe");
