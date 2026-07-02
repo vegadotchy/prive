@@ -115,8 +115,6 @@
                         <RadioButton x:Name="NavScan" Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE721;" Content="Scan" Checked="OnNav"/>
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
-                                     Tag="&#xE9A9;" Content="Menaces" Checked="OnNav"/>
-                        <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE9D2;" Content="Intégrité" Checked="OnNav"/>
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE72E;" Content="Outils" Checked="OnNav"/>
@@ -124,8 +122,6 @@
                         <TextBlock Text="RÉSEAU" Style="{StaticResource NavGroup}"/>
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE968;" Content="Réseau" Checked="OnNav"/>
-                        <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
-                                     Tag="&#xE9D9;" Content="Radar" Checked="OnNav"/>
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                      Tag="&#xE909;" Content="Mondiale" Checked="OnNav"/>
                         <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
@@ -780,8 +776,13 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- Résultats -->
-                        <Border Grid.Column="1" Style="{StaticResource Card}">
+                        <!-- Résultats + Radar de menaces -->
+                        <Grid Grid.Column="1">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="270"/>
+                            </Grid.RowDefinitions>
+                        <Border Grid.Row="0" Style="{StaticResource Card}">
                             <Grid>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
@@ -845,6 +846,22 @@
                                 </ListBox>
                             </Grid>
                         </Border>
+                        <!-- Radar de menaces (fusionné dans Scan) -->
+                        <Border Grid.Row="1" Style="{StaticResource Card}" Margin="0,10,0,0">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,4">
+                                    <TextBlock Text="🚨 Radar de menaces" Foreground="{StaticResource GoldBrush}" FontWeight="SemiBold" FontSize="13"/>
+                                    <TextBlock x:Name="ThreatRadarStatus" Text="Balayage continu — chaque point est une menace ou un incident."
+                                               Foreground="{StaticResource TextMutedBrush}" FontSize="11" VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap"/>
+                                </StackPanel>
+                                <Canvas Grid.Row="1" x:Name="ThreatRadarCanvas" ClipToBounds="True" Background="Transparent"/>
+                            </Grid>
+                        </Border>
+                        </Grid>
                     </Grid>
 
                     <!-- ================== PAGE : FIREWALL ================== -->
@@ -1985,7 +2002,7 @@
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
-                        <TextBlock Grid.Row="0" Text="Analyse du réseau" Style="{StaticResource PageTitle}"/>
+                        <TextBlock Grid.Row="0" Text="Réseau &amp; radar local" Style="{StaticResource PageTitle}"/>
                         <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,8,0,8">
                             <Button x:Name="NetScanButton" Style="{StaticResource PrimaryButton}"
                                     Content="ANALYSER LE RÉSEAU" Click="OnNetworkScan" Width="220"/>
@@ -1993,7 +2010,12 @@
                                        Foreground="{StaticResource TextMutedBrush}" FontSize="11"
                                        VerticalAlignment="Center" Margin="14,0,0,0"/>
                         </StackPanel>
-                        <Border Grid.Row="2" Style="{StaticResource Card}">
+                        <Grid Grid.Row="2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="470"/>
+                            </Grid.ColumnDefinitions>
+                        <Border Grid.Column="0" Style="{StaticResource Card}" Margin="0,0,10,0">
                             <Grid>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
@@ -2049,6 +2071,86 @@
                                 </ListBox>
                             </Grid>
                         </Border>
+
+                        <!-- Radar du réseau local (fusionné, à côté) -->
+                        <Grid Grid.Column="1">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="280"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+                                <Button x:Name="RadarButton" Style="{StaticResource PrimaryButton}" Width="160"
+                                        Content="LANCER LE RADAR" Click="OnRadarScan"/>
+                                <TextBlock x:Name="RadarStatus" Text="Appareils, ports, caméras IP, NAS, objets connectés."
+                                           Foreground="{StaticResource TextMutedBrush}" FontSize="10" VerticalAlignment="Center" Margin="10,0,0,0" TextWrapping="Wrap"/>
+                            </StackPanel>
+                            <Border Grid.Row="1" CornerRadius="14" Margin="0,0,0,10"
+                                    Background="#02160B" BorderBrush="#0C5" BorderThickness="1">
+                                <Border.Effect>
+                                    <DropShadowEffect Color="#11FF66" BlurRadius="28" ShadowDepth="0" Opacity="0.5"/>
+                                </Border.Effect>
+                                <Grid>
+                                    <Canvas x:Name="NetRadarCanvas" ClipToBounds="True" Background="Transparent"/>
+                                    <TextBlock x:Name="NetRadarLegend" Text="🟢 connu / sûr   🔴 nouveau ou à risque"
+                                               Foreground="#66FF99" FontSize="11" FontFamily="Consolas"
+                                               HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,10"/>
+                                </Grid>
+                            </Border>
+                            <Border Grid.Row="2" Style="{StaticResource Card}">
+                                <ListBox x:Name="RadarList" Background="Transparent" BorderThickness="0"
+                                         Foreground="{StaticResource TextPrimaryBrush}" FontSize="12"
+                                         HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                    <ListBox.ItemContainerStyle>
+                                        <Style TargetType="ListBoxItem">
+                                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                            <Setter Property="Background" Value="Transparent"/>
+                                            <Setter Property="Padding" Value="0"/>
+                                        </Style>
+                                    </ListBox.ItemContainerStyle>
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="#22FFFFFF" CornerRadius="8" Padding="12" Margin="0,3"
+                                                    BorderBrush="{Binding BorderBrush}" BorderThickness="1">
+                                                <StackPanel>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="{Binding Ip}" Foreground="{StaticResource AccentBrush}" FontFamily="Consolas" FontWeight="SemiBold"/>
+                                                        <Border Background="#F59E0B" CornerRadius="4" Padding="5,1" Margin="8,0,0,0" HorizontalAlignment="Left"
+                                                                Visibility="{Binding NewVisibility}">
+                                                            <TextBlock Text="NOUVEAU" Foreground="#0A1726" FontSize="9" FontWeight="Bold"/>
+                                                        </Border>
+                                                    </StackPanel>
+                                                    <TextBlock Text="{Binding TypeLabel}" Foreground="{StaticResource TextPrimaryBrush}" FontSize="11" Margin="0,2,0,0"/>
+                                                    <Border CornerRadius="5" Padding="7,2" HorizontalAlignment="Left" Margin="0,4,0,0"
+                                                            Background="#0E2233" BorderThickness="1" BorderBrush="{Binding ScoreColor}">
+                                                        <TextBlock Text="{Binding ScoreText}" Foreground="{Binding ScoreColor}" FontSize="11" FontWeight="Bold"/>
+                                                    </Border>
+                                                    <TextBlock Text="{Binding PortsLine}" Foreground="{StaticResource TextMutedBrush}" FontSize="10" Margin="0,3,0,0" TextWrapping="Wrap"/>
+                                                    <ItemsControl ItemsSource="{Binding Risks}" Margin="0,4,0,0">
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <TextBlock Text="{Binding}" Foreground="#FF6B6B" FontSize="10" TextWrapping="Wrap" Margin="0,1"/>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0" Visibility="{Binding ActionsVisibility}">
+                                                        <Button Content="Interface" Style="{StaticResource GhostButton}" Height="28"
+                                                                Click="OnRadarOpenAdmin" Tag="{Binding}" Margin="0,0,6,0"/>
+                                                        <Button Content="Bloquer" Style="{StaticResource GhostButton}" Height="28"
+                                                                Click="OnRadarBlock" Tag="{Binding}" Margin="0,0,6,0"/>
+                                                        <Button Content="Débloquer" Style="{StaticResource GhostButton}" Height="28"
+                                                                Click="OnRadarUnblock" Tag="{Binding}" Margin="0,0,6,0"/>
+                                                        <Button Content="Conseils (IA)" Style="{StaticResource GhostButton}" Height="28"
+                                                                Click="OnRadarAdvice" Tag="{Binding}"/>
+                                                    </StackPanel>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </Border>
+                        </Grid>
+                        </Grid>
                     </Grid>
 
                     <!-- =================== PAGE : SYSTÈME =================== -->
@@ -2246,23 +2348,6 @@
                         </ScrollViewer>
                     </Grid>
 
-                    <!-- =============== PAGE : RADAR DE MENACES =============== -->
-                    <Grid x:Name="PageThreatRadar" Visibility="Collapsed">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                        </Grid.RowDefinitions>
-                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
-                            <TextBlock Text="Radar de menaces" Style="{StaticResource PageTitle}"/>
-                            <TextBlock x:Name="ThreatRadarStatus" Text="Balayage continu — chaque point est une menace ou un incident."
-                                       Foreground="{StaticResource TextMutedBrush}" FontSize="11"
-                                       VerticalAlignment="Center" Margin="14,0,0,0"/>
-                        </StackPanel>
-                        <Border Grid.Row="1" Style="{StaticResource Card}" Padding="0">
-                            <Canvas x:Name="ThreatRadarCanvas" ClipToBounds="True" Background="Transparent"/>
-                        </Border>
-                    </Grid>
-
                     <!-- =============== PAGE : ADN / INDICE DE CONFIANCE =============== -->
                     <Grid x:Name="PageDna" Visibility="Collapsed">
                         <Grid.RowDefinitions>
@@ -2403,103 +2488,6 @@
                         </Border>
                     </Grid>
 
-                    <!-- =============== PAGE : RADAR RÉSEAU =============== -->
-                    <Grid x:Name="PageRadar" Visibility="Collapsed">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                        </Grid.RowDefinitions>
-                        <TextBlock Grid.Row="0" Text="Radar du réseau local" Style="{StaticResource PageTitle}"/>
-                        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,8,0,8">
-                            <Button x:Name="RadarButton" Style="{StaticResource PrimaryButton}" Width="200"
-                                    Content="LANCER LE RADAR" Click="OnRadarScan"/>
-                            <TextBlock x:Name="RadarStatus" Text="Détecte appareils, ports ouverts, caméras IP, NAS et objets connectés vulnérables."
-                                       Foreground="{StaticResource TextMutedBrush}" FontSize="11" VerticalAlignment="Center" Margin="14,0,0,0" TextWrapping="Wrap"/>
-                        </StackPanel>
-                        <Grid Grid.Row="2">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-
-                            <!-- Écran radar « tour de contrôle » -->
-                            <Border Grid.Column="0" Width="440" Margin="0,0,10,0" CornerRadius="14"
-                                    Background="#02160B" BorderBrush="#0C5" BorderThickness="1">
-                                <Border.Effect>
-                                    <DropShadowEffect Color="#11FF66" BlurRadius="28" ShadowDepth="0" Opacity="0.5"/>
-                                </Border.Effect>
-                                <Grid>
-                                    <Canvas x:Name="NetRadarCanvas" ClipToBounds="True" Background="Transparent"/>
-                                    <TextBlock x:Name="NetRadarLegend" Text="🟢 connu / sûr   🔴 nouveau ou à risque"
-                                               Foreground="#66FF99" FontSize="11" FontFamily="Consolas"
-                                               HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,10"/>
-                                </Grid>
-                            </Border>
-
-                            <Border Grid.Column="1" Style="{StaticResource Card}">
-                            <ListBox x:Name="RadarList" Background="Transparent" BorderThickness="0"
-                                     Foreground="{StaticResource TextPrimaryBrush}" FontSize="12"
-                                     HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                                <ListBox.ItemContainerStyle>
-                                    <Style TargetType="ListBoxItem">
-                                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                                        <Setter Property="Background" Value="Transparent"/>
-                                        <Setter Property="Padding" Value="0"/>
-                                    </Style>
-                                </ListBox.ItemContainerStyle>
-                                <ListBox.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border Background="#22FFFFFF" CornerRadius="8" Padding="12" Margin="0,3"
-                                                BorderBrush="{Binding BorderBrush}" BorderThickness="1">
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="150"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                </Grid.ColumnDefinitions>
-                                                <StackPanel Grid.Column="0">
-                                                    <TextBlock Text="{Binding Ip}" Foreground="{StaticResource AccentBrush}" FontFamily="Consolas" FontWeight="SemiBold"/>
-                                                    <TextBlock Text="{Binding TypeLabel}" Foreground="{StaticResource TextPrimaryBrush}" FontSize="11" Margin="0,2,0,0"/>
-                                                    <TextBlock Text="{Binding Mac}" Foreground="{StaticResource TextMutedBrush}" FontSize="9" Margin="0,1,0,0"/>
-                                                    <Border Background="#F59E0B" CornerRadius="4" Padding="5,1" Margin="0,4,0,0" HorizontalAlignment="Left"
-                                                            Visibility="{Binding NewVisibility}">
-                                                        <TextBlock Text="NOUVEAU" Foreground="#0A1726" FontSize="9" FontWeight="Bold"/>
-                                                    </Border>
-                                                </StackPanel>
-                                                <StackPanel Grid.Column="1" Margin="10,0,0,0">
-                                                    <Border CornerRadius="5" Padding="7,2" HorizontalAlignment="Left" Margin="0,0,0,4"
-                                                            Background="#0E2233" BorderThickness="1" BorderBrush="{Binding ScoreColor}">
-                                                        <TextBlock Text="{Binding ScoreText}" Foreground="{Binding ScoreColor}" FontSize="11" FontWeight="Bold"/>
-                                                    </Border>
-                                                    <TextBlock Text="{Binding NameLine}" Foreground="{StaticResource TextPrimaryBrush}" FontSize="12" TextTrimming="CharacterEllipsis"/>
-                                                    <TextBlock Text="{Binding PortsLine}" Foreground="{StaticResource TextMutedBrush}" FontSize="10" Margin="0,3,0,0" TextWrapping="Wrap"/>
-                                                    <ItemsControl ItemsSource="{Binding Risks}" Margin="0,4,0,0">
-                                                        <ItemsControl.ItemTemplate>
-                                                            <DataTemplate>
-                                                                <TextBlock Text="{Binding}" Foreground="#FF6B6B" FontSize="10" TextWrapping="Wrap" Margin="0,1"/>
-                                                            </DataTemplate>
-                                                        </ItemsControl.ItemTemplate>
-                                                    </ItemsControl>
-                                                    <!-- Barre d'actions de correction (appareils à risque) -->
-                                                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0" Visibility="{Binding ActionsVisibility}">
-                                                        <Button Content="Ouvrir l'interface" Style="{StaticResource GhostButton}" Height="30"
-                                                                Click="OnRadarOpenAdmin" Tag="{Binding}" Margin="0,0,6,0"/>
-                                                        <Button Content="Bloquer (pare-feu)" Style="{StaticResource GhostButton}" Height="30"
-                                                                Click="OnRadarBlock" Tag="{Binding}" Margin="0,0,6,0"/>
-                                                        <Button Content="Débloquer" Style="{StaticResource GhostButton}" Height="30"
-                                                                Click="OnRadarUnblock" Tag="{Binding}" Margin="0,0,6,0"/>
-                                                        <Button Content="Conseils (IA)" Style="{StaticResource GhostButton}" Height="30"
-                                                                Click="OnRadarAdvice" Tag="{Binding}"/>
-                                                    </StackPanel>
-                                                </StackPanel>
-                                            </Grid>
-                                        </Border>
-                                    </DataTemplate>
-                                </ListBox.ItemTemplate>
-                            </ListBox>
-                            </Border>
-                        </Grid>
-                    </Grid>
 
                     <!-- ===================== PAGE : VPN ==================== -->
                     <Grid x:Name="PageVpn" Visibility="Collapsed">

@@ -122,7 +122,6 @@ public partial class MainWindow : Window
         PageFirewall.Visibility = Visibility.Collapsed;
         PageTools.Visibility = Visibility.Collapsed;
         PageNetwork.Visibility = Visibility.Collapsed;
-        PageRadar.Visibility = Visibility.Collapsed;
         PageVpn.Visibility = Visibility.Collapsed;
         PageVault.Visibility = Visibility.Collapsed;
         PageCentre.Visibility = Visibility.Collapsed;
@@ -134,7 +133,6 @@ public partial class MainWindow : Window
         PageProcesses.Visibility = Visibility.Collapsed;
         PageWorld.Visibility = Visibility.Collapsed;
         PageDna.Visibility = Visibility.Collapsed;
-        PageThreatRadar.Visibility = Visibility.Collapsed;
         PageTimeline.Visibility = Visibility.Collapsed;
         PageOptimize.Visibility = Visibility.Collapsed;
         PageDevices.Visibility = Visibility.Collapsed;
@@ -155,7 +153,6 @@ public partial class MainWindow : Window
             "Firewall" => PageFirewall,
             "Outils" => PageTools,
             "Réseau" => PageNetwork,
-            "Radar" => PageRadar,
             "VPN" => PageVpn,
             "Coffre-fort" => PageVault,
             "Centre" => PageCentre,
@@ -167,7 +164,6 @@ public partial class MainWindow : Window
             "Processus" => PageProcesses,
             "Mondiale" => PageWorld,
             "ADN" => PageDna,
-            "Menaces" => PageThreatRadar,
             "Timeline" => PageTimeline,
             "Optimisation" => PageOptimize,
             "Périphériques" => PageDevices,
@@ -248,11 +244,11 @@ public partial class MainWindow : Window
         {
             _ = BuildDnaAsync();
         }
-        else if (page == PageThreatRadar)
+        else if (page == PageScan)
         {
             BuildThreatRadar();
         }
-        else if (page == PageRadar)
+        else if (page == PageNetwork)
         {
             DrawNetworkRadar();
         }
@@ -6760,11 +6756,11 @@ public partial class MainWindow : Window
     {
         ("🛡️", "Protection en temps réel", "Protection", "Protection", new[]{"protection","temps reel","réel","bouclier","antivirus"}),
         ("🔍", "Analyser / Scanner", "Protection", "Scan", new[]{"scan","analyse","analyser","virus","fichier"}),
-        ("🚨", "Radar de menaces", "Protection", "Menaces", new[]{"menace","threat","radar menace"}),
+        ("🚨", "Radar de menaces", "Protection", "Scan", new[]{"menace","threat","radar menace"}),
         ("💚", "Tableau d'intégrité", "Protection", "Intégrité", new[]{"integrite","intégrité","score","secure boot","santé"}),
         ("🧰", "Outils de protection", "Protection", "Outils", new[]{"outils","chiffrer","url","dossier"}),
         ("🌐", "Analyse du réseau", "Réseau", "Réseau", new[]{"reseau","réseau","ip","connexions","tcp","bloquer ip","pays"}),
-        ("📡", "Radar réseau local", "Réseau", "Radar", new[]{"radar","appareils reseau","local","ports"}),
+        ("📡", "Radar réseau local", "Réseau", "Réseau", new[]{"radar","appareils reseau","local","ports"}),
         ("🗺️", "Carte mondiale", "Réseau", "Mondiale", new[]{"monde","mondiale","carte","géo","pays connexions"}),
         ("🧱", "Pare-feu", "Réseau", "Firewall", new[]{"pare-feu","firewall","exception"}),
         ("🔒", "VPN", "Réseau", "VPN", new[]{"vpn","tunnel"}),

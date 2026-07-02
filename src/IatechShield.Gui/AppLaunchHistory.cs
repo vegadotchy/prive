@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Microsoft.Win32;
 
 namespace IatechShield.Gui;
 
@@ -33,14 +34,27 @@ public static class AppLaunchHistory
         "REGSVR32.EXE", "WSCRIPT.EXE", "CSCRIPT.EXE", "MMC.EXE", "SETTINGSYNCHOST.EXE"
     };
 
+    // Sous-processus « d'application » à masquer même s'ils sont dans Program Files
+    // (ce ne sont pas des applications lancées par l'utilisateur).
+    private static readonly HashSet<string> HelperExe = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "MSEDGEWEBVIEW2.EXE", "FULLTRUSTNOTIFIER.EXE", "SEARCHHOST.EXE", "CRASHPAD_HANDLER.EXE",
+        "ELEVATION_SERVICE.EXE", "NOTIFICATION_HELPER.EXE", "GOOGLECRASHHANDLER.EXE",
+        "GOOGLECRASHHANDLER64.EXE", "SETUP.EXE", "UPDATE.EXE", "SQUIRREL.EXE", "VCREDIST.EXE",
+        "UNINS000.EXE", "INSTALLER.EXE", "IDENTITY_HELPER.EXE", "MSEDGE_PROXY.EXE"
+    };
+
     public static List<AppRun> Read(int limit = 300)
     {
-        var runs = new List<AppRun>();
         string windir = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+        // Ensemble des applications réellement installées (registre « App Paths »).
+        var installed = InstalledAppExes();
+
+        var byExe = new Dictionary<string, AppRun>(StringComparer.OrdinalIgnoreCase);
         try
         {
             string prefetch = Path.Combine(windir, "Prefetch");
-            if (!Directory.Exists(prefetch)) return runs;
+            if (!Directory.Exists(prefetch)) return new();
 
             foreach (var file in new DirectoryInfo(prefetch).GetFiles("*.pf"))
             {
@@ -49,34 +63,42 @@ public static class AppLaunchHistory
                 int dash = name.LastIndexOf('-');
                 string exe = dash > 0 ? name.Substring(0, dash) : name;
 
-                if (SystemExe.Contains(exe)) continue;               // processus système connu
-                if (IsWindowsBinary(exe, windir)) continue;          // exécutable présent dans Windows\System32…
+                if (SystemExe.Contains(exe) || HelperExe.Contains(exe)) continue;
+                // On ne garde que les applications installées (présentes dans « App Paths »).
+                if (installed.Count > 0 && !installed.Contains(exe)) continue;
 
-                runs.Add(new AppRun(exe, file.LastWriteTime));
+                // Déduplication : une seule entrée par application (la plus récente).
+                if (!byExe.TryGetValue(exe, out var existing) || file.LastWriteTime > existing.When)
+                    byExe[exe] = new AppRun(exe, file.LastWriteTime);
             }
         }
-        catch { /* dossier inaccessible : liste vide */ }
+        catch { /* dossier inaccessible */ }
 
-        return runs
-            .OrderByDescending(r => r.When)
-            .Take(limit)
-            .ToList();
+        return byExe.Values.OrderByDescending(r => r.When).Take(limit).ToList();
     }
 
-    /// <summary>Vrai si l'exécutable se trouve dans un dossier système Windows (donc à masquer).</summary>
-    private static bool IsWindowsBinary(string exe, string windir)
+    /// <summary>Noms des exécutables des applications installées (clés « App Paths » du registre).</summary>
+    private static HashSet<string> InstalledAppExes()
     {
-        foreach (var sub in new[] { "System32", "SysWOW64", "" })
+        var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        (RegistryKey Root, string Path)[] locations =
+        {
+            (Registry.LocalMachine, @"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths"),
+            (Registry.LocalMachine, @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\App Paths"),
+            (Registry.CurrentUser,  @"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths"),
+        };
+        foreach (var (root, path) in locations)
         {
             try
             {
-                string candidate = string.IsNullOrEmpty(sub)
-                    ? Path.Combine(windir, exe)
-                    : Path.Combine(windir, sub, exe);
-                if (File.Exists(candidate)) return true;
+                using var key = root.OpenSubKey(path);
+                if (key is null) continue;
+                foreach (var sub in key.GetSubKeyNames())
+                    if (sub.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+                        set.Add(sub);
             }
             catch { }
         }
-        return false;
+        return set;
     }
 }
