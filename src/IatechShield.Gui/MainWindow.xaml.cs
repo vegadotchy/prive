@@ -4895,8 +4895,17 @@ public partial class MainWindow : Window
                 lockScreen.UnlockIdentity, lockScreen.UnlockDetail);
             // Déverrouillage par carte d'identité : on ouvre une session dans l'« ID Registre ».
             if (lockScreen.UnlockCard is { IsBelgianEid: true } card)
+            {
                 IatechShield.Tools.EidSessionLog.StartSession(card.Name, card.FirstNames, card.BirthDate,
                     card.NationalNumber, Guid.NewGuid().ToString("N"));
+                // Écran d'accueil plein écran « Bienvenue [prénom nom] » avant l'ouverture.
+                try
+                {
+                    string who = $"{card.FirstNames} {card.Name}".Trim();
+                    new WelcomeWindow(who) { Owner = this }.ShowDialog();
+                }
+                catch { /* l'accueil ne doit jamais bloquer l'ouverture */ }
+            }
             if (AccessList is not null && PageAccess is not null && PageAccess.Visibility == Visibility.Visible)
                 BuildAccessLog();
         }
