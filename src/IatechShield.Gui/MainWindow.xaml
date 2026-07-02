@@ -797,6 +797,18 @@
                                     <ProgressBar x:Name="FullScanProgress" Height="6" Margin="0,8,0,8" Minimum="0" Maximum="100"
                                                  Visibility="Collapsed" Foreground="{StaticResource AccentBrush}"
                                                  Background="#1A2740" BorderThickness="0"/>
+                                    <!-- Action groupée : traiter toutes les menaces d'un coup -->
+                                    <StackPanel Orientation="Horizontal" Margin="0,4,0,8">
+                                        <TextBlock Text="Action sur TOUTES :" Foreground="{StaticResource GoldBrush}" FontSize="12"
+                                                   FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                        <ComboBox x:Name="BulkActionCombo" Width="200" SelectedValuePath="Content" SelectedIndex="0" VerticalAlignment="Center">
+                                            <ComboBoxItem Content="Mettre en quarantaine"/>
+                                            <ComboBoxItem Content="Supprimer"/>
+                                            <ComboBoxItem Content="Ignorer"/>
+                                        </ComboBox>
+                                        <Button Content="✓ Appliquer à toutes les menaces" Style="{StaticResource GhostButton}" Height="32"
+                                                Click="OnApplyAllThreats" Margin="8,0,0,0"/>
+                                    </StackPanel>
                                 </StackPanel>
                                 <ListBox Grid.Row="2" x:Name="ScanResultsList" Background="Transparent" BorderThickness="0"
                                          Foreground="{StaticResource TextPrimaryBrush}" FontSize="12"

@@ -4595,41 +4595,71 @@ public partial class MainWindow : Window
     {
         if (sender is not FrameworkElement fe || fe.DataContext is not ThreatItem item)
             return;
+        if (ApplyThreatAction(item, item.SelectedAction, silent: false))
+        {
+            _threats.Remove(item);
+            _threatCount = _threats.Count;
+            UpdateThreatUi();
+        }
+    }
 
+    /// <summary>Applique une action à une menace. Renvoie true si elle doit être retirée de la liste.</summary>
+    private bool ApplyThreatAction(ThreatItem item, string action, bool silent)
+    {
         try
         {
-            switch (item.SelectedAction)
+            switch (action)
             {
                 case "Supprimer":
                     if (File.Exists(item.Path)) File.Delete(item.Path);
                     Log($"Menace supprimée : {item.Path}");
-                    break;
-
+                    return true;
                 case "Mettre en quarantaine":
                     _quarantine?.Add(item.Path, item.Name, item.Sha);
                     Log($"Menace mise en quarantaine : {item.Path}");
-                    break;
-
+                    return true;
                 case "Analyser":
-                    string info = $"Menace : {item.Name}\nFichier : {item.Path}\nSHA-256 : {item.Sha}";
-                    MessageBox.Show(this, info, "Analyse de la menace", MessageBoxButton.OK, MessageBoxImage.Information);
-                    return; // on garde la menace dans la liste
-
+                    if (!silent)
+                        MessageBox.Show(this, $"Menace : {item.Name}\nFichier : {item.Path}\nSHA-256 : {item.Sha}",
+                            "Analyse de la menace", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return false; // on garde la menace
                 case "Ignorer":
                     Log($"Menace ignorée : {item.Path}");
-                    break;
+                    return true;
             }
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, $"Action impossible : {ex.Message}", "Erreur",
-                MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
+            if (!silent)
+                MessageBox.Show(this, $"Action impossible : {ex.Message}", "Erreur",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+            return false;
         }
+        return false;
+    }
 
-        _threats.Remove(item);
+    /// <summary>Applique l'action groupée choisie à TOUTES les menaces de la liste.</summary>
+    private void OnApplyAllThreats(object sender, RoutedEventArgs e)
+    {
+        if (_threats.Count == 0) { if (FullScanStatus is not null) FullScanStatus.Text = "Aucune menace à traiter."; return; }
+        string action = (BulkActionCombo?.SelectedValue as string)
+                        ?? (BulkActionCombo?.Text) ?? "Mettre en quarantaine";
+        if (action == "Analyser") { if (FullScanStatus is not null) FullScanStatus.Text = "« Analyser » ne s'applique pas en masse."; return; }
+
+        var confirm = new PromptWindow("Action groupée",
+            $"Appliquer « {action} » à {_threats.Count} menace(s) ? Tapez OUI.", "Confirmer") { Owner = this };
+        if (confirm.ShowDialog() != true || !string.Equals(confirm.Value.Trim(), "OUI", StringComparison.OrdinalIgnoreCase))
+            return;
+
+        int done = 0;
+        foreach (var item in _threats.ToList())
+            if (ApplyThreatAction(item, action, silent: true)) { _threats.Remove(item); done++; }
+
         _threatCount = _threats.Count;
         UpdateThreatUi();
+        if (FullScanStatus is not null)
+            FullScanStatus.Text = $"✓ Action groupée « {action} » appliquée à {done} menace(s). {_threats.Count} restante(s).";
+        Log($"Action groupée : {action} sur {done} menace(s).");
     }
 
     private void SchedulePower(string flag, string label)
