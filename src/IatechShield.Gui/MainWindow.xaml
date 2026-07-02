@@ -2487,6 +2487,11 @@
                                            FontWeight="SemiBold" FontSize="13" Margin="0,0,0,8"/>
                                 <TextBlock x:Name="ProcDetail" Text="Cliquez un nœud pour voir les détails."
                                            Foreground="{StaticResource TextMutedBrush}" FontSize="12" TextWrapping="Wrap"/>
+                                <Button x:Name="ProcKillButton" Content="⛔ Tuer le processus" Click="OnKillProcess"
+                                        Style="{StaticResource GhostButton}" Margin="0,14,0,0" IsEnabled="False"
+                                        Foreground="#FF6B6B" BorderBrush="#FF6B6B" HorizontalAlignment="Left"/>
+                                <TextBlock x:Name="ProcKillStatus" Text="" Foreground="{StaticResource AccentBrush}"
+                                           FontSize="11" Margin="0,8,0,0" TextWrapping="Wrap"/>
                             </StackPanel>
                         </Border>
                     </Grid>

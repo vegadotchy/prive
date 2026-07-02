@@ -180,6 +180,9 @@ public partial class MainWindow : Window
         };
         page.Visibility = Visibility.Visible;
 
+        // Actualisation en direct du graphe des processus : active seulement sur sa page.
+        if (page != PageProcesses) StopProcTimer();
+
         // Dès qu'on quitte le coffre-fort, on le re-verrouille : le mot de passe
         // sera redemandé à chaque retour.
         if (page != PageVault)
@@ -235,6 +238,7 @@ public partial class MainWindow : Window
         else if (page == PageProcesses)
         {
             BuildProcessGraph();
+            StartProcTimer();
         }
         else if (page == PageWorld)
         {
@@ -360,20 +364,53 @@ public partial class MainWindow : Window
         ("about",      "💻", "À propos du PC (Réglages)"),
     };
 
+    // Regroupement des actions d'optimisation par catégorie de couleur (repérage visuel).
+    private static readonly (Color Color, string[] Keys)[] OptimizeCategories =
+    {
+        // 🟢 Nettoyage & mémoire
+        (Color.FromRgb(0x22, 0xC5, 0x5E), new[]{"boost","ram","temp","dns","recyclebin","thumbs","wsreset","prefetch","flushall","storagesense"}),
+        // 🔵 Réseau
+        (Color.FromRgb(0x3B, 0x82, 0xF6), new[]{"renewip","winsock","resetnet","ncpa","firewall","inetcpl"}),
+        // 🟠 Réparation
+        (Color.FromRgb(0xF5, 0x9E, 0x0B), new[]{"explorer","sfc","dism","chkdsk","gpupdate"}),
+        // 🟣 Diagnostics & moniteurs
+        (Color.FromRgb(0xA7, 0x8B, 0xFA), new[]{"taskmgr","resmon","perfmon","eventvwr","memdiag","dxdiag","reliability","batteryrep","msinfo"}),
+        // 🟦 Disques
+        (Color.FromRgb(0x2D, 0xD4, 0xBF), new[]{"defrag","cleanmgr","diskmgmt","optimizeall","storage"}),
+        // 🩷 Performances
+        (Color.FromRgb(0xEC, 0x48, 0x99), new[]{"perf","visualfx","power","gaming"}),
+        // 🔴 Sécurité
+        (Color.FromRgb(0xEF, 0x44, 0x44), new[]{"defender"}),
+        // ⚪ Réglages / à propos
+        (Color.FromRgb(0x94, 0xA3, 0xB8), new[]{"apps","about"}),
+    };
+
+    private static Color OptimizeColorFor(string key)
+    {
+        foreach (var (color, keys) in OptimizeCategories)
+            if (keys.Contains(key)) return color;
+        return Color.FromRgb(0x22, 0xD3, 0xE8); // cyan par défaut : outils & consoles système
+    }
+
     private void BuildOptimizeButtons()
     {
         if (OptimizeGrid is null || OptimizeGrid.Children.Count > 0) return;
+        var optStyle = (Style)FindResource("OptButton");
         foreach (var (key, icon, label) in OptimizeActions)
         {
+            var c = OptimizeColorFor(key);
             var btn = new Button
             {
-                Style = (Style)FindResource("GhostButton"),
+                Style = optStyle,
                 Width = 250,
-                Height = 46,
                 Margin = new Thickness(0, 0, 10, 10),
                 HorizontalContentAlignment = HorizontalAlignment.Left,
                 Tag = key,
-                Content = $"{icon}   {label}"
+                Content = $"{icon}   {label}",
+                Background = new SolidColorBrush(Color.FromArgb(0x2E, c.R, c.G, c.B)),
+                BorderBrush = new SolidColorBrush(c),
+                Foreground = new SolidColorBrush(Color.FromRgb(
+                    (byte)Math.Min(255, c.R + 90), (byte)Math.Min(255, c.G + 90), (byte)Math.Min(255, c.B + 90)))
             };
             btn.Click += OnOptimize;
             OptimizeGrid.Children.Add(btn);
@@ -1375,6 +1412,26 @@ public partial class MainWindow : Window
     /// Taille selon la mémoire, couleur selon la confiance (signé/connu = cyan/vert,
     /// inconnu/non signé = rouge). Clic = détails. 100 % données réelles.
     /// </summary>
+    private DispatcherTimer? _procTimer;
+
+    /// <summary>Rafraîchit le graphe des processus en direct (taille des nœuds = usage RAM).</summary>
+    private void StartProcTimer()
+    {
+        _procTimer ??= new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+        _procTimer.Tick -= OnProcTick;
+        _procTimer.Tick += OnProcTick;
+        _procTimer.Start();
+    }
+
+    private void StopProcTimer() => _procTimer?.Stop();
+
+    private void OnProcTick(object? sender, EventArgs e)
+    {
+        // On ne redessine que si la page est visible (sécurité).
+        if (PageProcesses is { Visibility: Visibility.Visible }) BuildProcessGraph();
+        else StopProcTimer();
+    }
+
     private void BuildProcessGraph()
     {
         if (ProcCanvas is null) return;
@@ -1426,7 +1483,9 @@ public partial class MainWindow : Window
         }
 
         // Hub central « PC ».
-        AddProcNode(cx, cy, 64, accent, "PC", isHub: true, onClick: null);
+        AddProcNode(cx, cy, 64, accent, "PC", null, isHub: true, onClick: null);
+
+        double totalPhys = TotalPhysicalBytes();
 
         for (int i = 0; i < procs.Count; i++)
         {
@@ -1437,29 +1496,85 @@ public partial class MainWindow : Window
 
             bool trusted = IsLikelyTrusted(p.Name);
             Color c = trusted ? (i % 3 == 0 ? green : accent) : red;
-            double size = 26 + Math.Min(28, p.Mem / (120L * 1024 * 1024)); // mémoire → taille
             double memMb = p.Mem / (1024.0 * 1024.0);
+            // Part de la mémoire physique utilisée par ce processus (dynamique).
+            double pct = totalPhys > 0 ? p.Mem / totalPhys * 100.0 : 0;
+            // Taille du cercle proportionnelle à l'usage (grandit/rétrécit selon la RAM).
+            double size = 22 + Math.Min(52, pct * 4.0);
 
+            string name = p.Name; int pid = p.Id; int count = p.Count;
             string detail =
-                $"🧩 {p.Name}\n" +
-                $"PID : {p.Id}\n" +
-                $"Instances : {p.Count}\n" +
-                $"Mémoire : {memMb:0} Mo\n" +
+                $"🧩 {name}\n" +
+                $"PID : {pid}\n" +
+                $"Instances : {count}\n" +
+                $"Mémoire : {memMb:0} Mo ({pct:0.0} % de la RAM)\n" +
                 $"Confiance : {(trusted ? "✓ Connu / signé" : "⚠ Non reconnu")}";
 
-            AddProcNode(nx, ny, size, c, p.Name, isHub: false, onClick: () =>
+            AddProcNode(nx, ny, size, c, name, $"{pct:0.0}%", isHub: false, onClick: () =>
             {
                 ProcDetail.Text = detail;
                 ProcDetail.Foreground = new SolidColorBrush(trusted
                     ? Color.FromRgb(0xE8, 0xF6, 0xFB) : red);
+                _selectedProcName = name;
+                _selectedProcId = pid;
+                if (ProcKillButton is not null) ProcKillButton.IsEnabled = true;
+                if (ProcKillStatus is not null) ProcKillStatus.Text = "";
             });
         }
 
         int suspicious = procs.Count(p => !IsLikelyTrusted(p.Name));
-        ProcStatus.Text = $"{procs.Count} processus majeurs · {suspicious} non reconnu(s).";
+        ProcStatus.Text = $"{procs.Count} processus majeurs · {suspicious} non reconnu(s) · taille = usage RAM.";
     }
 
-    private void AddProcNode(double x, double y, double size, Color color, string label, bool isHub, Action? onClick)
+    private string? _selectedProcName;
+    private int _selectedProcId;
+
+    /// <summary>Tue le processus sélectionné (toutes ses instances).</summary>
+    private void OnKillProcess(object sender, RoutedEventArgs e)
+    {
+        if (string.IsNullOrEmpty(_selectedProcName)) return;
+        var confirm = new PromptWindow("Tuer le processus",
+            $"Arrêter « {_selectedProcName} » et toutes ses instances ? Tapez OUI.", "Arrêter") { Owner = this };
+        if (confirm.ShowDialog() != true || !string.Equals(confirm.Value.Trim(), "OUI", StringComparison.OrdinalIgnoreCase))
+            return;
+        int killed = 0, failed = 0;
+        foreach (var proc in System.Diagnostics.Process.GetProcessesByName(_selectedProcName))
+        {
+            try { proc.Kill(); proc.WaitForExit(1500); killed++; }
+            catch { failed++; }
+        }
+        if (ProcKillStatus is not null)
+            ProcKillStatus.Text = killed > 0
+                ? $"✓ {_selectedProcName} arrêté ({killed} instance(s)){(failed > 0 ? $", {failed} protégée(s)" : "")}."
+                : $"❌ Impossible d'arrêter {_selectedProcName} (processus protégé ou droits insuffisants).";
+        Log($"Processus arrêté : {_selectedProcName} ({killed} instance(s)).");
+        if (ProcKillButton is not null) ProcKillButton.IsEnabled = false;
+        BuildProcessGraph();
+    }
+
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+    private struct MEMORYSTATUSEX
+    {
+        public uint dwLength, dwMemoryLoad;
+        public ulong ullTotalPhys, ullAvailPhys, ullTotalPageFile, ullAvailPageFile,
+                     ullTotalVirtual, ullAvailVirtual, ullAvailExtendedVirtual;
+    }
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+    private static extern bool GlobalMemoryStatusEx(ref MEMORYSTATUSEX lpBuffer);
+
+    private static double TotalPhysicalBytes()
+    {
+        try
+        {
+            var m = new MEMORYSTATUSEX { dwLength = (uint)System.Runtime.InteropServices.Marshal.SizeOf<MEMORYSTATUSEX>() };
+            if (GlobalMemoryStatusEx(ref m) && m.ullTotalPhys > 0) return m.ullTotalPhys;
+        }
+        catch { }
+        return 8L * 1024 * 1024 * 1024;   // repli : 8 Go
+    }
+
+    private void AddProcNode(double x, double y, double size, Color color, string label, string? pctLabel, bool isHub, Action? onClick)
     {
         var dot = new System.Windows.Shapes.Ellipse
         {
@@ -1488,6 +1603,23 @@ public partial class MainWindow : Window
         Canvas.SetLeft(text, x - 45);
         Canvas.SetTop(text, y + size / 2 + 2);
         ProcCanvas.Children.Add(text);
+
+        // Pourcentage d'utilisation (RAM) sous le nom.
+        if (pctLabel is not null)
+        {
+            var pctText = new TextBlock
+            {
+                Text = pctLabel,
+                Foreground = new SolidColorBrush(color),
+                FontSize = 10,
+                FontWeight = FontWeights.Bold,
+                TextAlignment = TextAlignment.Center,
+                Width = 90
+            };
+            Canvas.SetLeft(pctText, x - 45);
+            Canvas.SetTop(pctText, y + size / 2 + 15);
+            ProcCanvas.Children.Add(pctText);
+        }
     }
 
     /// <summary>Heuristique simple : processus Windows/éditeurs connus = de confiance.</summary>

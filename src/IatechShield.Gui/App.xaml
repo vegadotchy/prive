@@ -86,6 +86,30 @@
         </Style>
 
         <!-- ======================= Bouton de navigation =================== -->
+        <!-- Bouton d'optimisation coloré par catégorie (couleur définie par code) -->
+        <Style x:Key="OptButton" TargetType="Button">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Height" Value="46"/>
+            <Setter Property="BorderThickness" Value="1.4"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" CornerRadius="9" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+                            <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center" Margin="14,0"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Opacity" Value="0.80"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- En-tête de catégorie dans la barre latérale -->
         <Style x:Key="NavGroup" TargetType="TextBlock">
             <Setter Property="Foreground" Value="{StaticResource GoldBrush}"/>
