@@ -2819,7 +2819,7 @@
                                         <TextBlock Text="🚨 Mode Panic" Foreground="#FF6B6B" FontWeight="SemiBold" FontSize="14"/>
                                         <TextBlock Text="En cas d'urgence : coupe Internet, bloque les périphériques USB, arrête les processus suspects (lancés depuis les dossiers temporaires/Téléchargements) et verrouille la session. Réversible."
                                                    Foreground="{StaticResource TextMutedBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,10"/>
-                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,6,0,0">
                                             <!-- Bouton rond « SOS » -->
                                             <Button x:Name="PanicButton" Click="OnPanicEngage" Width="118" Height="118"
                                                     Cursor="Hand" Background="Transparent" BorderThickness="0" ToolTip="Activer le mode Panic">
@@ -2842,8 +2842,29 @@
                                                     </ControlTemplate>
                                                 </Button.Template>
                                             </Button>
-                                            <Button x:Name="PanicOffButton" Style="{StaticResource GhostButton}" Content="Rétablir (réseau + USB)"
-                                                    Click="OnPanicDisengage" Margin="16,0,0,0" VerticalAlignment="Center"/>
+                                            <!-- Bouton rond vert « SÛR » : rétablit réseau + USB -->
+                                            <Button x:Name="PanicOffButton" Click="OnPanicDisengage" Width="118" Height="118"
+                                                    Cursor="Hand" Background="Transparent" BorderThickness="0" Margin="28,0,0,0"
+                                                    ToolTip="Rétablir le réseau et les périphériques USB">
+                                                <Button.Template>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Grid>
+                                                            <Ellipse Fill="#22C55E" Stroke="#86EFAC" StrokeThickness="3">
+                                                                <Ellipse.Effect>
+                                                                    <DropShadowEffect Color="#22C55E" BlurRadius="26" ShadowDepth="0" Opacity="0.95"/>
+                                                                </Ellipse.Effect>
+                                                            </Ellipse>
+                                                            <Ellipse Margin="12" Stroke="#88FFFFFF" StrokeThickness="1.5" Fill="Transparent"/>
+                                                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                                <TextBlock Text="SÛR" Foreground="White" FontWeight="Bold" FontSize="30"
+                                                                           HorizontalAlignment="Center"/>
+                                                                <TextBlock Text="RÉTABLIR" Foreground="#E6FFE9" FontSize="9" FontWeight="SemiBold"
+                                                                           HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                                            </StackPanel>
+                                                        </Grid>
+                                                    </ControlTemplate>
+                                                </Button.Template>
+                                            </Button>
                                         </StackPanel>
                                         <TextBlock x:Name="PanicStatus" Text="" Foreground="{StaticResource AccentBrush}" FontSize="11" Margin="0,10,0,0" TextWrapping="Wrap"/>
                                     </StackPanel>
