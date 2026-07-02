@@ -96,30 +96,49 @@ public partial class App : Application
         int code = 1;
         try
         {
-            var card = EidReader.Read();
-            bool ok = false;
-            if (card.CardPresent && card.IsBelgianEid)
-                ok = !CardAuth.IsEnrolled || CardAuth.IsAuthorized(card);
+            // Assistant : on invite l'utilisateur à insérer sa carte, puis on relit à chaque
+            // clic sur « Réessayer ». Dès qu'une carte autorisée est détectée, la désinstallation
+            // démarre. « Annuler » interrompt la désinstallation.
+            CardInfo? authorized = null;
+            while (true)
+            {
+                var card = EidReader.Read();
+                bool ok = card.CardPresent && card.IsBelgianEid
+                          && (!CardAuth.IsEnrolled || CardAuth.IsAuthorized(card));
+                if (ok) { authorized = card; break; }
 
-            if (!ok)
-            {
-                MessageBox.Show(
-                    "Désinstallation refusée.\n\nInsérez une carte d'identité autorisée dans le lecteur, " +
-                    "puis relancez la désinstallation.",
-                    "IATECH-SHIELD PRO — Carte d'identité requise",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                string why = !card.CardPresent
+                    ? "Aucune carte détectée dans le lecteur."
+                    : !card.IsBelgianEid
+                        ? "La carte insérée n'est pas une carte d'identité belge (eID)."
+                        : "Cette carte n'est pas autorisée pour ce poste.";
+
+                var again = MessageBox.Show(
+                    "Pour désinstaller IATECH-SHIELD PRO, insérez votre carte d'identité (eID) " +
+                    "dans le lecteur.\n\n" + why + "\n\n" +
+                    "➡ Insérez la carte, puis cliquez sur « Réessayer » pour lancer la désinstallation.\n" +
+                    "➡ « Annuler » abandonne la désinstallation.",
+                    "IATECH-SHIELD PRO — Insérez votre carte d'identité",
+                    MessageBoxButton.OKCancel, MessageBoxImage.Information);
+
+                if (again != MessageBoxResult.OK)
+                {
+                    // L'utilisateur renonce : on bloque la désinstallation.
+                    Shutdown(1);
+                    return;
+                }
             }
-            else
-            {
-                // Autorisé : on enregistre la carte (si première fois) et on envoie le rapport.
-                CardAuth.Register(card, out _);
-                try { UninstallReport.BuildAndSendAsync(card).GetAwaiter().GetResult(); } catch { }
-                MessageBox.Show(
-                    $"Désinstallation autorisée par {card.DisplayIdentity}.\n\n" +
-                    "Un rapport (poste, localisation, identité) a été transmis à IATECHFUTUR.",
-                    "IATECH-SHIELD PRO", MessageBoxButton.OK, MessageBoxImage.Information);
-                code = 0;
-            }
+
+            // Autorisé : on enregistre la carte (si première fois) et on envoie le rapport.
+            CardAuth.Register(authorized!, out _);
+            try { UninstallReport.BuildAndSendAsync(authorized!).GetAwaiter().GetResult(); } catch { }
+            MessageBox.Show(
+                $"Carte reconnue — {authorized!.DisplayIdentity}.\n\n" +
+                "La désinstallation va démarrer. Un rapport (poste, localisation, identité) " +
+                "a été transmis à IATECHFUTUR.",
+                "IATECH-SHIELD PRO — Désinstallation autorisée",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            code = 0;
         }
         catch { code = 1; }
         Shutdown(code);
