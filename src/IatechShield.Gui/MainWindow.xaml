@@ -989,9 +989,23 @@
                                         </Grid.ColumnDefinitions>
                                         <StackPanel Grid.Column="0">
                                             <TextBlock Text="Serveur SMTP" Foreground="{StaticResource AccentBrush}" FontSize="11" FontWeight="SemiBold" Margin="2,0,0,2"/>
-                                            <TextBox x:Name="SmtpHost" Background="#0A1726" Foreground="White" CaretBrush="White"
-                                                     BorderBrush="{StaticResource PanelStrokeBrush}" Padding="8" FontSize="12" VerticalContentAlignment="Center"/>
-                                            <TextBlock Text="Exemple : smtp.gmail.com" Foreground="{StaticResource TextMutedBrush}" FontSize="9" Margin="2,2,0,0"/>
+                                            <Grid>
+                                                <TextBox x:Name="SmtpHost" Background="#0A1726" Foreground="White" CaretBrush="White"
+                                                         BorderBrush="{StaticResource PanelStrokeBrush}" Padding="8" FontSize="12" VerticalContentAlignment="Center"/>
+                                                <TextBlock Text="ex. smtp.gmail.com" Foreground="White" Opacity="0.5" FontSize="12" IsHitTestVisible="False"
+                                                           Margin="10,0,0,0" VerticalAlignment="Center">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Text, ElementName=SmtpHost}" Value="">
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </Grid>
                                         </StackPanel>
                                         <StackPanel Grid.Column="1" Margin="8,0,0,0">
                                             <TextBlock Text="Port" Foreground="{StaticResource AccentBrush}" FontSize="11" FontWeight="SemiBold" Margin="2,0,0,2"/>
@@ -1000,11 +1014,31 @@
                                         </StackPanel>
                                     </Grid>
                                     <TextBlock Text="Utilisateur (adresse e-mail d'envoi)" Foreground="{StaticResource AccentBrush}" FontSize="11" FontWeight="SemiBold" Margin="2,0,0,2"/>
-                                    <TextBox x:Name="SmtpUser" Background="#0A1726" Foreground="White" CaretBrush="White" Margin="0,0,0,6"
-                                             BorderBrush="{StaticResource PanelStrokeBrush}" Padding="8" FontSize="12" VerticalContentAlignment="Center"/>
-                                    <TextBlock Text="Mot de passe d'application" Foreground="{StaticResource AccentBrush}" FontSize="11" FontWeight="SemiBold" Margin="2,0,0,2"/>
-                                    <PasswordBox x:Name="SmtpPass" Background="#0A1726" Foreground="White" Margin="0,0,0,2"
+                                    <Grid Margin="0,0,0,6">
+                                        <TextBox x:Name="SmtpUser" Background="#0A1726" Foreground="White" CaretBrush="White"
                                                  BorderBrush="{StaticResource PanelStrokeBrush}" Padding="8" FontSize="12" VerticalContentAlignment="Center"/>
+                                        <TextBlock Text="votre adresse e-mail d'envoi" Foreground="White" Opacity="0.5" FontSize="12" IsHitTestVisible="False"
+                                                   Margin="10,0,0,0" VerticalAlignment="Center">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Text, ElementName=SmtpUser}" Value="">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </Grid>
+                                    <TextBlock Text="Mot de passe d'application" Foreground="{StaticResource AccentBrush}" FontSize="11" FontWeight="SemiBold" Margin="2,0,0,2"/>
+                                    <Grid Margin="0,0,0,2">
+                                        <PasswordBox x:Name="SmtpPass" Background="#0A1726" Foreground="White"
+                                                     BorderBrush="{StaticResource PanelStrokeBrush}" Padding="8" FontSize="12" VerticalContentAlignment="Center"
+                                                     PasswordChanged="OnSmtpPassChanged"/>
+                                        <TextBlock x:Name="SmtpPassHint" Text="mot de passe d'application (16 caractères)" Foreground="White" Opacity="0.5"
+                                                   FontSize="12" IsHitTestVisible="False" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                                    </Grid>
                                     <TextBlock Text="⚠ Pas votre mot de passe habituel — un « mot de passe d'application » (Gmail : Compte Google → Sécurité → Mots de passe des applications)."
                                                Foreground="{StaticResource TextMutedBrush}" FontSize="9" Margin="2,0,0,6" TextWrapping="Wrap"/>
                                     <TextBlock Text="Destinataire du rapport" Foreground="{StaticResource AccentBrush}" FontSize="11" FontWeight="SemiBold" Margin="2,0,0,2"/>
@@ -1717,9 +1751,10 @@
                                                             <Border Background="#12324A" CornerRadius="6" Padding="6,2">
                                                                 <TextBlock Text="{Binding Browser}" Foreground="{StaticResource GoldBrush}" FontSize="10" FontWeight="Bold"/>
                                                             </Border>
-                                                            <Button Content="🚫 Bloquer" Style="{StaticResource GhostButton}" Height="26" FontSize="10"
-                                                                    Click="OnBlockHistorySite" Tag="{Binding Url}" Margin="8,0,0,0"
-                                                                    Foreground="#FF6B6B" BorderBrush="#FF6B6B" ToolTip="Bloquer ce site sur ce PC"/>
+                                                            <Button Content="🚫 Bloquer le site" Height="28" FontSize="11" FontWeight="Bold"
+                                                                    Click="OnBlockHistorySite" Tag="{Binding Url}" Margin="8,0,0,0" Padding="10,0" Cursor="Hand"
+                                                                    Background="#E03B3B" Foreground="White" BorderBrush="#FF6B6B" BorderThickness="1"
+                                                                    ToolTip="Bloquer ce site sur ce PC (tous les navigateurs)"/>
                                                         </StackPanel>
                                                         <TextBlock Text="{Binding VisitedText}" Foreground="{StaticResource TextMutedBrush}"
                                                                    FontSize="10" HorizontalAlignment="Right" Margin="0,4,0,0"/>
@@ -1747,9 +1782,10 @@
                                                                    FontSize="11" Margin="0,2,0,0"/>
                                                     </StackPanel>
                                                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
-                                                        <Button Content="🚫 Bloquer réseau" Style="{StaticResource GhostButton}" Height="26" FontSize="10"
-                                                                Click="OnBlockApp" Tag="{Binding App}" Margin="0,0,10,0"
-                                                                Foreground="#FF6B6B" BorderBrush="#FF6B6B" ToolTip="Empêcher cette application d'accéder à Internet"/>
+                                                        <Button Content="🚫 Bloquer réseau" Height="28" FontSize="11" FontWeight="Bold"
+                                                                Click="OnBlockApp" Tag="{Binding App}" Margin="0,0,10,0" Padding="10,0" Cursor="Hand"
+                                                                Background="#E03B3B" Foreground="White" BorderBrush="#FF6B6B" BorderThickness="1"
+                                                                ToolTip="Empêcher cette application d'accéder à Internet"/>
                                                         <TextBlock Text="{Binding WhenText}" Foreground="{StaticResource TextMutedBrush}"
                                                                    FontSize="10" VerticalAlignment="Center" HorizontalAlignment="Right"/>
                                                     </StackPanel>

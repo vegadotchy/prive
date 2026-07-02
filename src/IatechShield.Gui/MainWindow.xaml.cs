@@ -3753,10 +3753,23 @@ public partial class MainWindow : Window
         if (SmtpPort is not null) SmtpPort.Text = s.GetValueOrDefault("port") ?? "587";
         if (SmtpUser is not null) SmtpUser.Text = s.GetValueOrDefault("user") ?? "";
         if (SmtpTo is not null) SmtpTo.Text = SecretVault.Load("uninstall").GetValueOrDefault("email") ?? "iatechfutur@iatechfutur.be";
+        // Un mot de passe déjà enregistré ne se réaffiche pas (chiffré) : on masque l'indice
+        // et on montre des points pour signifier qu'il est bien mémorisé.
+        if (SmtpPassHint is not null)
+            SmtpPassHint.Visibility = string.IsNullOrEmpty(s.GetValueOrDefault("pass"))
+                ? Visibility.Visible : Visibility.Collapsed;
         if (SmtpStatus is not null)
             SmtpStatus.Text = string.IsNullOrWhiteSpace(s.GetValueOrDefault("host"))
                 ? "Non configuré (repli : e-mail pré-rempli à la désinstallation)."
                 : "✓ SMTP configuré.";
+    }
+
+    /// <summary>Masque l'indice blanc du champ mot de passe dès que l'utilisateur tape.</summary>
+    private void OnSmtpPassChanged(object sender, RoutedEventArgs e)
+    {
+        if (SmtpPassHint is not null)
+            SmtpPassHint.Visibility = (SmtpPass?.Password.Length ?? 0) > 0
+                ? Visibility.Collapsed : Visibility.Visible;
     }
 
     private void SaveSmtpFromFields()
