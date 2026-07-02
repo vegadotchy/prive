@@ -11,9 +11,9 @@
     <AssemblyName>iatech-shield-gui</AssemblyName>
     <RootNamespace>IatechShield.Gui</RootNamespace>
     <Product>IATECH-SHIELD PRO</Product>
-    <Version>0.15.8</Version>
-    <AssemblyVersion>0.15.8.0</AssemblyVersion>
-    <FileVersion>0.15.8.0</FileVersion>
+    <Version>0.15.9</Version>
+    <AssemblyVersion>0.15.9.0</AssemblyVersion>
+    <FileVersion>0.15.9.0</FileVersion>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>icon.ico</ApplicationIcon>
   </PropertyGroup>
@@ -27,6 +27,8 @@
     <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.10" />
     <!-- Analyse des e-mails (Mail Shield) : parsing MIME, en-têtes, pièces jointes. -->
     <PackageReference Include="MimeKit" Version="4.8.0" />
+    <!-- Dictée vocale du Copilote (reconnaissance vocale Windows). -->
+    <PackageReference Include="System.Speech" Version="8.0.0" />
   </ItemGroup>
 
   <ItemGroup>

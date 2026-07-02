@@ -281,8 +281,8 @@
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Text="🔎" FontSize="16" VerticalAlignment="Center" Margin="2,0,8,0"/>
                                 <Grid Grid.Column="1">
-                                    <TextBox x:Name="AppSearchInput" Background="Transparent" Foreground="{StaticResource TextPrimaryBrush}"
-                                             BorderThickness="0" FontSize="14" VerticalContentAlignment="Center"
+                                    <TextBox x:Name="AppSearchInput" Background="Transparent" Foreground="White" CaretBrush="White"
+                                             BorderThickness="0" FontSize="14" FontWeight="SemiBold" VerticalContentAlignment="Center"
                                              TextChanged="OnAppSearch" KeyDown="OnAppSearchKey"/>
                                     <TextBlock x:Name="AppSearchHint" IsHitTestVisible="False"
                                                Text="Rechercher une option… (ex. « pare-feu », « coffre », « scan »)"
@@ -3122,13 +3122,17 @@
 
                                 <Grid Grid.Row="2" Margin="0,8,0,0">
                                     <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBox x:Name="ChatInput" Grid.Column="0" Background="#0A1726" Foreground="{StaticResource TextPrimaryBrush}"
+                                    <Button x:Name="ChatMicButton" Grid.Column="0" Content="🎙️" FontSize="16" Width="44"
+                                            Style="{StaticResource GhostButton}" Click="OnChatMic" Margin="0,0,8,0"
+                                            ToolTip="Dicter au micro"/>
+                                    <TextBox x:Name="ChatInput" Grid.Column="1" Background="#0A1726" Foreground="White"
                                              BorderBrush="{StaticResource PanelStrokeBrush}" Padding="8" VerticalContentAlignment="Center"
-                                             KeyDown="OnChatKeyDown"/>
-                                    <Button x:Name="ChatSendButton" Grid.Column="1" Style="{StaticResource PrimaryButton}" Content="Envoyer"
+                                             FontSize="13" CaretBrush="White" KeyDown="OnChatKeyDown"/>
+                                    <Button x:Name="ChatSendButton" Grid.Column="2" Style="{StaticResource PrimaryButton}" Content="Envoyer"
                                             Click="OnChatSend" Margin="8,0,0,0"/>
                                 </Grid>
                             </Grid>

@@ -3499,8 +3499,8 @@ public partial class MainWindow : Window
         _chatLoaded = true;
         ChatList.ItemsSource = _chat;
         AddChat("Copilote", AiAssistant.IsConfigured
-            ? "Bonjour 👋 Je surveille votre système. Posez-moi une question, ou je vous alerterai en cas d'activité suspecte."
-            : "Pour discuter avec moi, définissez la variable d'environnement ANTHROPIC_API_KEY puis relancez l'application.",
+            ? "Bonjour 👋 Je surveille votre système. Posez-moi une question (au clavier ou au 🎙️ micro), ou je vous alerterai en cas d'activité suspecte."
+            : "Pour discuter avec moi GRATUITEMENT : créez une clé Google Gemini sur aistudio.google.com (« Get API key »), puis collez-la dans Réglages → Assistant IA. Une clé Anthropic « sk-ant-… » fonctionne aussi.",
             isUser: false);
     }
 
@@ -3521,13 +3521,58 @@ public partial class MainWindow : Window
         if (e.Key == Key.Enter) OnChatSend(sender, new RoutedEventArgs());
     }
 
+    private System.Speech.Recognition.SpeechRecognitionEngine? _speech;
+    private bool _listening;
+
+    /// <summary>Dictée vocale : transcrit la parole dans le champ de chat (reconnaissance Windows).</summary>
+    private void OnChatMic(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (_listening)
+            {
+                _speech?.RecognizeAsyncStop();
+                _listening = false;
+                if (ChatMicButton is not null) ChatMicButton.Content = "🎙️";
+                return;
+            }
+            if (_speech is null)
+            {
+                _speech = new System.Speech.Recognition.SpeechRecognitionEngine();
+                _speech.LoadGrammar(new System.Speech.Recognition.DictationGrammar());
+                _speech.SetInputToDefaultAudioDevice();
+                _speech.SpeechRecognized += (_, ev) => Dispatcher.Invoke(() =>
+                {
+                    if (ChatInput is null) return;
+                    ChatInput.Text = (ChatInput.Text + " " + ev.Result.Text).Trim();
+                    ChatInput.CaretIndex = ChatInput.Text.Length;
+                });
+                _speech.RecognizeCompleted += (_, _) => Dispatcher.Invoke(() =>
+                {
+                    _listening = false;
+                    if (ChatMicButton is not null) ChatMicButton.Content = "🎙️";
+                });
+            }
+            _speech.RecognizeAsync(System.Speech.Recognition.RecognizeMode.Multiple);
+            _listening = true;
+            if (ChatMicButton is not null) ChatMicButton.Content = "⏹️";
+        }
+        catch (Exception ex)
+        {
+            _listening = false;
+            if (ChatMicButton is not null) ChatMicButton.Content = "🎙️";
+            AddChat("Copilote", "🎙️ Micro / reconnaissance vocale indisponible : " + ex.Message +
+                "\nActivez-la dans Windows : Paramètres → Heure et langue → Voix (installer une voix), et autorisez l'accès au micro.", false);
+        }
+    }
+
     private async void OnChatSend(object sender, RoutedEventArgs e)
     {
         string q = ChatInput.Text.Trim();
         if (q.Length == 0) return;
         if (!AiAssistant.IsConfigured)
         {
-            AddChat("Copilote", "Assistant IA non configuré (ANTHROPIC_API_KEY).", false);
+            AddChat("Copilote", "Assistant IA non configuré. IA gratuite : collez une clé Google Gemini (aistudio.google.com) dans Réglages → Assistant IA.", false);
             return;
         }
 
@@ -7051,6 +7096,50 @@ public partial class MainWindow : Window
         ("🛠️", "Réglages", "Réglages", "Settings", new[]{"reglages","réglages","settings","clé api","api","licence","activer","abonnement","mise à jour"}),
     };
 
+    private List<FeatureHit>? _featureIndex;
+
+    /// <summary>Index complet des options : construit en parcourant tous les boutons de chaque page.</summary>
+    private List<FeatureHit> FeatureIndex()
+    {
+        if (_featureIndex is not null) return _featureIndex;
+        var list = Features.Select(f => new FeatureHit(f.Icon, f.Label, f.Category, f.Tab)).ToList();
+
+        var pages = new (Grid? Page, string Tab)[]
+        {
+            (PageProtection,"Protection"), (PageScan,"Scan"), (PageFirewall,"Firewall"), (PageOptimize,"Optimisation"),
+            (PageDevices,"Périphériques"), (PageTools,"Outils"), (PageNetwork,"Réseau"), (PageWorld,"Mondiale"),
+            (PageVpn,"VPN"), (PageVault,"Coffre-fort"), (PageCentre,"Centre"), (PageIntegrity,"Intégrité"),
+            (PageDna,"ADN"), (PageInvestigation,"Investigation"), (PageCopilot,"Copilote"), (PageDevice,"Appareil"),
+            (PageSystem,"Système"), (PageProcesses,"Processus"), (PageTimeline,"Timeline"), (PageSettings,"Settings"),
+            (PageLogs,"Logs"), (PageAccess,"Accès"), (PageRemote,"Accès distant"), (PageIdRegister,"Registre ID"),
+            (PageControl,"Contrôle"), (PageHistory,"Historique"), (PageMail,"Mail"),
+        };
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (page, tab) in pages)
+        {
+            if (page is null) continue;
+            foreach (var label in CollectOptionLabels(page))
+            {
+                if (label.Length < 3 || label.Length > 60) continue;
+                if (!seen.Add(tab + "|" + label)) continue;
+                list.Add(new FeatureHit("•", label, tab, tab));
+            }
+        }
+        _featureIndex = list;
+        return list;
+    }
+
+    private static IEnumerable<string> CollectOptionLabels(DependencyObject root)
+    {
+        foreach (var child in System.Windows.LogicalTreeHelper.GetChildren(root))
+        {
+            if (child is not DependencyObject dobj) continue;
+            if (dobj is System.Windows.Controls.Primitives.ButtonBase bb && bb.Content is string s && s.Trim().Length > 0)
+                yield return s.Trim();
+            foreach (var sub in CollectOptionLabels(dobj)) yield return sub;
+        }
+    }
+
     private void OnAppSearch(object sender, TextChangedEventArgs e)
     {
         if (!_ready || AppSearchResults is null) return;
@@ -7059,12 +7148,23 @@ public partial class MainWindow : Window
         if (q.Length == 0) { AppSearchResults.Visibility = Visibility.Collapsed; AppSearchResults.ItemsSource = null; return; }
 
         string ql = q.ToLowerInvariant();
-        var hits = Features
-            .Where(f => f.Label.ToLowerInvariant().Contains(ql)
-                     || f.Category.ToLowerInvariant().Contains(ql)
-                     || f.Keys.Any(k => k.Contains(ql) || ql.Contains(k)))
-            .Select(f => new FeatureHit(f.Icon, f.Label, "Catégorie : " + f.Category, f.Tab))
-            .Take(12).ToList();
+        var all = FeatureIndex();
+
+        // Onglets dont le nom correspond → on liste TOUTES leurs options.
+        var matchedTabs = all.Select(h => h.Tab).Distinct(StringComparer.OrdinalIgnoreCase)
+            .Where(t => t.ToLowerInvariant().Contains(ql)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var hits = all
+            .Where(h => matchedTabs.Contains(h.Tab)
+                     || h.Label.ToLowerInvariant().Contains(ql)
+                     || h.Category.ToLowerInvariant().Contains(ql))
+            .GroupBy(h => h.Tab + "|" + h.Label, StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.First())
+            .OrderByDescending(h => h.Label.ToLowerInvariant().StartsWith(ql))
+            .ThenBy(h => h.Tab)
+            .Select(h => new FeatureHit(h.Icon, h.Label, "Dans : " + h.Tab, h.Tab))
+            .Take(50).ToList();
+
         AppSearchResults.ItemsSource = hits;
         AppSearchResults.Visibility = hits.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
     }

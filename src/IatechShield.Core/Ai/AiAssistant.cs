@@ -69,8 +69,13 @@ public sealed class AiAssistant
     {
         string? apiKey = ResolveApiKey();
         if (string.IsNullOrWhiteSpace(apiKey))
-            return "Assistant IA non configuré : collez votre clé Anthropic dans Réglages → Assistant IA " +
-                   "(ou définissez la variable d'environnement ANTHROPIC_API_KEY).";
+            return "Assistant IA non configuré. Pour une IA GRATUITE : créez une clé Google Gemini sur " +
+                   "aistudio.google.com (bouton « Get API key ») et collez-la dans Réglages → Assistant IA. " +
+                   "Une clé Anthropic (« sk-ant-… ») fonctionne aussi.";
+
+        // Clé Google Gemini (gratuite) : commence par « AIza ». On route vers l'API gratuite.
+        if (apiKey.StartsWith("AIza", StringComparison.Ordinal))
+            return await AskGeminiAsync(apiKey, prompt, cancel);
 
         // Le SDK lit ANTHROPIC_API_KEY : on l'alimente avec la clé enregistrée dans l'app.
         Environment.SetEnvironmentVariable("ANTHROPIC_API_KEY", apiKey);
@@ -103,6 +108,44 @@ public sealed class AiAssistant
         {
             return FriendlyError(ex.Message);
         }
+    }
+
+    private static readonly System.Net.Http.HttpClient GeminiHttp = new();
+
+    /// <summary>Appelle l'API gratuite Google Gemini (clé « AIza… ») et renvoie la réponse.</summary>
+    private static async Task<string> AskGeminiAsync(string apiKey, string prompt, CancellationToken cancel)
+    {
+        try
+        {
+            string url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key="
+                         + Uri.EscapeDataString(apiKey);
+            string body = System.Text.Json.JsonSerializer.Serialize(new
+            {
+                contents = new[] { new { parts = new[] { new { text = $"{Persona}\n\n---\n\n{prompt}" } } } }
+            });
+            using var content = new System.Net.Http.StringContent(body, Encoding.UTF8, "application/json");
+            using var resp = await GeminiHttp.PostAsync(url, content, cancel);
+            string json = await resp.Content.ReadAsStringAsync(cancel);
+            if (!resp.IsSuccessStatusCode)
+            {
+                string jl = json.ToLowerInvariant();
+                if (jl.Contains("api_key_invalid") || jl.Contains("api key not valid") || resp.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                    return "⚠ Clé Google Gemini invalide. Créez-en une gratuitement sur aistudio.google.com → « Get API key » (elle commence par « AIza… »).";
+                if (jl.Contains("quota") || jl.Contains("rate") || (int)resp.StatusCode == 429)
+                    return "⚠ Limite gratuite Gemini atteinte pour le moment. Patientez une minute puis réessayez.";
+                return "⚠ Gemini indisponible : " + Short(json);
+            }
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            var sb = new StringBuilder();
+            if (doc.RootElement.TryGetProperty("candidates", out var cands))
+                foreach (var cand in cands.EnumerateArray())
+                    if (cand.TryGetProperty("content", out var cnt) && cnt.TryGetProperty("parts", out var parts))
+                        foreach (var part in parts.EnumerateArray())
+                            if (part.TryGetProperty("text", out var t)) sb.Append(t.GetString());
+            string answer = sb.ToString().Trim();
+            return answer.Length > 0 ? answer : "(aucune réponse)";
+        }
+        catch (Exception ex) { return "⚠ Gemini : " + Short(ex.Message); }
     }
 
     /// <summary>Traduit les erreurs de l'API en messages clairs (crédits, clé, quota…).</summary>
