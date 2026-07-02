@@ -6,7 +6,7 @@
 ; ============================================================================
 
 #define MyAppName "IATECH-SHIELD PRO"
-#define MyAppVersion "0.16.2"
+#define MyAppVersion "0.16.3"
 #define MyAppPublisher "IATECHFUTUR"
 #define MyAppUrl "https://github.com/vegadotchy/prive"
 #define MyGuiExe "iatech-shield-gui.exe"
@@ -110,6 +110,22 @@ procedure CurInstallProgressChanged(CurProgress, MaxProgress: Integer);
 begin
   if (ProgressPercent <> nil) and (MaxProgress > 0) then
     ProgressPercent.Caption := IntToStr(Round(CurProgress * 100.0 / MaxProgress)) + ' %';
+end;
+
+{ Garde de désinstallation : exige une carte d'identité autorisée. L'application est
+  lancée avec « --uninstall-auth » ; elle renvoie 0 si la carte autorise la
+  désinstallation (et envoie un rapport à IATECHFUTUR), sinon un code non nul. }
+function InitializeUninstall(): Boolean;
+var
+  ResultCode: Integer;
+begin
+  Result := True;
+  if Exec(ExpandConstant('{app}\{#MyGuiExe}'), '--uninstall-auth', '', SW_SHOW, ewWaitUntilTerminated, ResultCode) then
+  begin
+    if ResultCode <> 0 then
+      Result := False;   { carte absente ou non autorisée : on annule la désinstallation }
+  end;
+  { Si l'exécutable est introuvable, on n'empêche pas la désinstallation (anti-blocage). }
 end;
 
 function NeedsAddPath(Param: string): Boolean;
