@@ -71,12 +71,39 @@ public sealed class AiAssistant
         if (string.IsNullOrWhiteSpace(apiKey))
             return "Assistant IA non configuré. Pour une IA GRATUITE : créez une clé Google Gemini sur " +
                    "aistudio.google.com (bouton « Get API key ») et collez-la dans Réglages → Assistant IA. " +
-                   "Une clé Anthropic (« sk-ant-… ») fonctionne aussi.";
+                   "Une clé Anthropic (« sk-ant-… »), OpenAI/ChatGPT (« sk-… »), Groq, xAI ou Mistral fonctionne aussi.";
 
-        // Clé Google Gemini (gratuite) : commence par « AIza ». On route vers l'API gratuite.
+        // Détection automatique du fournisseur selon le préfixe de la clé, pour accepter
+        // la clé de n'importe quelle IA sans réglage supplémentaire.
+        apiKey = apiKey.Trim();
+
+        // Google Gemini (gratuit) : « AIza… ».
         if (apiKey.StartsWith("AIza", StringComparison.Ordinal))
             return await AskGeminiAsync(apiKey, prompt, cancel);
 
+        // Anthropic (Claude) : « sk-ant-… » → SDK officiel.
+        if (apiKey.StartsWith("sk-ant-", StringComparison.Ordinal))
+            return await AskAnthropicAsync(apiKey, prompt, cancel);
+
+        // Fournisseurs compatibles OpenAI (même format d'API) : on route sur le bon serveur
+        // et un modèle par défaut selon le préfixe de la clé.
+        if (apiKey.StartsWith("sk-or-", StringComparison.Ordinal))
+            return await AskOpenAiCompatibleAsync("OpenRouter", "https://openrouter.ai/api/v1/chat/completions", "openai/gpt-4o-mini", apiKey, prompt, cancel);
+        if (apiKey.StartsWith("gsk_", StringComparison.Ordinal))
+            return await AskOpenAiCompatibleAsync("Groq", "https://api.groq.com/openai/v1/chat/completions", "llama-3.3-70b-versatile", apiKey, prompt, cancel);
+        if (apiKey.StartsWith("xai-", StringComparison.Ordinal))
+            return await AskOpenAiCompatibleAsync("xAI (Grok)", "https://api.x.ai/v1/chat/completions", "grok-2-latest", apiKey, prompt, cancel);
+        if (apiKey.StartsWith("sk-", StringComparison.Ordinal))
+            return await AskOpenAiCompatibleAsync("OpenAI (ChatGPT)", "https://api.openai.com/v1/chat/completions", "gpt-4o-mini", apiKey, prompt, cancel);
+
+        // Sinon (ex. clé Mistral sans préfixe reconnaissable) : on tente le serveur Mistral,
+        // lui aussi compatible OpenAI.
+        return await AskOpenAiCompatibleAsync("Mistral", "https://api.mistral.ai/v1/chat/completions", "mistral-small-latest", apiKey, prompt, cancel);
+    }
+
+    /// <summary>Appelle Claude (Anthropic) via le SDK officiel.</summary>
+    private static async Task<string> AskAnthropicAsync(string apiKey, string prompt, CancellationToken cancel)
+    {
         // Le SDK lit ANTHROPIC_API_KEY : on l'alimente avec la clé enregistrée dans l'app.
         Environment.SetEnvironmentVariable("ANTHROPIC_API_KEY", apiKey);
 
@@ -146,6 +173,59 @@ public sealed class AiAssistant
             return answer.Length > 0 ? answer : "(aucune réponse)";
         }
         catch (Exception ex) { return "⚠ Gemini : " + Short(ex.Message); }
+    }
+
+    private static readonly System.Net.Http.HttpClient OpenAiHttp = new();
+
+    /// <summary>
+    /// Appelle n'importe quel fournisseur compatible OpenAI (OpenAI/ChatGPT, Groq, xAI/Grok,
+    /// OpenRouter, Mistral…). Même format de requête « chat/completions ».
+    /// </summary>
+    private static async Task<string> AskOpenAiCompatibleAsync(
+        string provider, string endpoint, string model, string apiKey, string prompt, CancellationToken cancel)
+    {
+        try
+        {
+            string body = System.Text.Json.JsonSerializer.Serialize(new
+            {
+                model,
+                max_tokens = 1024,
+                messages = new[]
+                {
+                    new { role = "system", content = Persona },
+                    new { role = "user", content = prompt }
+                }
+            });
+            using var req = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Post, endpoint);
+            req.Headers.TryAddWithoutValidation("Authorization", "Bearer " + apiKey);
+            req.Content = new System.Net.Http.StringContent(body, Encoding.UTF8, "application/json");
+            using var resp = await OpenAiHttp.SendAsync(req, cancel);
+            string json = await resp.Content.ReadAsStringAsync(cancel);
+            if (!resp.IsSuccessStatusCode)
+            {
+                string jl = json.ToLowerInvariant();
+                if (jl.Contains("invalid api key") || jl.Contains("invalid_api_key") || jl.Contains("incorrect api key")
+                    || resp.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                    return $"⚠ Clé {provider} invalide ou révoquée. Vérifiez-la dans Réglages → Assistant IA.";
+                if (jl.Contains("quota") || jl.Contains("insufficient") || jl.Contains("billing") || jl.Contains("credit"))
+                    return $"⚠ Crédit/quota {provider} épuisé. Rechargez votre compte ou utilisez une clé Google Gemini gratuite (« AIza… »).";
+                if (jl.Contains("rate") || (int)resp.StatusCode == 429)
+                    return $"⚠ Trop de requêtes {provider} pour le moment. Patientez puis réessayez.";
+                return $"⚠ {provider} indisponible : " + Short(json);
+            }
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            if (doc.RootElement.TryGetProperty("choices", out var choices) && choices.GetArrayLength() > 0)
+            {
+                var msg = choices[0].GetProperty("message");
+                if (msg.TryGetProperty("content", out var c))
+                {
+                    string answer = (c.GetString() ?? "").Trim();
+                    return answer.Length > 0 ? answer : "(aucune réponse)";
+                }
+            }
+            return "(aucune réponse)";
+        }
+        catch (Exception ex) { return $"⚠ {provider} : " + Short(ex.Message); }
     }
 
     /// <summary>Traduit les erreurs de l'API en messages clairs (crédits, clé, quota…).</summary>

@@ -3727,15 +3727,26 @@ public partial class MainWindow : Window
             ApiKeyStatusText.Text = "Clé effacée. L'assistant IA est désactivé.";
             return;
         }
-        if (!key.StartsWith("sk-", StringComparison.OrdinalIgnoreCase))
+        // On accepte la clé de n'importe quelle IA (le fournisseur est reconnu automatiquement).
+        // Simple garde-fou : une vraie clé fait au moins ~15 caractères.
+        if (key.Length < 15 || key.Contains(' '))
         {
-            ApiKeyStatusText.Text = "⚠ La clé Anthropic commence normalement par « sk-ant-… ». Vérifiez le copier-coller.";
+            ApiKeyStatusText.Text = "⚠ Cela ne ressemble pas à une clé API. Collez la clé complète (Gemini « AIza… », " +
+                                    "Claude « sk-ant-… », OpenAI « sk-… », Groq « gsk_… », etc.).";
             return;
         }
+        string provider =
+            key.StartsWith("AIza", StringComparison.Ordinal) ? "Google Gemini (gratuit)" :
+            key.StartsWith("sk-ant-", StringComparison.Ordinal) ? "Anthropic (Claude)" :
+            key.StartsWith("sk-or-", StringComparison.Ordinal) ? "OpenRouter" :
+            key.StartsWith("gsk_", StringComparison.Ordinal) ? "Groq" :
+            key.StartsWith("xai-", StringComparison.Ordinal) ? "xAI (Grok)" :
+            key.StartsWith("sk-", StringComparison.Ordinal) ? "OpenAI (ChatGPT)" :
+            "Mistral";
         AiAssistant.SaveApiKey(key);
         ApiKeyInput.Clear();
-        ApiKeyStatusText.Text = "✓ Clé enregistrée (chiffrée). Assistant IA actif — aucun redémarrage nécessaire.";
-        Log("Clé API Anthropic enregistrée.");
+        ApiKeyStatusText.Text = $"✓ Clé {provider} enregistrée (chiffrée). Assistant IA actif — aucun redémarrage nécessaire.";
+        Log($"Clé API enregistrée ({provider}).");
     }
 
     private void OnGetApiKey(object sender, RoutedEventArgs e)

@@ -954,9 +954,9 @@
                             <TextBlock Text="Paramètres" Style="{StaticResource PageTitle}"/>
                             <Border Style="{StaticResource Card}" Margin="0,8,0,0">
                                 <StackPanel>
-                                    <TextBlock Text="Assistant IA (Claude)" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="13"/>
+                                    <TextBlock Text="Assistant IA (n'importe quelle IA)" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="13"/>
                                     <TextBlock x:Name="ApiKeyStatusText" Text="" Foreground="{StaticResource TextMutedBrush}" FontSize="11" Margin="0,6,0,6" TextWrapping="Wrap"/>
-                                    <TextBlock Text="Collez votre clé Anthropic (commence par sk-ant-…). Obtenez-la sur console.anthropic.com → API Keys. Elle est stockée chiffrée sur ce PC, aucune variable d'environnement ni redémarrage requis."
+                                    <TextBlock Text="Collez la clé API de l'IA de votre choix — le fournisseur est reconnu automatiquement : Google Gemini (« AIza… », gratuit), Anthropic/Claude (« sk-ant-… »), OpenAI/ChatGPT (« sk-… »), Groq (« gsk_… »), xAI/Grok (« xai-… »), OpenRouter (« sk-or-… ») ou Mistral. Elle est stockée chiffrée sur ce PC, aucun redémarrage requis."
                                                Foreground="{StaticResource TextMutedBrush}" FontSize="10" Margin="0,0,0,6" TextWrapping="Wrap"/>
                                     <Grid>
                                         <Grid.ColumnDefinitions>
