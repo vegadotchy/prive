@@ -1,0 +1,46 @@
+{
+  "name": "prive-dashboard",
+  "version": "1.0.0",
+  "description": "Tableau de bord de bureau (Windows) regroupant les outils du cabinet : Gmail, Doctena, Doctoranytime, Shyfter, InBody, ClearFacts, CBIP, Medipost, recherche de fichiers, envoi de mails, chat IA et test de vitesse internet.",
+  "author": "Cabinet",
+  "license": "MIT",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win",
+    "pack": "electron-builder --dir"
+  },
+  "devDependencies": {
+    "electron": "^32.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "be.cabinet.prive",
+    "productName": "Prive",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Prive"
+    }
+  }
+}

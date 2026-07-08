@@ -1,0 +1,95 @@
+'use strict';
+
+const { app } = require('electron');
+const fs = require('fs');
+const path = require('path');
+
+function settingsPath() {
+  return path.join(app.getPath('userData'), 'settings.json');
+}
+
+// Réglages par défaut. Les champs « launchers » et « allowedInsecureHosts »
+// sont modifiables depuis l'onglet Réglages de l'application.
+const DEFAULTS = {
+  // Chat IA (compatible OpenAI). La clé n'est jamais versionnée : elle vit
+  // uniquement dans le fichier settings.json du profil utilisateur.
+  ai: {
+    apiKey: '',
+    baseUrl: 'https://api.openai.com/v1',
+    model: 'gpt-4o-mini',
+    systemPrompt:
+      "Tu es un assistant pour un cabinet médical belge. Réponds de façon claire, concise et professionnelle, en français."
+  },
+  // Emplacements des exécutables locaux à lancer par bouton.
+  launchers: {
+    careconnect: ''
+  },
+  // Hôtes pour lesquels on tolère un certificat auto-signé (réseau interne).
+  allowedInsecureHosts: ['192.168.1.220'],
+  // URL de la page « examens du jour » (serveur interne, personnalisable).
+  examsUrl: 'https://192.168.1.220/eoWEB/login.php?lang=FR',
+  // Adresse e-mail de l'expéditeur pour les modèles de mail (facultatif).
+  email: {
+    from: ''
+  },
+  // Modèles de mail proposés dans la liste déroulante.
+  emailTemplates: [
+    {
+      name: 'Rendez-vous — confirmation',
+      subject: 'Confirmation de votre rendez-vous',
+      body:
+        'Bonjour,\n\nNous confirmons votre rendez-vous au cabinet le [DATE] à [HEURE].\n\nEn cas d’empêchement, merci de nous prévenir au moins 24h à l’avance.\n\nBien à vous,\nLe cabinet'
+    },
+    {
+      name: 'Résultats disponibles',
+      subject: 'Vos résultats sont disponibles',
+      body:
+        'Bonjour,\n\nVos résultats sont disponibles. Merci de prendre contact avec le cabinet afin d’en discuter.\n\nBien à vous,\nLe cabinet'
+    },
+    {
+      name: 'Rappel de vaccination',
+      subject: 'Rappel de vaccination',
+      body:
+        'Bonjour,\n\nCeci est un rappel : un vaccin est à renouveler. Merci de prendre rendez-vous à votre convenance.\n\nBien à vous,\nLe cabinet'
+    }
+  ],
+  // Répertoires de départ pour la recherche de fichiers (vide = dossier
+  // personnel de l'utilisateur).
+  searchRoots: []
+};
+
+function deepMerge(base, override) {
+  if (Array.isArray(base)) {
+    return Array.isArray(override) ? override : base;
+  }
+  if (base && typeof base === 'object') {
+    const out = { ...base };
+    if (override && typeof override === 'object') {
+      for (const key of Object.keys(override)) {
+        out[key] = deepMerge(base[key], override[key]);
+      }
+    }
+    return out;
+  }
+  return override === undefined ? base : override;
+}
+
+function loadSettings() {
+  try {
+    const raw = fs.readFileSync(settingsPath(), 'utf8');
+    const parsed = JSON.parse(raw);
+    return deepMerge(DEFAULTS, parsed);
+  } catch (_) {
+    return { ...DEFAULTS };
+  }
+}
+
+function saveSettings(next) {
+  const merged = deepMerge(DEFAULTS, next || {});
+  const file = settingsPath();
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, JSON.stringify(merged, null, 2), 'utf8');
+  return merged;
+}
+
+module.exports = { loadSettings, saveSettings, DEFAULTS };

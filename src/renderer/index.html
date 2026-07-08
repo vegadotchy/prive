@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; script-src 'self';"
+    />
+    <title>Prive</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <!-- Barre latérale de navigation -->
+      <nav class="sidebar" id="sidebar">
+        <div class="brand">
+          <span class="brand-dot"></span>
+          <span class="brand-name">Prive</span>
+        </div>
+        <div class="nav-list" id="navList"><!-- rempli par renderer.js --></div>
+      </nav>
+
+      <!-- Zone principale -->
+      <main class="content">
+        <div class="views" id="views">
+          <!-- ===================== Accueil ===================== -->
+          <section class="view active" data-view="accueil">
+            <div class="panel">
+              <h1>Bienvenue</h1>
+              <p class="muted">Tableau de bord du cabinet. Choisissez un outil dans le menu de gauche.</p>
+              <div class="tile-grid" id="homeTiles"><!-- raccourcis rapides --></div>
+            </div>
+          </section>
+
+          <!-- ===================== Chat IA ===================== -->
+          <section class="view" data-view="chatgpt">
+            <div class="panel chat-panel">
+              <div class="panel-head">
+                <h1>Chat IA</h1>
+                <button class="btn ghost" id="chatClear">Effacer</button>
+              </div>
+              <div class="chat-log" id="chatLog"></div>
+              <form class="chat-form" id="chatForm">
+                <textarea id="chatInput" rows="2" placeholder="Écrivez votre message… (Entrée pour envoyer, Maj+Entrée pour une nouvelle ligne)"></textarea>
+                <button class="btn primary" type="submit" id="chatSend">Envoyer</button>
+              </form>
+              <p class="hint" id="chatHint"></p>
+            </div>
+          </section>
+
+          <!-- ===================== Recherche de fichiers ===================== -->
+          <section class="view" data-view="recherche">
+            <div class="panel">
+              <h1>Recherche de fichiers</h1>
+              <form class="search-form" id="fileSearchForm">
+                <input type="text" id="fileQuery" placeholder="Nom de fichier ou de dossier…" autocomplete="off" />
+                <label class="check">
+                  <input type="checkbox" id="fileContent" /> Chercher aussi dans le contenu (fichiers texte)
+                </label>
+                <button class="btn primary" type="submit" id="fileSearchBtn">Rechercher</button>
+              </form>
+              <p class="hint" id="fileHint">La recherche démarre dans votre dossier personnel puis explore les sous-dossiers.</p>
+              <div class="results" id="fileResults"></div>
+            </div>
+          </section>
+
+          <!-- ===================== Envoyer un mail ===================== -->
+          <section class="view" data-view="mail">
+            <div class="panel">
+              <h1>Envoyer un mail</h1>
+              <form class="mail-form" id="mailForm">
+                <label>Modèle
+                  <select id="mailTemplate"></select>
+                </label>
+                <label>Destinataire
+                  <input type="email" id="mailTo" placeholder="destinataire@exemple.be" />
+                </label>
+                <label>Objet
+                  <input type="text" id="mailSubject" />
+                </label>
+                <label>Message
+                  <textarea id="mailBody" rows="10"></textarea>
+                </label>
+                <div class="row-btns">
+                  <button class="btn primary" type="button" id="mailGmail">Ouvrir dans Gmail</button>
+                  <button class="btn" type="button" id="mailClient">Ouvrir dans le logiciel de messagerie</button>
+                </div>
+              </form>
+              <p class="hint">« Ouvrir dans Gmail » pré-remplit un nouveau message dans l’onglet Gmail. « Logiciel de messagerie » utilise l’application mail par défaut de Windows.</p>
+            </div>
+          </section>
+
+          <!-- ===================== CareConnect ===================== -->
+          <section class="view" data-view="careconnect">
+            <div class="panel">
+              <h1>CareConnect</h1>
+              <p class="muted">Lance l’application CareConnect installée sur ce poste.</p>
+              <button class="btn primary big" id="launchCareconnect">Lancer CareConnect</button>
+              <p class="hint" id="careconnectHint"></p>
+            </div>
+          </section>
+
+          <!-- ===================== Réglages ===================== -->
+          <section class="view" data-view="reglages">
+            <div class="panel">
+              <h1>Réglages</h1>
+
+              <h2>Chat IA</h2>
+              <label>Clé d’API (OpenAI ou compatible)
+                <input type="password" id="setApiKey" placeholder="sk-…" />
+              </label>
+              <label>URL de base
+                <input type="text" id="setBaseUrl" placeholder="https://api.openai.com/v1" />
+              </label>
+              <label>Modèle
+                <input type="text" id="setModel" placeholder="gpt-4o-mini" />
+              </label>
+
+              <h2>CareConnect</h2>
+              <label>Chemin de l’exécutable CareConnect
+                <input type="text" id="setCareconnect" placeholder="C:\\Program Files\\CareConnect\\CareConnect.exe" />
+              </label>
+
+              <h2>Examens du jour</h2>
+              <label>URL du serveur interne
+                <input type="text" id="setExamsUrl" />
+              </label>
+              <label>Hôtes à certificat auto-signé autorisés (séparés par des virgules)
+                <input type="text" id="setInsecureHosts" placeholder="192.168.1.220" />
+              </label>
+
+              <div class="row-btns">
+                <button class="btn primary" id="saveSettings">Enregistrer</button>
+                <span class="hint" id="settingsSaved"></span>
+              </div>
+            </div>
+          </section>
+
+          <!-- Les onglets « site web » (Gmail, Doctena, …) sont injectés ici -->
+          <div id="webviewViews"></div>
+        </div>
+      </main>
+    </div>
+
+    <!-- Barre d'état : test de vitesse permanent -->
+    <footer class="statusbar" id="statusbar">
+      <span class="status-item" id="netStatus">
+        <span class="dot" id="netDot"></span>
+        <span id="netLabel">Test de vitesse…</span>
+      </span>
+      <span class="status-item"><span id="netLatency">— ms</span></span>
+      <span class="status-item"><span id="netDown">— Mbps</span></span>
+      <button class="btn tiny" id="speedRefresh">Actualiser</button>
+    </footer>
+
+    <script src="renderer.js"></script>
+  </body>
+</html>
