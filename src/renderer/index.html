@@ -118,6 +118,14 @@
             <div class="panel wide">
               <h1>Calendrier &amp; rappels</h1>
               <p class="muted">Cliquez un jour pour ajouter une tâche, un rendez-vous ou un rappel. Une notification sonore se déclenche à l'heure prévue.</p>
+              <div class="cal-link">
+                <label>Calendrier rattaché à
+                  <input type="email" id="calEmail" placeholder="eurocare.medical@emdc.be" />
+                </label>
+                <button class="btn tiny" id="calEmailSave">Enregistrer</button>
+                <button class="btn tiny" id="calExport">Exporter .ics</button>
+                <span class="hint" id="calLinkStatus"></span>
+              </div>
               <div class="cal-layout">
                 <div class="cal-col">
                   <div class="cal-header">
@@ -164,7 +172,22 @@
           <section class="view" data-view="sync">
             <div class="panel wide">
               <h1>Synchronisation Doctena ↔ Doctoranytime</h1>
-              <p class="muted">Ouvrez d'abord les onglets Doctena et Doctoranytime sur le <b>même médecin</b> et le <b>même jour</b>, puis lancez la comparaison. L'app lit les rendez-vous affichés dans les deux agendas et signale les rendez-vous manquants d'un côté, les écarts d'horaire et les doublons.</p>
+              <p class="muted">Réglez les deux agendas sur le <b>même médecin</b> et le <b>même jour</b>, précisez ci-dessous le médecin, la date et éventuellement une plage horaire, puis lancez la comparaison. L'app lit les rendez-vous affichés dans les deux agendas et signale les manquants, les écarts d'horaire et les doublons.</p>
+              <div class="sync-controls">
+                <label>Médecin
+                  <input type="text" id="syncDoctor" list="syncDocList" placeholder="Nom du médecin" autocomplete="off" />
+                  <datalist id="syncDocList"></datalist>
+                </label>
+                <label>Jour
+                  <input type="date" id="syncDate" />
+                </label>
+                <label>De
+                  <input type="time" id="syncFrom" />
+                </label>
+                <label>à
+                  <input type="time" id="syncTo" />
+                </label>
+              </div>
               <div class="row-btns">
                 <button class="btn gold" id="syncCompare">🔄 Comparer maintenant</button>
                 <button class="btn" id="syncOpenDoctena">Ouvrir Doctena</button>
@@ -209,8 +232,13 @@
                     <input type="text" id="modeleSubject" />
                   </label>
                   <label>Contenu
-                    <textarea id="modeleBody" rows="14"></textarea>
+                    <textarea id="modeleBody" rows="12"></textarea>
                   </label>
+                  <label>Documents joints (PDF, DOCX, images…)</label>
+                  <div class="attach-block">
+                    <button class="btn" id="modeleAttach" type="button">📎 Importer un document…</button>
+                    <div id="modeleAttachList" class="attach-list"></div>
+                  </div>
                   <div class="row-btns">
                     <button class="btn gold" id="modeleSave">Enregistrer</button>
                     <button class="btn" id="modeleCopy">Copier</button>

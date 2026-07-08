@@ -27,5 +27,8 @@ contextBridge.exposeInMainWorld('prive', {
 
   getWeather: () => ipcRenderer.invoke('weather:get'),
 
-  cbipSearch: (query) => ipcRenderer.invoke('cbip:search', query)
+  cbipSearch: (query) => ipcRenderer.invoke('cbip:search', query),
+
+  addAttachments: () => ipcRenderer.invoke('attach:add'),
+  extractText: (filePath) => ipcRenderer.invoke('attach:extractText', filePath)
 });

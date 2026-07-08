@@ -297,6 +297,11 @@ textarea { resize: vertical; }
 #prestPersonResult table td.diff-pos, #prestPersonResult table td.diff-neg { font-weight: 700; }
 
 /* Synchronisation agendas */
+.sync-controls { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; margin: 6px 0 10px; }
+.sync-controls label { margin: 0; font-size: 12px; }
+.sync-controls input { margin-top: 4px; width: 180px; }
+.sync-controls input[type=time] { width: 120px; }
+.sync-context { color: var(--gold2); font-weight: 600; margin: 2px 0 8px; }
 #syncResult { margin-top: 16px; display: flex; flex-direction: column; gap: 14px; }
 .sync-group { border: 1px solid var(--glass-brd); border-radius: 12px; overflow: hidden; }
 .sync-group h3 { margin: 0; padding: 9px 14px; font-size: 13.5px; background: rgba(255,255,255,0.05); }
@@ -344,11 +349,21 @@ textarea { resize: vertical; }
 .cal-dot.rdv { background: #60a5fa; } .cal-dot.tache { background: #4ade80; } .cal-dot.rappel { background: var(--amber); }
 .cal-ev { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border: 1px solid var(--glass-brd); border-radius: 9px; margin-bottom: 6px; background: rgba(255,255,255,0.04); }
 .cal-ev .et { color: var(--gold2); font-weight: 600; min-width: 46px; }
-.cal-ev .ex { margin-left: auto; color: #ffb4b4; cursor: pointer; font-weight: 700; }
+.cal-ev .ex { color: #ffb4b4; cursor: pointer; font-weight: 700; }
+.cal-ev .gcal { margin-left: auto; cursor: pointer; }
+.cal-link { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; margin: 4px 0 14px; }
+.cal-link label { margin: 0; }
+.cal-link input { margin-top: 4px; width: 260px; }
 .cal-ev .tag { font-size: 10px; padding: 2px 7px; border-radius: 999px; text-transform: uppercase; }
 .cal-ev .tag.rdv { background: rgba(96,165,250,0.2); color: #93c5fd; }
 .cal-ev .tag.tache { background: rgba(74,222,128,0.2); color: #86efac; }
 .cal-ev .tag.rappel { background: rgba(245,196,81,0.2); color: var(--amber); }
+
+/* Pièces jointes des modèles */
+.attach-block { margin: 6px 0 4px; }
+.attach-list { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.attach-item { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border: 1px solid var(--glass-brd); border-radius: 9px; background: rgba(255,255,255,0.04); }
+.attach-item .af { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Onglets site web */
 .web-wrap { display: flex; flex-direction: column; height: 100%; }

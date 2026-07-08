@@ -112,7 +112,9 @@ const DEFAULTS = {
   // Suivi des prestations (heures FICHE vs SHYFTER par mois et par personne).
   prestations: PRESTATIONS_SEED,
   // Événements du calendrier (tâches, RDV, rappels).
-  events: []
+  events: [],
+  // Adresse à laquelle le calendrier est rattaché (compte agenda lié).
+  calendar: { email: '' }
 };
 
 function deepMerge(base, override) {

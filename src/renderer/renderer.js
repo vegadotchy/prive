@@ -630,6 +630,7 @@ function setupSettings() {
 
 let modeleFilter = 'all';
 let modeleCurrentId = null;
+let modeleAttachments = [];
 
 function setupModeles() {
   const listEl = document.getElementById('modelesList');
@@ -658,6 +659,36 @@ function setupModeles() {
     });
   };
 
+  const listEl2 = document.getElementById('modeleAttachList');
+  const renderAttach = () => {
+    listEl2.innerHTML = '';
+    if (!modeleAttachments.length) {
+      listEl2.innerHTML = '<span class="hint">Aucun document joint.</span>';
+      return;
+    }
+    modeleAttachments.forEach((f, i) => {
+      const row = document.createElement('div');
+      row.className = 'attach-item';
+      row.innerHTML = `<span class="af">📄 ${escapeHtml(f.name)}</span>` +
+        '<button class="btn tiny" data-a="open">Ouvrir</button>' +
+        '<button class="btn tiny" data-a="text">Insérer le texte</button>' +
+        '<button class="btn tiny danger" data-a="rm">×</button>';
+      row.querySelector('[data-a="open"]').addEventListener('click', () => window.prive.openPath(f.path));
+      row.querySelector('[data-a="text"]').addEventListener('click', async () => {
+        const r = await window.prive.extractText(f.path);
+        if (r.ok) {
+          bodyEl.value = (bodyEl.value ? bodyEl.value + '\n\n' : '') + r.text;
+        } else {
+          alert(r.reason || 'Extraction impossible.');
+        }
+      });
+      row.querySelector('[data-a="rm"]').addEventListener('click', () => {
+        modeleAttachments.splice(i, 1); renderAttach();
+      });
+      listEl2.appendChild(row);
+    });
+  };
+
   const selectModele = (id) => {
     const c = (settings.correspondence || []).find((x) => x.id === id);
     if (!c) return;
@@ -666,7 +697,8 @@ function setupModeles() {
     catEl.value = c.category || 'autre';
     subjEl.value = c.subject || '';
     bodyEl.value = c.body || '';
-    renderList();
+    modeleAttachments = (c.attachments || []).slice();
+    renderList(); renderAttach();
   };
 
   const newModele = () => {
@@ -675,9 +707,14 @@ function setupModeles() {
     catEl.value = modeleFilter === 'all' ? 'mail' : modeleFilter;
     subjEl.value = '';
     bodyEl.value = '';
-    renderList();
-    nameEl.focus();
+    modeleAttachments = [];
+    renderList(); renderAttach();
   };
+
+  document.getElementById('modeleAttach').addEventListener('click', async () => {
+    const r = await window.prive.addAttachments();
+    if (r.ok) { modeleAttachments.push(...r.files); renderAttach(); }
+  });
 
   filterEl.addEventListener('click', (e) => {
     if (!e.target.dataset.cat) return;
@@ -695,12 +732,16 @@ function setupModeles() {
     settings.correspondence = settings.correspondence || [];
     if (modeleCurrentId) {
       const c = settings.correspondence.find((x) => x.id === modeleCurrentId);
-      if (c) { c.name = name; c.category = catEl.value; c.subject = subjEl.value; c.body = bodyEl.value; }
+      if (c) {
+        c.name = name; c.category = catEl.value; c.subject = subjEl.value; c.body = bodyEl.value;
+        c.attachments = modeleAttachments.slice();
+      }
     } else {
       modeleCurrentId = 'c' + Date.now();
       settings.correspondence.push({
         id: modeleCurrentId, name, category: catEl.value,
-        subject: subjEl.value, body: bodyEl.value
+        subject: subjEl.value, body: bodyEl.value,
+        attachments: modeleAttachments.slice()
       });
     }
     await persistSettings();
@@ -738,6 +779,7 @@ function setupModeles() {
   });
 
   renderList();
+  renderAttach();
 }
 
 // ---------------------------------------------------------------------------
@@ -1117,6 +1159,47 @@ function playBeep() {
   } catch (_) { /* audio indisponible */ }
 }
 
+// Construit un horodatage iCalendar/Google (heure locale « flottante »).
+function calStamp(dateStr, timeStr, addMin) {
+  const [Y, M, D] = (dateStr || '').split('-').map(Number);
+  const [h, mi] = (timeStr || '00:00').split(':').map(Number);
+  const d = new Date(Y, (M || 1) - 1, D || 1, h || 0, mi || 0);
+  if (addMin) d.setMinutes(d.getMinutes() + addMin);
+  return `${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}T${pad2(d.getHours())}${pad2(d.getMinutes())}00`;
+}
+
+// Lien « Ajouter à Google Agenda » vers le compte rattaché.
+function googleCalUrl(ev) {
+  const email = (settings.calendar && settings.calendar.email) || '';
+  const label = { rdv: 'Rendez-vous', tache: 'Tâche', rappel: 'Rappel' }[ev.type] || '';
+  const start = calStamp(ev.date, ev.time, 0);
+  const end = calStamp(ev.date, ev.time, 30);
+  let url = 'https://calendar.google.com/calendar/render?action=TEMPLATE' +
+    '&text=' + encodeURIComponent(`${label} : ${ev.title}`) +
+    '&dates=' + start + '/' + end +
+    (ev.note ? '&details=' + encodeURIComponent(ev.note) : '');
+  if (email) url += '&authuser=' + encodeURIComponent(email);
+  return url;
+}
+
+// Génère un fichier .ics de tous les événements.
+function buildIcs(events) {
+  const esc = (s) => String(s || '').replace(/([,;\\])/g, '\\$1').replace(/\n/g, '\\n');
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//IATECH-CONTROL PRO//FR', 'CALSCALE:GREGORIAN'];
+  (events || []).forEach((ev) => {
+    const label = { rdv: 'Rendez-vous', tache: 'Tâche', rappel: 'Rappel' }[ev.type] || '';
+    lines.push('BEGIN:VEVENT',
+      `UID:${ev.id}@iatech-control-pro`,
+      `DTSTART:${calStamp(ev.date, ev.time, 0)}`,
+      `DTEND:${calStamp(ev.date, ev.time, 30)}`,
+      `SUMMARY:${esc(label + ' : ' + ev.title)}`,
+      ev.note ? `DESCRIPTION:${esc(ev.note)}` : 'DESCRIPTION:',
+      'END:VEVENT');
+  });
+  lines.push('END:VCALENDAR');
+  return lines.join('\r\n');
+}
+
 function fireReminder(ev) {
   const typeLabel = { rdv: 'Rendez-vous', tache: 'Tâche', rappel: 'Rappel' }[ev.type] || 'Rappel';
   try {
@@ -1142,6 +1225,32 @@ function setupCalendar() {
   const now0 = new Date();
   if (!calView) calView = { y: now0.getFullYear(), m: now0.getMonth() };
   if (!calSelected) calSelected = dateKey(now0);
+
+  // Adresse rattachée
+  const emailEl = document.getElementById('calEmail');
+  const linkStatus = document.getElementById('calLinkStatus');
+  emailEl.value = (settings.calendar && settings.calendar.email) || '';
+  const showLink = () => {
+    const e = (settings.calendar && settings.calendar.email) || '';
+    linkStatus.textContent = e ? `Rattaché à ${e}` : 'Aucune adresse rattachée.';
+  };
+  showLink();
+  document.getElementById('calEmailSave').addEventListener('click', async () => {
+    settings.calendar = settings.calendar || {};
+    settings.calendar.email = emailEl.value.trim();
+    await persistSettings();
+    showLink();
+    linkStatus.textContent = 'Enregistré ✓ — ' + linkStatus.textContent;
+  });
+  document.getElementById('calExport').addEventListener('click', () => {
+    const ics = buildIcs(settings.events || []);
+    const blob = new Blob([ics], { type: 'text/calendar' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'calendrier-iatech-control-pro.ics';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  });
 
   const eventsFor = (key) => (settings.events || [])
     .filter((e) => e.date === key)
@@ -1184,7 +1293,9 @@ function setupCalendar() {
       row.innerHTML = `<span class="et">${e.time || ''}</span>` +
         `<span class="tag ${e.type}">${e.type}</span>` +
         `<span>${escapeHtml(e.title)}${e.note ? ' — <span class="c">' + escapeHtml(e.note) + '</span>' : ''}</span>` +
+        `<span class="gcal" title="Ajouter au calendrier rattaché">📅</span>` +
         `<span class="ex" title="Supprimer">×</span>`;
+      row.querySelector('.gcal').addEventListener('click', () => window.prive.openExternal(googleCalUrl(e)));
       row.querySelector('.ex').addEventListener('click', async () => {
         settings.events = (settings.events || []).filter((x) => x.id !== e.id);
         await persistSettings();
@@ -1207,7 +1318,9 @@ function setupCalendar() {
       row.className = 'cal-ev';
       row.innerHTML = `<span class="et">${e.date} ${e.time || ''}</span>` +
         `<span class="tag ${e.type}">${e.type}</span>` +
-        `<span>${escapeHtml(e.title)}</span>`;
+        `<span>${escapeHtml(e.title)}</span>` +
+        `<span class="gcal" title="Ajouter au calendrier rattaché" style="margin-left:auto">📅</span>`;
+      row.querySelector('.gcal').addEventListener('click', () => window.prive.openExternal(googleCalUrl(e)));
       upcoming.appendChild(row);
     });
   };
@@ -1316,9 +1429,13 @@ function parseAppts(text) {
     if (!m) return;
     const time = m[1].padStart(2, '0') + ':' + m[2];
     let rest = line.slice(line.indexOf(m[0]) + m[0].length).trim();
+    // Retire une éventuelle 2e heure de début (plage « 08:00 - 11:00 »).
+    rest = rest.replace(/^[\s\-–—à]*\d{1,2}[:h.]\d{2}\s*/, '').trim();
     if (!rest) return;
     const name = cleanApptName(rest);
     const norm = normName(rest);
+    // Exige au moins un vrai mot (lettres) : élimine plages horaires / dispos.
+    if (!/[a-zà-ÿ]{2,}/i.test(name)) return;
     if (name && norm) out.push({ time, name, norm });
   });
   return out;
@@ -1353,10 +1470,11 @@ function compareAgendas(aList, bList) {
   return { matched, timeDiff, onlyA, onlyB, dupes };
 }
 
-function renderSyncResult(res, aCount, bCount) {
+function renderSyncResult(res, aCount, bCount, context) {
   const box = document.getElementById('syncResult');
   const esc = escapeHtml;
-  let html = '<div class="sync-summary">' +
+  let html = context ? `<div class="sync-context">📋 ${esc(context)}</div>` : '';
+  html += '<div class="sync-summary">' +
     `<span class="sync-badge">Doctena : ${aCount} RDV</span>` +
     `<span class="sync-badge">Doctoranytime : ${bCount} RDV</span>` +
     `<span class="sync-badge ok">✓ ${res.matched.length} concordants</span>` +
@@ -1388,20 +1506,47 @@ function renderSyncResult(res, aCount, bCount) {
 
 function setupSync() {
   const status = document.getElementById('syncStatus');
+  const doctorEl = document.getElementById('syncDoctor');
+  const dateEl = document.getElementById('syncDate');
+  const fromEl = document.getElementById('syncFrom');
+  const toEl = document.getElementById('syncTo');
+
+  // Liste des médecins pour l'auto-complétion.
+  const dl = document.getElementById('syncDocList');
+  (settings.doctors || []).slice().sort((a, b) => a.name.localeCompare(b.name)).forEach((d) => {
+    const o = document.createElement('option'); o.value = d.name; dl.appendChild(o);
+  });
+  // Date du jour par défaut.
+  if (!dateEl.value) {
+    const t = new Date();
+    dateEl.value = `${t.getFullYear()}-${pad2(t.getMonth() + 1)}-${pad2(t.getDate())}`;
+  }
+
   document.getElementById('syncOpenDoctena').addEventListener('click', () => showView('doctena'));
   document.getElementById('syncOpenDa').addEventListener('click', () => showView('doctoranytime'));
 
   document.getElementById('syncCompare').addEventListener('click', async () => {
     status.textContent = 'Lecture des agendas…';
     const [ta, tb] = await Promise.all([readAgendaText('doctena'), readAgendaText('doctoranytime')]);
-    const aList = parseAppts(ta);
-    const bList = parseAppts(tb);
+    let aList = parseAppts(ta);
+    let bList = parseAppts(tb);
     if (!ta && !tb) {
       status.textContent = 'Impossible de lire les agendas. Ouvrez d\'abord les onglets Doctena et Doctoranytime.';
       return;
     }
+
+    // Filtre optionnel sur la plage horaire choisie.
+    const from = fromEl.value, to = toEl.value;
+    const inWindow = (t) => (!from || t >= from) && (!to || t <= to);
+    if (from || to) { aList = aList.filter((x) => inWindow(x.time)); bList = bList.filter((x) => inWindow(x.time)); }
+
     const res = compareAgendas(aList, bList);
-    renderSyncResult(res, aList.length, bList.length);
+    const ctx = [];
+    if (doctorEl.value.trim()) ctx.push('Dr ' + doctorEl.value.trim());
+    if (dateEl.value) ctx.push(dateEl.value.split('-').reverse().join('/'));
+    if (from || to) ctx.push(`${from || '…'}–${to || '…'}`);
+    renderSyncResult(res, aList.length, bList.length, ctx.join(' · '));
+
     const problems = res.onlyA.length + res.onlyB.length + res.timeDiff.length + res.dupes.length;
     status.textContent = problems === 0
       ? 'Agendas synchronisés ✓'

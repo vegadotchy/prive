@@ -226,6 +226,48 @@ ipcMain.handle('chat:send', async (_e, payload) => {
   return chatCompletion(settings, payload);
 });
 
+// Importe des documents (copie dans le profil) à joindre à un modèle.
+ipcMain.handle('attach:add', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Choisir des documents',
+    properties: ['openFile', 'multiSelections'],
+    filters: [
+      { name: 'Documents', extensions: ['pdf', 'doc', 'docx', 'odt', 'rtf', 'txt', 'md', 'csv', 'xls', 'xlsx', 'ppt', 'pptx', 'jpg', 'jpeg', 'png', 'gif', 'webp', 'heic'] },
+      { name: 'Tous les fichiers', extensions: ['*'] }
+    ]
+  });
+  if (result.canceled || !result.filePaths.length) return { ok: false };
+  const dir = path.join(app.getPath('userData'), 'attachments');
+  fs.mkdirSync(dir, { recursive: true });
+  const stored = [];
+  for (const src of result.filePaths) {
+    const base = path.basename(src);
+    const dest = path.join(dir, `${Date.now()}-${Math.round(Math.random() * 1e6)}-${base}`);
+    try {
+      fs.copyFileSync(src, dest);
+      stored.push({ name: base, path: dest, ext: path.extname(base).toLowerCase() });
+    } catch (_) { /* ignore ce fichier */ }
+  }
+  return { ok: stored.length > 0, files: stored };
+});
+
+// Extrait le texte d'un document (formats texte uniquement).
+ipcMain.handle('attach:extractText', async (_e, filePath) => {
+  const ext = path.extname(filePath || '').toLowerCase();
+  const TEXT = ['.txt', '.md', '.csv', '.log', '.json', '.xml', '.html', '.htm', '.rtf'];
+  if (!TEXT.includes(ext)) {
+    return { ok: false, reason: 'Aperçu texte indisponible pour ce format — le document reste joint et ouvrable.' };
+  }
+  try {
+    let txt = fs.readFileSync(filePath, 'utf8');
+    if (ext === '.rtf') txt = txt.replace(/\\[a-z]+-?\d* ?/gi, '').replace(/[{}]/g, '');
+    if (ext === '.html' || ext === '.htm') txt = txt.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+    return { ok: true, text: txt.slice(0, 100000) };
+  } catch (err) {
+    return { ok: false, reason: 'Lecture impossible : ' + err.message };
+  }
+});
+
 // Recherche de médicaments via l'API JSON publique du CBIP.
 ipcMain.handle('cbip:search', async (_e, query) => {
   const q = String(query || '').trim();
