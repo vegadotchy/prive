@@ -33,9 +33,10 @@ jobs:
         run: npm install
 
       - name: Générer l'installateur .exe
-        run: npm run dist
+        # --publish never : electron-builder ne tente pas de publier tout seul
+        # (la Release est gérée par l'étape dédiée plus bas).
+        run: npm run dist -- --publish never
         env:
-          # Évite les tentatives de signature/publication automatiques.
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
 
       - name: Publier l'installateur comme artefact

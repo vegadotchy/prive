@@ -33,6 +33,7 @@ const NAV = [
   { view: 'modeles', title: 'Modèles', ico: '📄' },
   { view: 'chatgpt', title: 'Chat IA', ico: '🤖' },
   { group: 'Agenda & patients' },
+  { view: 'medecins', title: 'Médecins', ico: '👨‍⚕️' },
   { view: 'doctena', title: 'Doctena', ico: '📅', site: true },
   { view: 'doctoranytime', title: 'Doctoranytime', ico: '🩺', site: true },
   { view: 'shyfter', title: 'Shyfter', ico: '🗓️', site: true },
@@ -43,6 +44,7 @@ const NAV = [
   { view: 'examens', title: 'Examens du jour', ico: '📋', site: true },
   { view: 'cbip', title: 'Médicaments (CBIP)', ico: '💊', site: true },
   { group: 'Gestion' },
+  { view: 'prestations', title: 'Prestations', ico: '⏱️' },
   { view: 'clearfacts', title: 'ClearFacts / Kyte', ico: '🧾', site: true },
   { view: 'medipost', title: 'Medipost', ico: '📦', site: true },
   { group: 'Outils' },
@@ -191,15 +193,17 @@ function getWebview(viewId) {
 function buildHomeTiles() {
   const grid = document.getElementById('homeTiles');
   const quick = [
-    'gmail', 'whatsapp', 'doctena', 'doctoranytime', 'shyfter', 'inbody',
+    'gmail', 'whatsapp', 'medecins', 'doctena', 'doctoranytime', 'shyfter', 'inbody',
     'clearfacts', 'iballab', 'examens', 'cbip', 'medipost',
-    'careconnect', 'recherche', 'mail', 'modeles', 'chatgpt'
+    'careconnect', 'prestations', 'recherche', 'mail', 'modeles', 'chatgpt'
   ];
   const labels = {
     careconnect: { title: 'CareConnect', ico: '💻' },
     recherche: { title: 'Recherche fichiers', ico: '🔎' },
     mail: { title: 'Envoyer un mail', ico: '📧' },
     modeles: { title: 'Modèles', ico: '📄' },
+    medecins: { title: 'Médecins', ico: '👨‍⚕️' },
+    prestations: { title: 'Prestations', ico: '⏱️' },
     chatgpt: { title: 'Chat IA', ico: '🤖' }
   };
   for (const key of quick) {
@@ -548,6 +552,233 @@ function setupModeles() {
 }
 
 // ---------------------------------------------------------------------------
+// Médecins (base locale, recherche + ajout/suppression)
+// ---------------------------------------------------------------------------
+
+let medCurrentId = null;
+
+function setupMedecins() {
+  const searchEl = document.getElementById('medSearch');
+  const listEl = document.getElementById('medList');
+  const countEl = document.getElementById('medCount');
+  const nameEl = document.getElementById('medName');
+  const societeEl = document.getElementById('medSociete');
+  const adresseEl = document.getElementById('medAdresse');
+  const telEl = document.getElementById('medTel');
+  const nissEl = document.getElementById('medNiss');
+  const statusEl = document.getElementById('medStatus');
+
+  const renderList = () => {
+    const q = searchEl.value.trim().toLowerCase();
+    const all = settings.doctors || [];
+    const items = all.filter((d) => {
+      if (!q) return true;
+      return [d.name, d.societe, d.adresse, d.tel, d.niss]
+        .filter(Boolean).join(' ').toLowerCase().includes(q);
+    });
+    countEl.textContent = `${items.length} / ${all.length} médecin(s)`;
+    listEl.innerHTML = '';
+    if (!items.length) {
+      listEl.innerHTML = '<div class="hint">Aucun médecin trouvé.</div>';
+    }
+    items.forEach((d) => {
+      const div = document.createElement('div');
+      div.className = 'modele-item' + (d.id === medCurrentId ? ' active' : '');
+      div.innerHTML =
+        `<div class="m-name">${escapeHtml(d.name)}</div>` +
+        `<div class="m-cat">${escapeHtml(d.societe || '—')}</div>`;
+      div.addEventListener('click', () => select(d.id));
+      listEl.appendChild(div);
+    });
+  };
+
+  const select = (id) => {
+    const d = (settings.doctors || []).find((x) => x.id === id);
+    if (!d) return;
+    medCurrentId = id;
+    nameEl.value = d.name || '';
+    societeEl.value = d.societe || '';
+    adresseEl.value = d.adresse || '';
+    telEl.value = d.tel || '';
+    nissEl.value = d.niss || '';
+    renderList();
+  };
+
+  const blank = () => {
+    medCurrentId = null;
+    [nameEl, societeEl, adresseEl, telEl, nissEl].forEach((e) => (e.value = ''));
+    renderList();
+    nameEl.focus();
+  };
+
+  searchEl.addEventListener('input', renderList);
+  document.getElementById('medNew').addEventListener('click', blank);
+
+  document.getElementById('medSave').addEventListener('click', async () => {
+    const name = nameEl.value.trim();
+    if (!name) { statusEl.textContent = 'Nom requis.'; return; }
+    settings.doctors = settings.doctors || [];
+    const data = {
+      name,
+      societe: societeEl.value.trim(),
+      adresse: adresseEl.value.trim(),
+      tel: telEl.value.trim(),
+      niss: nissEl.value.trim()
+    };
+    if (medCurrentId) {
+      const d = settings.doctors.find((x) => x.id === medCurrentId);
+      if (d) Object.assign(d, data);
+    } else {
+      medCurrentId = 'd' + Date.now();
+      settings.doctors.push({ id: medCurrentId, ...data });
+    }
+    await persistSettings();
+    renderList();
+    statusEl.textContent = 'Enregistré ✓';
+    setTimeout(() => (statusEl.textContent = ''), 2000);
+  });
+
+  document.getElementById('medDelete').addEventListener('click', async () => {
+    if (!medCurrentId) return;
+    settings.doctors = (settings.doctors || []).filter((x) => x.id !== medCurrentId);
+    await persistSettings();
+    blank();
+    statusEl.textContent = 'Supprimé.';
+    setTimeout(() => (statusEl.textContent = ''), 2000);
+  });
+
+  renderList();
+}
+
+// ---------------------------------------------------------------------------
+// Prestations (Employés/Étudiants × 2025/2026 ; heures FICHE vs SHYFTER)
+// ---------------------------------------------------------------------------
+
+const PREST_MONTHS = ['JANVIER', 'FÉVRIER', 'MARS', 'AVRIL', 'MAI', 'JUIN', 'JUILLET',
+  'AOÛT', 'SEPTEMBRE', 'OCTOBRE', 'NOVEMBRE', 'DÉCEMBRE'];
+let prestYear = '2025';
+let prestType = 'employes';
+
+function prestKey() { return `${prestType}-${prestYear}`; }
+
+function prestDataset() {
+  settings.prestations = settings.prestations || {};
+  const k = prestKey();
+  if (!settings.prestations[k]) settings.prestations[k] = { persons: [] };
+  if (!Array.isArray(settings.prestations[k].persons)) settings.prestations[k].persons = [];
+  return settings.prestations[k];
+}
+
+function emptyMonths() {
+  const m = {};
+  PREST_MONTHS.forEach((mo) => (m[mo] = { fiche: 0, shyfter: 0 }));
+  return m;
+}
+
+function renderPrestTable() {
+  const table = document.getElementById('prestTable');
+  const ds = prestDataset();
+  const persons = ds.persons;
+
+  // En-têtes
+  let thead = '<thead><tr><th rowspan="2" class="month">Mois</th>';
+  persons.forEach((p, i) => {
+    thead += `<th colspan="2" class="person">${escapeHtml(p.name)}<span class="rm" data-rm="${i}" title="Supprimer">×</span></th>`;
+  });
+  thead += '</tr><tr>';
+  persons.forEach(() => { thead += '<th class="sub">Fiche</th><th class="sub">Shyfter</th>'; });
+  thead += '</tr></thead>';
+
+  // Corps
+  let tbody = '<tbody>';
+  PREST_MONTHS.forEach((mo) => {
+    tbody += `<tr><td class="month">${mo}</td>`;
+    persons.forEach((p, i) => {
+      const cell = (p.months && p.months[mo]) || { fiche: 0, shyfter: 0 };
+      const mism = Number(cell.fiche) !== Number(cell.shyfter);
+      tbody += `<td><input type="number" data-p="${i}" data-mo="${mo}" data-f="fiche" value="${cell.fiche}"></td>`;
+      tbody += `<td class="${mism ? 'mismatch' : ''}"><input type="number" data-p="${i}" data-mo="${mo}" data-f="shyfter" value="${cell.shyfter}"></td>`;
+    });
+    tbody += '</tr>';
+  });
+  tbody += '</tbody>';
+
+  // Totaux
+  let tfoot = '<tfoot><tr><td class="month">TOTAL</td>';
+  persons.forEach((p) => {
+    let tf = 0, ts = 0;
+    PREST_MONTHS.forEach((mo) => {
+      const c = (p.months && p.months[mo]) || {};
+      tf += Number(c.fiche) || 0; ts += Number(c.shyfter) || 0;
+    });
+    tfoot += `<td>${tf}</td><td>${ts}</td>`;
+  });
+  tfoot += '</tr></tfoot>';
+
+  table.innerHTML = thead + tbody + tfoot;
+
+  table.querySelectorAll('input[type=number]').forEach((inp) => {
+    inp.addEventListener('input', () => {
+      const p = persons[Number(inp.dataset.p)];
+      if (!p.months) p.months = emptyMonths();
+      if (!p.months[inp.dataset.mo]) p.months[inp.dataset.mo] = { fiche: 0, shyfter: 0 };
+      p.months[inp.dataset.mo][inp.dataset.f] = inp.value === '' ? 0 : Number(inp.value);
+      // Met à jour le surlignage d'écart de la ligne concernée
+      const td = inp.closest('td');
+      const cell = p.months[inp.dataset.mo];
+      const shyftInput = inp.parentElement.parentElement.querySelector(`input[data-p="${inp.dataset.p}"][data-mo="${inp.dataset.mo}"][data-f="shyfter"]`);
+      if (shyftInput) {
+        shyftInput.closest('td').classList.toggle('mismatch', Number(cell.fiche) !== Number(cell.shyfter));
+      }
+    });
+  });
+
+  table.querySelectorAll('[data-rm]').forEach((el) => {
+    el.addEventListener('click', () => {
+      const i = Number(el.dataset.rm);
+      if (confirm(`Supprimer ${persons[i].name} ?`)) {
+        persons.splice(i, 1);
+        renderPrestTable();
+      }
+    });
+  });
+}
+
+function setupPrestations() {
+  const yearSeg = document.getElementById('prestYear');
+  const typeSeg = document.getElementById('prestType');
+  const status = document.getElementById('prestStatus');
+
+  yearSeg.addEventListener('click', (e) => {
+    if (!e.target.dataset.year) return;
+    prestYear = e.target.dataset.year;
+    yearSeg.querySelectorAll('.chip').forEach((b) => b.classList.toggle('active', b.dataset.year === prestYear));
+    renderPrestTable();
+  });
+  typeSeg.addEventListener('click', (e) => {
+    if (!e.target.dataset.type) return;
+    prestType = e.target.dataset.type;
+    typeSeg.querySelectorAll('.chip').forEach((b) => b.classList.toggle('active', b.dataset.type === prestType));
+    renderPrestTable();
+  });
+
+  document.getElementById('prestAddPerson').addEventListener('click', () => {
+    const name = prompt('Nom de la personne :');
+    if (!name) return;
+    prestDataset().persons.push({ name: name.trim(), months: emptyMonths() });
+    renderPrestTable();
+  });
+
+  document.getElementById('prestSave').addEventListener('click', async () => {
+    await persistSettings();
+    status.textContent = 'Enregistré ✓';
+    setTimeout(() => (status.textContent = ''), 2000);
+  });
+
+  renderPrestTable();
+}
+
+// ---------------------------------------------------------------------------
 // Bandeau défilant : date, heure, température
 // ---------------------------------------------------------------------------
 
@@ -639,6 +870,8 @@ async function init() {
   setupFileSearch();
   setupMail();
   setupModeles();
+  setupMedecins();
+  setupPrestations();
   setupCareconnect();
   setupSettings();
   fillSettingsForm();

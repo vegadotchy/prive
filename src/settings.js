@@ -4,6 +4,22 @@ const { app } = require('electron');
 const fs = require('fs');
 const path = require('path');
 
+// Base des médecins pré-remplie depuis la liste EUROCARE fournie.
+let DOCTORS_SEED = [];
+try {
+  DOCTORS_SEED = require('./data/doctors.json');
+} catch (_) {
+  DOCTORS_SEED = [];
+}
+
+// Suivi des prestations (Employés/Étudiants × 2025/2026), pré-rempli.
+let PRESTATIONS_SEED = {};
+try {
+  PRESTATIONS_SEED = require('./data/prestations.json');
+} catch (_) {
+  PRESTATIONS_SEED = {};
+}
+
 function settingsPath() {
   return path.join(app.getPath('userData'), 'settings.json');
 }
@@ -89,7 +105,12 @@ const DEFAULTS = {
       body:
         'Patient : [NOM PRÉNOM]\nDate de naissance : [JJ/MM/AAAA]\nDate : [DATE]\n\nRp/\n1) [Médicament] [dosage] — [posologie] — [durée]\n2) \n\nDr [NOM]\nN° INAMI : [……]'
     }
-  ]
+  ],
+  // Base des médecins (nom, société, adresse, téléphone/n°, NISS),
+  // gérée depuis l'onglet « Médecins ». Pré-remplie depuis la liste fournie.
+  doctors: DOCTORS_SEED,
+  // Suivi des prestations (heures FICHE vs SHYFTER par mois et par personne).
+  prestations: PRESTATIONS_SEED
 };
 
 function deepMerge(base, override) {
