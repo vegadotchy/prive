@@ -14,7 +14,7 @@ const SITES = {
     url: 'https://www.doctoranytime.be/doctorcrmV2/ConnectedAccount/ChangeAccount?u=0'
   },
   shyfter: { title: 'Shyfter', ico: '🗓️', url: 'https://v3-app.shyfter.co/app/dashboard' },
-  inbody: { title: 'InBody', ico: '⚖️', url: 'https://bel.lookinbody.com/', print: true },
+  inbody: { title: 'InBody', ico: '⚖️', url: 'https://bel.lookinbody.com/', print: true, printLast: true },
   clearfacts: { title: 'ClearFacts / Kyte', ico: '🧾', url: 'https://mbm.clearfacts.be/login' },
   iballab: { title: 'IBC Lab online', ico: '🔬', url: 'https://labonline.lhub-ulb.be/' },
   examens: { title: 'Examens du jour', ico: '📋', urlFromSettings: 'examsUrl' },
@@ -147,6 +147,62 @@ function ensureWebview(viewId) {
     });
     bar.insertBefore(goBtn, bar.querySelector('[data-act="back"]'));
     bar.insertBefore(input, goBtn);
+  }
+
+  // Ouvre puis imprime automatiquement le dernier test (ligne la plus récente).
+  if (cfg.printLast) {
+    const lastBtn = document.createElement('button');
+    lastBtn.className = 'btn tiny';
+    lastBtn.textContent = '🖨️ Imprimer le dernier test';
+    lastBtn.title = 'Ouvre le rapport du test le plus récent (haut de la liste) puis lance l’impression';
+    lastBtn.addEventListener('click', async () => {
+      const prev = lastBtn.textContent;
+      lastBtn.textContent = 'Ouverture du dernier test…';
+      lastBtn.disabled = true;
+      // Heuristique : clique l'icône « Report » de la 1re ligne de données
+      // (la liste LookinBody est triée du test le plus récent au plus ancien).
+      const script = `(function(){
+        function firstRow(){
+          var rows = document.querySelectorAll('tbody tr, [role="row"]');
+          for (var i=0;i<rows.length;i++){
+            if (rows[i].querySelector('td, [role="cell"], [role="gridcell"]')) return rows[i];
+          }
+          return null;
+        }
+        var row = firstRow();
+        if(!row) return 'norow';
+        var els = row.querySelectorAll('a,button,img,svg,i,[role="button"]');
+        var target=null;
+        for (var i=0;i<els.length;i++){
+          var el=els[i];
+          var s=((el.getAttribute&&(el.getAttribute('title')||el.getAttribute('alt')||el.getAttribute('aria-label')||el.getAttribute('data-tooltip')))||'')+' '+(el.className&&el.className.baseVal!==undefined?el.className.baseVal:(el.className||''));
+          if(/report|rapport/i.test(s)){ target=el; break; }
+        }
+        if(!target){
+          // Repli : dans les colonnes d'icônes, la 2e icône correspond souvent à « Report »
+          var icons = row.querySelectorAll('td a, td button, td img, td svg, [role="cell"] a, [role="cell"] button');
+          if(icons.length>=2) target=icons[1];
+          else if(icons.length===1) target=icons[0];
+        }
+        if(target){ (target.closest('a,button')||target).click(); return 'clicked'; }
+        return 'notfound';
+      })()`;
+      let outcome = 'notfound';
+      try { outcome = await webview.executeJavaScript(script, true); } catch (_) { outcome = 'error'; }
+      if (outcome === 'clicked') {
+        // Laisse le rapport se charger avant d'imprimer.
+        setTimeout(() => {
+          try { webview.print({}); } catch (_) { /* ignore */ }
+          lastBtn.textContent = prev;
+          lastBtn.disabled = false;
+        }, 2800);
+      } else {
+        lastBtn.textContent = prev;
+        lastBtn.disabled = false;
+        alert('Impossible d’ouvrir automatiquement le dernier test. Ouvrez son rapport puis utilisez « Imprimer le test affiché ».');
+      }
+    });
+    bar.insertBefore(lastBtn, bar.querySelector('[data-act="external"]'));
   }
 
   // Impression du dernier test (InBody).
