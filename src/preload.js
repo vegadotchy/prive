@@ -13,6 +13,8 @@ contextBridge.exposeInMainWorld('prive', {
   openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
 
   launchApp: (key) => ipcRenderer.invoke('app:launch', key),
+  pickExe: () => ipcRenderer.invoke('dialog:pickExe'),
+  detectCareconnect: () => ipcRenderer.invoke('careconnect:detect'),
 
   runSpeedTest: () => ipcRenderer.invoke('speed:runNow'),
   onSpeed: (cb) => {

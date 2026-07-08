@@ -395,10 +395,47 @@ function setupMail() {
 function setupCareconnect() {
   const btn = document.getElementById('launchCareconnect');
   const hint = document.getElementById('careconnectHint');
+  const pathEl = document.getElementById('ccPath');
+
+  const refreshPath = () => {
+    const p = (settings.launchers && settings.launchers.careconnect) || '';
+    pathEl.textContent = p || '(non configuré)';
+  };
+  refreshPath();
+
+  const savePath = async (p) => {
+    settings.launchers = settings.launchers || {};
+    settings.launchers.careconnect = p;
+    await persistSettings();
+    refreshPath();
+  };
+
   btn.addEventListener('click', async () => {
+    let p = (settings.launchers && settings.launchers.careconnect) || '';
+    if (!p) {
+      hint.textContent = 'Aucun fichier configuré : détection en cours…';
+      const det = await window.prive.detectCareconnect();
+      if (det.ok) { await savePath(det.path); p = det.path; }
+      else {
+        hint.textContent = 'CareConnect introuvable automatiquement. Cliquez sur « Choisir le fichier .exe… ».';
+        return;
+      }
+    }
     hint.textContent = 'Lancement…';
     const res = await window.prive.launchApp('careconnect');
-    hint.textContent = res.ok ? 'CareConnect lancé.' : res.error;
+    hint.textContent = res.ok ? 'CareConnect lancé ✓' : res.error;
+  });
+
+  document.getElementById('ccDetect').addEventListener('click', async () => {
+    hint.textContent = 'Recherche de CareConnect sur C:\\…';
+    const det = await window.prive.detectCareconnect();
+    if (det.ok) { await savePath(det.path); hint.textContent = 'Trouvé et enregistré ✓'; }
+    else hint.textContent = 'Introuvable automatiquement. Utilisez « Choisir le fichier .exe… ».';
+  });
+
+  document.getElementById('ccPick').addEventListener('click', async () => {
+    const res = await window.prive.pickExe();
+    if (res.ok) { await savePath(res.path); hint.textContent = 'Fichier enregistré ✓'; }
   });
 }
 
@@ -421,6 +458,11 @@ async function persistSettings() {
 }
 
 function setupSettings() {
+  document.getElementById('setCareconnectBrowse').addEventListener('click', async () => {
+    const res = await window.prive.pickExe();
+    if (res.ok) document.getElementById('setCareconnect').value = res.path;
+  });
+
   document.getElementById('saveSettings').addEventListener('click', async () => {
     settings.ai.apiKey = document.getElementById('setApiKey').value.trim();
     settings.ai.baseUrl = document.getElementById('setBaseUrl').value.trim();

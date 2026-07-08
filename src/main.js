@@ -1,7 +1,8 @@
 'use strict';
 
-const { app, BrowserWindow, ipcMain, shell, session } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, session, dialog } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const { loadSettings, saveSettings } = require('./settings');
 const { searchFiles } = require('./fileSearch');
 const { startSpeedTest, runSpeedTestOnce } = require('./speedtest');
@@ -123,6 +124,66 @@ ipcMain.handle('shell:showItem', async (_e, p) => {
 
 ipcMain.handle('shell:openExternal', async (_e, url) => {
   return shell.openExternal(url);
+});
+
+// Ouvre un sélecteur de fichier pour choisir un exécutable (.exe).
+ipcMain.handle('dialog:pickExe', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Sélectionner CareConnect.exe',
+    defaultPath: 'C:\\',
+    properties: ['openFile'],
+    filters: [{ name: 'Programmes', extensions: ['exe'] }]
+  });
+  if (result.canceled || !result.filePaths.length) return { ok: false };
+  return { ok: true, path: result.filePaths[0] };
+});
+
+// Recherche l'exécutable CareConnect dans les emplacements habituels sur C:\.
+ipcMain.handle('careconnect:detect', async () => {
+  const bases = [
+    process.env['ProgramFiles'],
+    process.env['ProgramFiles(x86)'],
+    process.env['LOCALAPPDATA'],
+    process.env['ProgramData'],
+    'C:\\'
+  ].filter(Boolean);
+
+  const isTarget = (name) => /careconnect.*\.exe$/i.test(name);
+  const found = [];
+
+  const scan = (dir, depth) => {
+    if (depth < 0 || found.length) return;
+    let entries;
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch (_) {
+      return;
+    }
+    for (const e of entries) {
+      if (found.length) return;
+      const full = path.join(dir, e.name);
+      if (e.isFile() && isTarget(e.name)) { found.push(full); return; }
+      // On ne descend que dans les dossiers plausibles (perf).
+      if (e.isDirectory() && (depth > 0) && /care|corilus|health/i.test(e.name)) {
+        scan(full, depth - 1);
+      }
+    }
+  };
+
+  for (const base of bases) {
+    // Au premier niveau on parcourt tous les dossiers, puis on filtre.
+    let top;
+    try { top = fs.readdirSync(base, { withFileTypes: true }); } catch (_) { continue; }
+    for (const e of top) {
+      if (found.length) break;
+      if (e.isDirectory() && /care|corilus|health/i.test(e.name)) {
+        scan(path.join(base, e.name), 2);
+      }
+    }
+    if (found.length) break;
+  }
+
+  return found.length ? { ok: true, path: found[0] } : { ok: false };
 });
 
 // Lance un exécutable local (ex. CareConnect) à partir du chemin configuré.

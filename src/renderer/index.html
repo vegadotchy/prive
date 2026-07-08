@@ -235,8 +235,13 @@
           <section class="view" data-view="careconnect">
             <div class="panel">
               <h1>CareConnect</h1>
-              <p class="muted">Lance l’application CareConnect installée sur ce poste.</p>
-              <button class="btn primary big" id="launchCareconnect">Lancer CareConnect</button>
+              <p class="muted">Lance l’application CareConnect installée sur ce poste (le bouton pointe vers son fichier <code>.exe</code> sur <code>C:\</code>).</p>
+              <button class="btn primary big" id="launchCareconnect">▶ Lancer CareConnect</button>
+              <div class="row-btns">
+                <button class="btn" id="ccDetect">Détecter automatiquement</button>
+                <button class="btn" id="ccPick">Choisir le fichier .exe…</button>
+              </div>
+              <p class="hint">Fichier configuré : <span id="ccPath">—</span></p>
               <p class="hint" id="careconnectHint"></p>
             </div>
           </section>
@@ -261,6 +266,7 @@
               <label>Chemin de l’exécutable CareConnect
                 <input type="text" id="setCareconnect" placeholder="C:\\Program Files\\CareConnect\\CareConnect.exe" />
               </label>
+              <button class="btn" id="setCareconnectBrowse" type="button">Parcourir…</button>
 
               <h2>Examens du jour</h2>
               <label>URL du serveur interne
