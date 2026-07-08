@@ -95,6 +95,22 @@
             </div>
           </section>
 
+          <!-- ===================== Synchronisation agendas ===================== -->
+          <section class="view" data-view="sync">
+            <div class="panel wide">
+              <h1>Synchronisation Doctena ↔ Doctoranytime</h1>
+              <p class="muted">Ouvrez d'abord les onglets Doctena et Doctoranytime sur le <b>même médecin</b> et le <b>même jour</b>, puis lancez la comparaison. L'app lit les rendez-vous affichés dans les deux agendas et signale les rendez-vous manquants d'un côté, les écarts d'horaire et les doublons.</p>
+              <div class="row-btns">
+                <button class="btn gold" id="syncCompare">🔄 Comparer maintenant</button>
+                <button class="btn" id="syncOpenDoctena">Ouvrir Doctena</button>
+                <button class="btn" id="syncOpenDa">Ouvrir Doctoranytime</button>
+                <span class="hint" id="syncStatus"></span>
+              </div>
+              <div id="syncResult"></div>
+              <p class="hint">Astuce : réglez les deux agendas sur la vue « Jour » du même praticien. La comparaison ignore l'ordre des nom/prénom et les accents.</p>
+            </div>
+          </section>
+
           <!-- ===================== Modèles de correspondance ===================== -->
           <section class="view" data-view="modeles">
             <div class="panel wide">

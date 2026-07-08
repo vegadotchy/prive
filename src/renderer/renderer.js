@@ -36,6 +36,7 @@ const NAV = [
   { view: 'medecins', title: 'Médecins', ico: '👨‍⚕️' },
   { view: 'doctena', title: 'Doctena', ico: '📅', site: true },
   { view: 'doctoranytime', title: 'Doctoranytime', ico: '🩺', site: true },
+  { view: 'sync', title: 'Synchronisation', ico: '🔄' },
   { view: 'shyfter', title: 'Shyfter', ico: '🗓️', site: true },
   { view: 'careconnect', title: 'CareConnect', ico: '💻' },
   { group: 'Examens & labo' },
@@ -193,7 +194,7 @@ function getWebview(viewId) {
 function buildHomeTiles() {
   const grid = document.getElementById('homeTiles');
   const quick = [
-    'gmail', 'whatsapp', 'medecins', 'doctena', 'doctoranytime', 'shyfter', 'inbody',
+    'gmail', 'whatsapp', 'medecins', 'doctena', 'doctoranytime', 'sync', 'shyfter', 'inbody',
     'clearfacts', 'iballab', 'examens', 'cbip', 'medipost',
     'careconnect', 'prestations', 'recherche', 'mail', 'modeles', 'chatgpt'
   ];
@@ -204,6 +205,7 @@ function buildHomeTiles() {
     modeles: { title: 'Modèles', ico: '📄' },
     medecins: { title: 'Médecins', ico: '👨‍⚕️' },
     prestations: { title: 'Prestations', ico: '⏱️' },
+    sync: { title: 'Synchronisation', ico: '🔄' },
     chatgpt: { title: 'Chat IA', ico: '🤖' }
   };
   for (const key of quick) {
@@ -853,6 +855,145 @@ function setupPrestations() {
 }
 
 // ---------------------------------------------------------------------------
+// Synchronisation Doctena ↔ Doctoranytime (lecture + comparaison)
+// ---------------------------------------------------------------------------
+
+// Récupère le texte visible d'une webview (y compris iframes de même origine).
+async function readAgendaText(viewId) {
+  const wv = getWebview(viewId);
+  if (!wv) return '';
+  const code = `(function(){
+    function grab(doc){ try { return (doc.body && doc.body.innerText) || ''; } catch(e){ return ''; } }
+    var txt = grab(document);
+    var frames = document.querySelectorAll('iframe');
+    for (var i=0;i<frames.length;i++){ try { txt += '\\n' + grab(frames[i].contentDocument); } catch(e){} }
+    return txt;
+  })()`;
+  try {
+    return await wv.executeJavaScript(code, true);
+  } catch (_) {
+    return '';
+  }
+}
+
+function cleanApptName(s) {
+  s = String(s).split('/')[0];                 // enlève téléphone/email après « / »
+  s = s.replace(/phone\s*:.*$/i, '').replace(/email\s*:.*$/i, '');
+  s = s.replace(/[@*•]/g, ' ');
+  s = s.replace(/\b(dr|dre|mme|mr|mlle|m)\b\.?/gi, ' ');
+  s = s.replace(/\+?\d[\d\s().-]{6,}\d/g, ' '); // numéros de téléphone
+  return s.replace(/\s+/g, ' ').trim();
+}
+
+function normName(s) {
+  return cleanApptName(s).toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/).filter((w) => w.length > 1).sort().join(' ');
+}
+
+function parseAppts(text) {
+  const out = [];
+  (text || '').split('\n').forEach((raw) => {
+    const line = raw.trim();
+    const m = line.match(/(\d{1,2})[:h.](\d{2})/);
+    if (!m) return;
+    const time = m[1].padStart(2, '0') + ':' + m[2];
+    let rest = line.slice(line.indexOf(m[0]) + m[0].length).trim();
+    if (!rest) return;
+    const name = cleanApptName(rest);
+    const norm = normName(rest);
+    if (name && norm) out.push({ time, name, norm });
+  });
+  return out;
+}
+
+function compareAgendas(aList, bList) {
+  const usedB = new Array(bList.length).fill(false);
+  const matched = [];       // même personne, même heure
+  const timeDiff = [];      // même personne, heure différente
+  const onlyA = [];         // présent seulement dans Doctena
+
+  aList.forEach((a) => {
+    // priorité à une correspondance exacte (nom + heure)
+    let idx = bList.findIndex((b, i) => !usedB[i] && b.norm === a.norm && b.time === a.time);
+    if (idx >= 0) { usedB[idx] = true; matched.push({ a, b: bList[idx] }); return; }
+    idx = bList.findIndex((b, i) => !usedB[i] && b.norm === a.norm);
+    if (idx >= 0) { usedB[idx] = true; timeDiff.push({ a, b: bList[idx] }); return; }
+    onlyA.push(a);
+  });
+  const onlyB = bList.filter((_, i) => !usedB[i]);
+
+  // Doublons internes (même personne 2× dans un même agenda)
+  const dupes = [];
+  [['Doctena', aList], ['Doctoranytime', bList]].forEach(([src, list]) => {
+    const seen = {};
+    list.forEach((x) => {
+      seen[x.norm] = (seen[x.norm] || 0) + 1;
+      if (seen[x.norm] === 2) dupes.push({ src, name: x.name });
+    });
+  });
+
+  return { matched, timeDiff, onlyA, onlyB, dupes };
+}
+
+function renderSyncResult(res, aCount, bCount) {
+  const box = document.getElementById('syncResult');
+  const esc = escapeHtml;
+  let html = '<div class="sync-summary">' +
+    `<span class="sync-badge">Doctena : ${aCount} RDV</span>` +
+    `<span class="sync-badge">Doctoranytime : ${bCount} RDV</span>` +
+    `<span class="sync-badge ok">✓ ${res.matched.length} concordants</span>` +
+    `<span class="sync-badge warn">⏰ ${res.timeDiff.length} écarts d'horaire</span>` +
+    `<span class="sync-badge bad">✗ ${res.onlyA.length + res.onlyB.length} manquants</span>` +
+    '</div>';
+
+  const group = (cls, title, rows) => {
+    if (!rows.length) return '';
+    return `<div class="sync-group ${cls}"><h3>${title} (${rows.length})</h3>${rows.join('')}</div>`;
+  };
+
+  html += group('bad', '⛔ Présents dans Doctena mais ABSENTS de Doctoranytime',
+    res.onlyA.map((a) => `<div class="sync-row"><span class="t">${a.time}</span><span>${esc(a.name)}</span></div>`));
+  html += group('bad', '⛔ Présents dans Doctoranytime mais ABSENTS de Doctena',
+    res.onlyB.map((b) => `<div class="sync-row"><span class="t">${b.time}</span><span>${esc(b.name)}</span></div>`));
+  html += group('warn', '⏰ Même patient, horaire différent',
+    res.timeDiff.map((p) => `<div class="sync-row"><span class="t">${p.a.time}→${p.b.time}</span><span>${esc(p.a.name)}</span></div>`));
+  html += group('warn', '⚠️ Doublons dans un même agenda',
+    res.dupes.map((d) => `<div class="sync-row"><span>${esc(d.name)}</span><span class="arrow">— ${d.src}</span></div>`));
+  html += group('ok', '✓ Rendez-vous concordants',
+    res.matched.map((p) => `<div class="sync-row"><span class="t">${p.a.time}</span><span>${esc(p.a.name)}</span></div>`));
+
+  if (!res.matched.length && !res.timeDiff.length && !res.onlyA.length && !res.onlyB.length) {
+    html += '<p class="hint">Aucun rendez-vous détecté. Vérifiez que les deux onglets sont bien ouverts sur la vue « Jour » du praticien, puis relancez.</p>';
+  }
+  box.innerHTML = html;
+}
+
+function setupSync() {
+  const status = document.getElementById('syncStatus');
+  document.getElementById('syncOpenDoctena').addEventListener('click', () => showView('doctena'));
+  document.getElementById('syncOpenDa').addEventListener('click', () => showView('doctoranytime'));
+
+  document.getElementById('syncCompare').addEventListener('click', async () => {
+    status.textContent = 'Lecture des agendas…';
+    const [ta, tb] = await Promise.all([readAgendaText('doctena'), readAgendaText('doctoranytime')]);
+    const aList = parseAppts(ta);
+    const bList = parseAppts(tb);
+    if (!ta && !tb) {
+      status.textContent = 'Impossible de lire les agendas. Ouvrez d\'abord les onglets Doctena et Doctoranytime.';
+      return;
+    }
+    const res = compareAgendas(aList, bList);
+    renderSyncResult(res, aList.length, bList.length);
+    const problems = res.onlyA.length + res.onlyB.length + res.timeDiff.length + res.dupes.length;
+    status.textContent = problems === 0
+      ? 'Agendas synchronisés ✓'
+      : `${problems} anomalie(s) détectée(s).`;
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Bandeau défilant : date, heure, température
 // ---------------------------------------------------------------------------
 
@@ -946,6 +1087,7 @@ async function init() {
   setupModeles();
   setupMedecins();
   setupPrestations();
+  setupSync();
   setupCareconnect();
   setupSettings();
   fillSettingsForm();
