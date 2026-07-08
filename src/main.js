@@ -3,6 +3,7 @@
 const { app, BrowserWindow, ipcMain, shell, session, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const { spawn } = require('child_process');
 const { loadSettings, saveSettings } = require('./settings');
 const { searchFiles } = require('./fileSearch');
 const { startSpeedTest, runSpeedTestOnce } = require('./speedtest');
@@ -187,17 +188,33 @@ ipcMain.handle('careconnect:detect', async () => {
 });
 
 // Lance un exécutable local (ex. CareConnect) à partir du chemin configuré.
+// On démarre le programme DIRECTEMENT (répertoire de travail = dossier de
+// l'exe), ce qui l'ouvre de façon fiable même s'il charge des DLL locales.
 ipcMain.handle('app:launch', async (_e, key) => {
   const settings = loadSettings();
   const map = settings.launchers || {};
   const target = map[key];
   if (!target) {
-    return { ok: false, error: `Aucun chemin configuré pour « ${key} ». Renseignez-le dans Réglages.` };
+    return { ok: false, error: `Aucun chemin configuré pour « ${key} ». Cliquez sur « Choisir le fichier .exe… ».` };
   }
-  const result = await shell.openPath(target);
-  // openPath renvoie une chaîne vide en cas de succès, un message d'erreur sinon.
-  if (result) return { ok: false, error: result };
-  return { ok: true };
+  if (!fs.existsSync(target)) {
+    return { ok: false, error: `Fichier introuvable : ${target}. Re-sélectionnez le .exe.` };
+  }
+  try {
+    const child = spawn(target, [], {
+      detached: true,
+      stdio: 'ignore',
+      cwd: path.dirname(target)
+    });
+    child.on('error', () => { /* remonté via le fallback si nécessaire */ });
+    child.unref();
+    return { ok: true };
+  } catch (err) {
+    // Repli : ouverture via le shell Windows.
+    const result = await shell.openPath(target);
+    if (result) return { ok: false, error: result };
+    return { ok: true };
+  }
 });
 
 ipcMain.handle('speed:runNow', async () => {
