@@ -157,6 +157,10 @@
                     <input type="text" id="calEvNote" />
                   </label>
                   <div class="row-btns">
+                    <button class="btn" id="calGoogleConnect" type="button">🔗 Connecter Google Agenda</button>
+                    <span class="hint" id="calGoogleStatus"></span>
+                  </div>
+                  <div class="row-btns">
                     <button class="btn gold" id="calAdd">Ajouter</button>
                     <button class="btn" id="calTestSound">Tester le son</button>
                     <span class="hint" id="calStatus"></span>
@@ -421,6 +425,15 @@
                 <input type="text" id="setCareconnect" placeholder="C:\\Program Files\\CareConnect\\CareConnect.exe" />
               </label>
               <button class="btn" id="setCareconnectBrowse" type="button">Parcourir…</button>
+
+              <h2>Google Agenda (synchronisation du calendrier)</h2>
+              <label>Client ID Google (OAuth « Application de bureau »)
+                <input type="text" id="setGoogleId" placeholder="…apps.googleusercontent.com" />
+              </label>
+              <label>Client Secret Google
+                <input type="password" id="setGoogleSecret" placeholder="GOCSPX-…" />
+              </label>
+              <p class="hint">Créez ces identifiants une fois dans Google Cloud (API Google Calendar activée, écran de consentement, identifiant OAuth type « Application de bureau »). Puis cliquez « Connecter Google Agenda » dans l'onglet Calendrier.</p>
 
               <h2>Examens du jour</h2>
               <label>URL du serveur interne

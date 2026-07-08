@@ -8,6 +8,7 @@ const { loadSettings, saveSettings } = require('./settings');
 const { searchFiles } = require('./fileSearch');
 const { startSpeedTest, runSpeedTestOnce } = require('./speedtest');
 const { chatCompletion } = require('./chat');
+const googleCal = require('./google');
 
 // Un User-Agent Chrome « standard » : certains sites (Google, etc.) refusent
 // de se charger dans un moteur qu'ils considèrent obsolète ou non sécurisé.
@@ -308,6 +309,14 @@ ipcMain.handle('cbip:search', async (_e, query) => {
     return { ok: false, error: 'Impossible de contacter le CBIP : ' + err.message };
   }
 });
+
+// Google Agenda : connexion OAuth et ajout d'événements.
+ipcMain.handle('google:status', () => googleCal.status(loadSettings()));
+ipcMain.handle('google:connect', async () => {
+  const res = await googleCal.connect(loadSettings(), saveSettings);
+  return res;
+});
+ipcMain.handle('google:addEvent', async (_e, ev) => googleCal.addEvent(loadSettings(), ev));
 
 // Météo temps réel (Open-Meteo, sans clé) pour le bandeau défilant.
 ipcMain.handle('weather:get', async () => {

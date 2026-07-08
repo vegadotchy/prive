@@ -30,5 +30,9 @@ contextBridge.exposeInMainWorld('prive', {
   cbipSearch: (query) => ipcRenderer.invoke('cbip:search', query),
 
   addAttachments: () => ipcRenderer.invoke('attach:add'),
-  extractText: (filePath) => ipcRenderer.invoke('attach:extractText', filePath)
+  extractText: (filePath) => ipcRenderer.invoke('attach:extractText', filePath),
+
+  googleStatus: () => ipcRenderer.invoke('google:status'),
+  googleConnect: () => ipcRenderer.invoke('google:connect'),
+  googleAddEvent: (ev) => ipcRenderer.invoke('google:addEvent', ev)
 });

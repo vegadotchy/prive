@@ -114,7 +114,10 @@ const DEFAULTS = {
   // Événements du calendrier (tâches, RDV, rappels).
   events: [],
   // Adresse à laquelle le calendrier est rattaché (compte agenda lié).
-  calendar: { email: '' }
+  calendar: { email: '' },
+  // Connexion Google Agenda (OAuth). Client ID/Secret créés par l'utilisateur ;
+  // refreshToken obtenu après connexion. Jamais versionné (profil local).
+  google: { clientId: '', clientSecret: '', refreshToken: '' }
 };
 
 function deepMerge(base, override) {

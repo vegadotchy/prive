@@ -615,6 +615,8 @@ function fillSettingsForm() {
   document.getElementById('setCareconnect').value = (settings.launchers && settings.launchers.careconnect) || '';
   document.getElementById('setExamsUrl').value = settings.examsUrl || '';
   document.getElementById('setInsecureHosts').value = (settings.allowedInsecureHosts || []).join(', ');
+  document.getElementById('setGoogleId').value = (settings.google && settings.google.clientId) || '';
+  document.getElementById('setGoogleSecret').value = (settings.google && settings.google.clientSecret) || '';
 }
 
 // Persiste l'objet settings complet (évite d'écraser les autres champs).
@@ -637,6 +639,9 @@ function setupSettings() {
     settings.examsUrl = document.getElementById('setExamsUrl').value.trim();
     settings.allowedInsecureHosts = document.getElementById('setInsecureHosts').value
       .split(',').map((s) => s.trim()).filter(Boolean);
+    settings.google = settings.google || {};
+    settings.google.clientId = document.getElementById('setGoogleId').value.trim();
+    settings.google.clientSecret = document.getElementById('setGoogleSecret').value.trim();
     await persistSettings();
     const saved = document.getElementById('settingsSaved');
     saved.textContent = 'Enregistré ✓';
@@ -1262,6 +1267,34 @@ function setupCalendar() {
     showLink();
     linkStatus.textContent = 'Enregistré ✓ — ' + linkStatus.textContent;
   });
+  // Connexion Google Agenda
+  const gStatusEl = document.getElementById('calGoogleStatus');
+  const refreshGoogleStatus = async () => {
+    const s = await window.prive.googleStatus();
+    gStatusEl.textContent = s.connected ? '✅ Google Agenda connecté'
+      : (s.hasCreds ? 'Non connecté — cliquez pour autoriser.' : 'Renseignez Client ID/Secret dans Réglages.');
+    return s;
+  };
+  refreshGoogleStatus();
+  document.getElementById('calGoogleConnect').addEventListener('click', async () => {
+    gStatusEl.textContent = 'Ouverture de la fenêtre d\'autorisation Google…';
+    const r = await window.prive.googleConnect();
+    if (r.ok) { gStatusEl.textContent = '✅ Google Agenda connecté'; }
+    else { gStatusEl.textContent = 'Échec : ' + (r.error || ''); }
+  });
+
+  // Ajoute un événement à Google Agenda (API si connecté, sinon lien pré-rempli).
+  const pushToGoogle = async (ev) => {
+    const s = await window.prive.googleStatus();
+    if (s.connected) {
+      const r = await window.prive.googleAddEvent(ev);
+      return r.ok ? { ok: true, api: true } : { ok: false, error: r.error };
+    }
+    window.prive.openExternal(googleCalUrl(ev));
+    return { ok: true, api: false };
+  };
+  window.__pushToGoogle = pushToGoogle;
+
   document.getElementById('calExport').addEventListener('click', () => {
     const ics = buildIcs(settings.events || []);
     const blob = new Blob([ics], { type: 'text/calendar' });
@@ -1315,7 +1348,11 @@ function setupCalendar() {
         `<span>${escapeHtml(e.title)}${e.note ? ' — <span class="c">' + escapeHtml(e.note) + '</span>' : ''}</span>` +
         `<span class="gcal" title="Ajouter au calendrier rattaché">📅</span>` +
         `<span class="ex" title="Supprimer">×</span>`;
-      row.querySelector('.gcal').addEventListener('click', () => window.prive.openExternal(googleCalUrl(e)));
+      row.querySelector('.gcal').addEventListener('click', async () => {
+        const r = await window.__pushToGoogle(e);
+        status.textContent = r.ok ? (r.api ? 'Ajouté à Google Agenda ✓' : 'Google Agenda ouvert — cliquez Enregistrer.') : ('Google : ' + (r.error || 'échec'));
+        setTimeout(() => (status.textContent = ''), 3000);
+      });
       row.querySelector('.ex').addEventListener('click', async () => {
         settings.events = (settings.events || []).filter((x) => x.id !== e.id);
         await persistSettings();
@@ -1340,7 +1377,11 @@ function setupCalendar() {
         `<span class="tag ${e.type}">${e.type}</span>` +
         `<span>${escapeHtml(e.title)}</span>` +
         `<span class="gcal" title="Ajouter au calendrier rattaché" style="margin-left:auto">📅</span>`;
-      row.querySelector('.gcal').addEventListener('click', () => window.prive.openExternal(googleCalUrl(e)));
+      row.querySelector('.gcal').addEventListener('click', async () => {
+        const r = await window.__pushToGoogle(e);
+        status.textContent = r.ok ? (r.api ? 'Ajouté à Google Agenda ✓' : 'Google Agenda ouvert — cliquez Enregistrer.') : ('Google : ' + (r.error || 'échec'));
+        setTimeout(() => (status.textContent = ''), 3000);
+      });
       upcoming.appendChild(row);
     });
   };
@@ -1379,7 +1420,13 @@ function setupCalendar() {
     document.getElementById('calEvNote').value = '';
     renderGrid(); renderDay(); renderUpcoming();
     status.textContent = 'Ajouté ✓';
-    setTimeout(() => (status.textContent = ''), 1500);
+    // Envoi automatique vers Google Agenda si connecté.
+    const gs = await window.prive.googleStatus();
+    if (gs.connected) {
+      const r = await window.prive.googleAddEvent(ev);
+      status.textContent = r.ok ? 'Ajouté ✓ (aussi dans Google Agenda)' : ('Ajouté ✓ — Google : ' + (r.error || 'échec'));
+    }
+    setTimeout(() => (status.textContent = ''), 3000);
   });
 
   renderGrid(); renderDay(); renderUpcoming();
@@ -1678,11 +1725,58 @@ function setupShyfter() {
   });
   document.getElementById('shyClear').addEventListener('click', () => { shyBatch = []; renderBatch(); });
 
+  // Remplit la modale « Création d'un shift » ouverte dans Shyfter avec le
+  // 1er créneau du lot (Début/Fin) puis clique « Créer shift ». L'utilisateur
+  // choisit le bon Utilisateur dans la modale (indiqué par l'app).
   document.getElementById('shyPlace').addEventListener('click', async () => {
     if (!shyBatch.length) { status.textContent = 'Lot vide.'; return; }
-    // Best-effort : on copie le lot (prêt à saisir) et on tente une injection.
-    try { await navigator.clipboard.writeText(batchText()); } catch (_) { /* ignore */ }
-    status.textContent = `Lot de ${shyBatch.length} créneau(x) copié. Insertion directe Shyfter : en cours de calibrage — collez/saisissez dans Shyfter (envoyez-moi l'écran de création pour l'automatiser).`;
+    const item = shyBatch[0];
+    ensureShyfterPane();
+    const script = `(function(from, to){
+      function setVal(inp, value){
+        try { var s=Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set; s.call(inp, value); }
+        catch(e){ inp.value = value; }
+        ['input','change','keyup','blur'].forEach(function(t){ inp.dispatchEvent(new Event(t,{bubbles:true})); });
+      }
+      function inputByLabel(labelText){
+        var labs = document.querySelectorAll('label,span,div,p');
+        for (var i=0;i<labs.length;i++){
+          var t=(labs[i].textContent||'').trim().replace(/[*:]/g,'').toLowerCase();
+          if(t===labelText.toLowerCase()){
+            var scope=labs[i].parentElement;
+            for(var d=0; d<4 && scope; d++){
+              var inp=scope.querySelector('input:not([type=hidden]):not([type=checkbox])');
+              if(inp) return inp;
+              scope=scope.parentElement;
+            }
+          }
+        }
+        return null;
+      }
+      var btn=null, btns=document.querySelectorAll('button,[role=button]');
+      for (var i=0;i<btns.length;i++){ if(/Créer shift/i.test(btns[i].textContent||'')){ btn=btns[i]; break; } }
+      if(!btn) return JSON.stringify({modal:false});
+      var deb=inputByLabel('Début'), fin=inputByLabel('Fin');
+      if(deb) setVal(deb, from);
+      if(fin) setVal(fin, to);
+      var ok = !!(deb && fin);
+      if(ok){ setTimeout(function(){ btn.click(); }, 300); }
+      return JSON.stringify({modal:true, deb:!!deb, fin:!!fin, submitted:ok});
+    })(${JSON.stringify(item.from)}, ${JSON.stringify(item.to)})`;
+
+    let out = {};
+    try { out = JSON.parse(await wv().executeJavaScript(script, true)); } catch (_) { out = {}; }
+    if (!out.modal) {
+      status.textContent = `Ouvrez d'abord la modale « Création d'un shift » dans Shyfter (Utilisateur = ${item.name}, ${item.date}), puis cliquez Placer.`;
+      return;
+    }
+    if (out.submitted) {
+      shyBatch.shift();
+      renderBatch();
+      status.textContent = `Créneau ${item.from}–${item.to} envoyé (vérifiez « ${item.name} »). ${shyBatch.length ? 'Ouvrez la modale pour le suivant.' : 'Lot terminé.'}`;
+    } else {
+      status.textContent = 'Champs Début/Fin introuvables dans la modale — saisissez-les manuellement.';
+    }
   });
 
   document.getElementById('shyReload').addEventListener('click', () => { ensureShyfterPane(); try { wv().reload(); } catch (_) {} });
