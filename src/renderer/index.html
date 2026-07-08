@@ -95,6 +95,71 @@
             </div>
           </section>
 
+          <!-- ===================== Médicaments (CBIP natif) ===================== -->
+          <section class="view" data-view="cbip">
+            <div class="cbip-wrap">
+              <div class="cbip-head">
+                <h1>Médicaments (CBIP)</h1>
+                <div class="search-form">
+                  <input type="text" id="cbipQuery" placeholder="Nom du médicament ou de la substance…" autocomplete="off" />
+                  <button class="btn gold" id="cbipBtn">Rechercher</button>
+                </div>
+                <p class="hint" id="cbipStatus">Résultats affichés directement dans le programme.</p>
+              </div>
+              <div class="cbip-body">
+                <div class="cbip-results" id="cbipResults"></div>
+                <webview id="cbipDetail" class="cbip-detail" partition="persist:prive" src="about:blank"></webview>
+              </div>
+            </div>
+          </section>
+
+          <!-- ===================== Calendrier & rappels ===================== -->
+          <section class="view" data-view="calendrier">
+            <div class="panel wide">
+              <h1>Calendrier &amp; rappels</h1>
+              <p class="muted">Cliquez un jour pour ajouter une tâche, un rendez-vous ou un rappel. Une notification sonore se déclenche à l'heure prévue.</p>
+              <div class="cal-layout">
+                <div class="cal-col">
+                  <div class="cal-header">
+                    <button class="btn tiny" id="calPrev">◀</button>
+                    <span id="calTitle"></span>
+                    <button class="btn tiny" id="calNext">▶</button>
+                    <button class="btn tiny" id="calToday">Aujourd'hui</button>
+                  </div>
+                  <div class="cal-grid" id="calGrid"></div>
+                </div>
+                <div class="cal-side">
+                  <h2 id="calDayTitle">Sélectionnez un jour</h2>
+                  <div id="calDayEvents"></div>
+                  <h2>Ajouter</h2>
+                  <label>Type
+                    <select id="calType">
+                      <option value="rdv">Rendez-vous</option>
+                      <option value="tache">Tâche</option>
+                      <option value="rappel">Rappel</option>
+                    </select>
+                  </label>
+                  <label>Titre
+                    <input type="text" id="calEvTitle" placeholder="Ex. RDV patient, appeler labo…" />
+                  </label>
+                  <label>Heure
+                    <input type="time" id="calEvTime" value="09:00" />
+                  </label>
+                  <label>Note (facultatif)
+                    <input type="text" id="calEvNote" />
+                  </label>
+                  <div class="row-btns">
+                    <button class="btn gold" id="calAdd">Ajouter</button>
+                    <button class="btn" id="calTestSound">Tester le son</button>
+                    <span class="hint" id="calStatus"></span>
+                  </div>
+                </div>
+              </div>
+              <h2>Prochaines échéances</h2>
+              <div id="calUpcoming"></div>
+            </div>
+          </section>
+
           <!-- ===================== Synchronisation agendas ===================== -->
           <section class="view" data-view="sync">
             <div class="panel wide">

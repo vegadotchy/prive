@@ -310,6 +310,46 @@ textarea { resize: vertical; }
 .sync-badge { padding: 6px 12px; border-radius: 999px; font-size: 12.5px; border: 1px solid var(--glass-brd); }
 .sync-badge.ok { color: #4ade80; } .sync-badge.warn { color: var(--amber); } .sync-badge.bad { color: #f87171; }
 
+/* Médicaments CBIP natif */
+.cbip-wrap { display: flex; flex-direction: column; height: 100%; padding: 20px 22px; }
+.cbip-head .search-form { margin-top: 8px; }
+.cbip-body { flex: 1; display: flex; gap: 14px; margin-top: 14px; min-height: 0; }
+.cbip-results { width: 380px; min-width: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+.cbip-detail { flex: 1; border: 1px solid var(--glass-brd); border-radius: 12px; background: #fff; }
+.cbip-group { border: 1px solid var(--glass-brd); border-radius: 12px; overflow: hidden; background: var(--glass); }
+.cbip-group h3 { margin: 0; padding: 8px 12px; font-size: 12.5px; color: var(--gold2); background: rgba(233,196,106,0.12); }
+.cbip-item { padding: 9px 12px; border-top: 1px solid var(--glass-brd); cursor: pointer; }
+.cbip-item:hover { background: rgba(233,196,106,0.12); }
+.cbip-item .n { font-weight: 600; }
+.cbip-item .c { font-size: 11.5px; color: var(--muted); }
+
+/* Calendrier & rappels */
+.cal-layout { display: grid; grid-template-columns: 1fr 320px; gap: 18px; align-items: start; }
+.cal-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.cal-header #calTitle { font-weight: 700; font-size: 15px; margin-right: auto; text-transform: capitalize; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+.cal-dow { text-align: center; font-size: 11px; color: var(--muted); text-transform: uppercase; padding: 2px; }
+.cal-day {
+  min-height: 62px; border: 1px solid var(--glass-brd); border-radius: 9px;
+  padding: 5px 6px; cursor: pointer; background: rgba(255,255,255,0.03);
+  display: flex; flex-direction: column; gap: 3px;
+}
+.cal-day:hover { border-color: var(--gold2); }
+.cal-day.empty { background: transparent; border: none; cursor: default; }
+.cal-day.today { border-color: var(--gold2); box-shadow: 0 0 0 1px var(--gold2) inset; }
+.cal-day.selected { background: rgba(233,196,106,0.16); border-color: var(--gold2); }
+.cal-day .dn { font-size: 12px; font-weight: 600; }
+.cal-day .evd { display: flex; gap: 3px; flex-wrap: wrap; }
+.cal-dot { width: 7px; height: 7px; border-radius: 50%; }
+.cal-dot.rdv { background: #60a5fa; } .cal-dot.tache { background: #4ade80; } .cal-dot.rappel { background: var(--amber); }
+.cal-ev { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border: 1px solid var(--glass-brd); border-radius: 9px; margin-bottom: 6px; background: rgba(255,255,255,0.04); }
+.cal-ev .et { color: var(--gold2); font-weight: 600; min-width: 46px; }
+.cal-ev .ex { margin-left: auto; color: #ffb4b4; cursor: pointer; font-weight: 700; }
+.cal-ev .tag { font-size: 10px; padding: 2px 7px; border-radius: 999px; text-transform: uppercase; }
+.cal-ev .tag.rdv { background: rgba(96,165,250,0.2); color: #93c5fd; }
+.cal-ev .tag.tache { background: rgba(74,222,128,0.2); color: #86efac; }
+.cal-ev .tag.rappel { background: rgba(245,196,81,0.2); color: var(--amber); }
+
 /* Onglets site web */
 .web-wrap { display: flex; flex-direction: column; height: 100%; }
 .web-bar {

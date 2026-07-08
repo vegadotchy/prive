@@ -18,7 +18,6 @@ const SITES = {
   clearfacts: { title: 'ClearFacts / Kyte', ico: '🧾', url: 'https://mbm.clearfacts.be/login' },
   iballab: { title: 'IBC Lab online', ico: '🔬', url: 'https://labonline.lhub-ulb.be/' },
   examens: { title: 'Examens du jour', ico: '📋', urlFromSettings: 'examsUrl' },
-  cbip: { title: 'Médicaments (CBIP)', ico: '💊', url: 'https://www.cbip.be/fr/', search: 'cbip' },
   medipost: { title: 'Medipost', ico: '📦', url: 'https://www.medipost.shop/' }
 };
 
@@ -33,6 +32,7 @@ const NAV = [
   { view: 'modeles', title: 'Modèles', ico: '📄' },
   { view: 'chatgpt', title: 'Chat IA', ico: '🤖' },
   { group: 'Agenda & patients' },
+  { view: 'calendrier', title: 'Calendrier & rappels', ico: '📆' },
   { view: 'medecins', title: 'Médecins', ico: '👨‍⚕️' },
   { view: 'doctena', title: 'Doctena', ico: '📅', site: true },
   { view: 'doctoranytime', title: 'Doctoranytime', ico: '🩺', site: true },
@@ -43,7 +43,7 @@ const NAV = [
   { view: 'inbody', title: 'InBody', ico: '⚖️', site: true },
   { view: 'iballab', title: 'IBC Lab online', ico: '🔬', site: true },
   { view: 'examens', title: 'Examens du jour', ico: '📋', site: true },
-  { view: 'cbip', title: 'Médicaments (CBIP)', ico: '💊', site: true },
+  { view: 'cbip', title: 'Médicaments (CBIP)', ico: '💊' },
   { group: 'Gestion' },
   { view: 'prestations', title: 'Prestations', ico: '⏱️' },
   { view: 'clearfacts', title: 'ClearFacts / Kyte', ico: '🧾', site: true },
@@ -196,7 +196,7 @@ function buildHomeTiles() {
   const quick = [
     'gmail', 'whatsapp', 'medecins', 'doctena', 'doctoranytime', 'sync', 'shyfter', 'inbody',
     'clearfacts', 'iballab', 'examens', 'cbip', 'medipost',
-    'careconnect', 'prestations', 'recherche', 'mail', 'modeles', 'chatgpt'
+    'careconnect', 'calendrier', 'prestations', 'recherche', 'mail', 'modeles', 'chatgpt'
   ];
   const labels = {
     careconnect: { title: 'CareConnect', ico: '💻' },
@@ -204,6 +204,7 @@ function buildHomeTiles() {
     mail: { title: 'Envoyer un mail', ico: '📧' },
     modeles: { title: 'Modèles', ico: '📄' },
     medecins: { title: 'Médecins', ico: '👨‍⚕️' },
+    calendrier: { title: 'Calendrier & rappels', ico: '📆' },
     prestations: { title: 'Prestations', ico: '⏱️' },
     sync: { title: 'Synchronisation', ico: '🔄' },
     chatgpt: { title: 'Chat IA', ico: '🤖' }
@@ -897,6 +898,235 @@ function setupPrestations() {
 }
 
 // ---------------------------------------------------------------------------
+// Médicaments (CBIP) — recherche native via l'API JSON
+// ---------------------------------------------------------------------------
+
+function setupCbip() {
+  const input = document.getElementById('cbipQuery');
+  const btn = document.getElementById('cbipBtn');
+  const status = document.getElementById('cbipStatus');
+  const results = document.getElementById('cbipResults');
+  const detail = document.getElementById('cbipDetail');
+
+  const doSearch = async () => {
+    const q = input.value.trim();
+    if (q.length < 2) { status.textContent = 'Tapez au moins 2 caractères.'; return; }
+    status.textContent = 'Recherche…';
+    results.innerHTML = '';
+    const res = await window.prive.cbipSearch(q);
+    if (!res.ok) { status.textContent = res.error || 'Erreur.'; return; }
+    let count = 0;
+    res.groups.forEach((g) => {
+      if (!g.items.length) return;
+      const grp = document.createElement('div');
+      grp.className = 'cbip-group';
+      grp.innerHTML = `<h3>${escapeHtml(g.header || 'Résultats')}</h3>`;
+      g.items.forEach((it) => {
+        count++;
+        const el = document.createElement('div');
+        el.className = 'cbip-item';
+        el.innerHTML = `<div class="n">${escapeHtml(it.name)}</div>` +
+          (it.chapter ? `<div class="c">${escapeHtml(it.chapter)}</div>` : '');
+        el.addEventListener('click', () => {
+          const url = 'https://www.cbip.be/fr/search/' + encodeURIComponent(it.term);
+          detail.src = url;
+        });
+        grp.appendChild(el);
+      });
+      results.appendChild(grp);
+    });
+    status.textContent = count ? `${count} résultat(s) — cliquez pour le détail.` : 'Aucun résultat.';
+  };
+
+  btn.addEventListener('click', doSearch);
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') doSearch(); });
+}
+
+// ---------------------------------------------------------------------------
+// Calendrier & rappels (natif, notification + son)
+// ---------------------------------------------------------------------------
+
+let calView = null;         // { y, m } mois affiché
+let calSelected = null;     // 'YYYY-MM-DD'
+
+function pad2(n) { return String(n).padStart(2, '0'); }
+function dateKey(d) { return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }
+
+function playBeep() {
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    const ctx = new Ctx();
+    let t = ctx.currentTime;
+    for (let i = 0; i < 3; i++) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = 880;
+      gain.gain.setValueAtTime(0.001, t);
+      gain.gain.exponentialRampToValueAtTime(0.4, t + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(t); osc.stop(t + 0.36);
+      t += 0.45;
+    }
+    setTimeout(() => ctx.close(), 2000);
+  } catch (_) { /* audio indisponible */ }
+}
+
+function fireReminder(ev) {
+  const typeLabel = { rdv: 'Rendez-vous', tache: 'Tâche', rappel: 'Rappel' }[ev.type] || 'Rappel';
+  try {
+    new Notification(`${typeLabel} — ${ev.time}`, {
+      body: ev.title + (ev.note ? '\n' + ev.note : '')
+    });
+  } catch (_) { /* notifications indisponibles */ }
+  playBeep();
+}
+
+function setupCalendar() {
+  const grid = document.getElementById('calGrid');
+  const title = document.getElementById('calTitle');
+  const dayTitle = document.getElementById('calDayTitle');
+  const dayEvents = document.getElementById('calDayEvents');
+  const upcoming = document.getElementById('calUpcoming');
+  const status = document.getElementById('calStatus');
+
+  const MONTHS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet',
+    'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+  const DOW = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+
+  const now0 = new Date();
+  if (!calView) calView = { y: now0.getFullYear(), m: now0.getMonth() };
+  if (!calSelected) calSelected = dateKey(now0);
+
+  const eventsFor = (key) => (settings.events || [])
+    .filter((e) => e.date === key)
+    .sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+
+  const renderGrid = () => {
+    const { y, m } = calView;
+    title.textContent = `${MONTHS[m]} ${y}`;
+    grid.innerHTML = '';
+    DOW.forEach((d) => {
+      const h = document.createElement('div'); h.className = 'cal-dow'; h.textContent = d; grid.appendChild(h);
+    });
+    const first = new Date(y, m, 1);
+    let startDow = (first.getDay() + 6) % 7; // lundi = 0
+    const days = new Date(y, m + 1, 0).getDate();
+    const todayKey = dateKey(new Date());
+    for (let i = 0; i < startDow; i++) {
+      const e = document.createElement('div'); e.className = 'cal-day empty'; grid.appendChild(e);
+    }
+    for (let d = 1; d <= days; d++) {
+      const key = `${y}-${pad2(m + 1)}-${pad2(d)}`;
+      const cell = document.createElement('div');
+      cell.className = 'cal-day' + (key === todayKey ? ' today' : '') + (key === calSelected ? ' selected' : '');
+      const evs = eventsFor(key);
+      const dots = evs.slice(0, 4).map((e) => `<span class="cal-dot ${e.type}"></span>`).join('');
+      cell.innerHTML = `<span class="dn">${d}</span><span class="evd">${dots}</span>`;
+      cell.addEventListener('click', () => { calSelected = key; renderGrid(); renderDay(); });
+      grid.appendChild(cell);
+    }
+  };
+
+  const renderDay = () => {
+    const [y, m, d] = calSelected.split('-');
+    dayTitle.textContent = `${parseInt(d, 10)} ${MONTHS[parseInt(m, 10) - 1]} ${y}`;
+    const evs = eventsFor(calSelected);
+    dayEvents.innerHTML = evs.length ? '' : '<p class="hint">Aucun événement ce jour.</p>';
+    evs.forEach((e) => {
+      const row = document.createElement('div');
+      row.className = 'cal-ev';
+      row.innerHTML = `<span class="et">${e.time || ''}</span>` +
+        `<span class="tag ${e.type}">${e.type}</span>` +
+        `<span>${escapeHtml(e.title)}${e.note ? ' — <span class="c">' + escapeHtml(e.note) + '</span>' : ''}</span>` +
+        `<span class="ex" title="Supprimer">×</span>`;
+      row.querySelector('.ex').addEventListener('click', async () => {
+        settings.events = (settings.events || []).filter((x) => x.id !== e.id);
+        await persistSettings();
+        renderGrid(); renderDay(); renderUpcoming();
+      });
+      dayEvents.appendChild(row);
+    });
+  };
+
+  const renderUpcoming = () => {
+    const now = new Date();
+    const list = (settings.events || [])
+      .map((e) => ({ e, dt: new Date(`${e.date}T${e.time || '00:00'}`) }))
+      .filter((x) => x.dt >= now)
+      .sort((a, b) => a.dt - b.dt)
+      .slice(0, 8);
+    upcoming.innerHTML = list.length ? '' : '<p class="hint">Aucune échéance à venir.</p>';
+    list.forEach(({ e }) => {
+      const row = document.createElement('div');
+      row.className = 'cal-ev';
+      row.innerHTML = `<span class="et">${e.date} ${e.time || ''}</span>` +
+        `<span class="tag ${e.type}">${e.type}</span>` +
+        `<span>${escapeHtml(e.title)}</span>`;
+      upcoming.appendChild(row);
+    });
+  };
+
+  document.getElementById('calPrev').addEventListener('click', () => {
+    calView.m--; if (calView.m < 0) { calView.m = 11; calView.y--; } renderGrid();
+  });
+  document.getElementById('calNext').addEventListener('click', () => {
+    calView.m++; if (calView.m > 11) { calView.m = 0; calView.y++; } renderGrid();
+  });
+  document.getElementById('calToday').addEventListener('click', () => {
+    const t = new Date();
+    calView = { y: t.getFullYear(), m: t.getMonth() };
+    calSelected = dateKey(t); renderGrid(); renderDay();
+  });
+  document.getElementById('calTestSound').addEventListener('click', () => {
+    fireReminder({ type: 'rappel', time: '', title: 'Test de notification', note: 'Le son fonctionne.' });
+  });
+
+  document.getElementById('calAdd').addEventListener('click', async () => {
+    const title2 = document.getElementById('calEvTitle').value.trim();
+    if (!title2) { status.textContent = 'Titre requis.'; return; }
+    const ev = {
+      id: 'e' + Date.now(),
+      date: calSelected,
+      time: document.getElementById('calEvTime').value || '09:00',
+      type: document.getElementById('calType').value,
+      title: title2,
+      note: document.getElementById('calEvNote').value.trim(),
+      notified: false
+    };
+    settings.events = settings.events || [];
+    settings.events.push(ev);
+    await persistSettings();
+    document.getElementById('calEvTitle').value = '';
+    document.getElementById('calEvNote').value = '';
+    renderGrid(); renderDay(); renderUpcoming();
+    status.textContent = 'Ajouté ✓';
+    setTimeout(() => (status.textContent = ''), 1500);
+  });
+
+  renderGrid(); renderDay(); renderUpcoming();
+
+  // Moteur de rappels : vérifie chaque 20 s.
+  setInterval(async () => {
+    const now = Date.now();
+    let changed = false;
+    (settings.events || []).forEach((e) => {
+      if (e.notified) return;
+      const dt = new Date(`${e.date}T${e.time || '00:00'}`).getTime();
+      if (isNaN(dt)) return;
+      if (now >= dt) {
+        // Ne sonne que si l'échéance est récente (≤ 2 min), sinon marque comme passée.
+        if (now - dt <= 120000) fireReminder(e);
+        e.notified = true;
+        changed = true;
+      }
+    });
+    if (changed) { await persistSettings(); renderUpcoming(); }
+  }, 20000);
+}
+
+// ---------------------------------------------------------------------------
 // Synchronisation Doctena ↔ Doctoranytime (lecture + comparaison)
 // ---------------------------------------------------------------------------
 
@@ -1129,6 +1359,8 @@ async function init() {
   setupModeles();
   setupMedecins();
   setupPrestations();
+  setupCbip();
+  setupCalendar();
   setupSync();
   setupCareconnect();
   setupSettings();

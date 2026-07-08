@@ -25,5 +25,7 @@ contextBridge.exposeInMainWorld('prive', {
 
   chat: (messages) => ipcRenderer.invoke('chat:send', { messages }),
 
-  getWeather: () => ipcRenderer.invoke('weather:get')
+  getWeather: () => ipcRenderer.invoke('weather:get'),
+
+  cbipSearch: (query) => ipcRenderer.invoke('cbip:search', query)
 });

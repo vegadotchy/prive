@@ -209,6 +209,47 @@ ipcMain.handle('chat:send', async (_e, payload) => {
   return chatCompletion(settings, payload);
 });
 
+// Recherche de médicaments via l'API JSON publique du CBIP.
+ipcMain.handle('cbip:search', async (_e, query) => {
+  const q = String(query || '').trim();
+  if (q.length < 2) return { ok: false, error: 'Terme trop court.' };
+  const strip = (s) => String(s || '')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/\s+/g, ' ').trim();
+
+  try {
+    const url = `https://www.cbip.be/fr/search.json?query=${encodeURIComponent(q)}&page=1`;
+    const res = await fetch(url, { headers: { Accept: 'application/json' }, cache: 'no-store' });
+    if (!res.ok) return { ok: false, error: `Erreur CBIP (${res.status}).` };
+    const data = await res.json();
+
+    const groups = [];
+    const walk = (node, bucket) => {
+      (node || []).forEach((n) => {
+        if (n.children && n.children.length) {
+          const g = { header: strip(n.title), items: [] };
+          walk(n.children, g.items);
+          if (g.items.length) groups.push(g);
+        } else {
+          bucket.push({
+            name: strip(n.title),
+            chapter: strip(n.chapter),
+            term: n.term || strip(n.title)
+          });
+        }
+      });
+    };
+    const loose = [];
+    walk(Array.isArray(data) ? data : [], loose);
+    if (loose.length) groups.unshift({ header: 'Résultats', items: loose });
+    return { ok: true, groups };
+  } catch (err) {
+    return { ok: false, error: 'Impossible de contacter le CBIP : ' + err.message };
+  }
+});
+
 // Météo temps réel (Open-Meteo, sans clé) pour le bandeau défilant.
 ipcMain.handle('weather:get', async () => {
   const s = loadSettings();

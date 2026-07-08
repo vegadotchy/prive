@@ -110,7 +110,9 @@ const DEFAULTS = {
   // gérée depuis l'onglet « Médecins ». Pré-remplie depuis la liste fournie.
   doctors: DOCTORS_SEED,
   // Suivi des prestations (heures FICHE vs SHYFTER par mois et par personne).
-  prestations: PRESTATIONS_SEED
+  prestations: PRESTATIONS_SEED,
+  // Événements du calendrier (tâches, RDV, rappels).
+  events: []
 };
 
 function deepMerge(base, override) {
