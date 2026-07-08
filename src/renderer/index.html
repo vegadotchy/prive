@@ -206,6 +206,12 @@
                 <table class="prest-table" id="prestTable"></table>
               </div>
               <p class="hint">Une cellule SHYFTER en rouge signale un écart avec la FICHE du même mois.</p>
+
+              <h2>Recherche par personne</h2>
+              <p class="muted">Tapez un nom : total Fiche de paie vs Shyfter et différence calculée automatiquement (rouge = a travaillé moins que la fiche, vert = a travaillé plus).</p>
+              <input type="text" id="prestPersonSearch" list="prestPersonList" placeholder="Nom de l'employé(e) ou étudiant(e)…" autocomplete="off" />
+              <datalist id="prestPersonList"></datalist>
+              <div id="prestPersonResult"></div>
             </div>
           </section>
 

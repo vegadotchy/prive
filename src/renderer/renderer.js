@@ -744,17 +744,88 @@ function renderPrestTable() {
   });
 }
 
+// Cherche une personne (par nom) dans les jeux de l'année courante et
+// affiche Fiche vs Shyfter et la différence (Shyfter − Fiche) par mois.
+function updatePersonDatalist() {
+  const dl = document.getElementById('prestPersonList');
+  if (!dl) return;
+  const names = new Set();
+  ['employes', 'etudiants'].forEach((type) => {
+    const ds = (settings.prestations || {})[`${type}-${prestYear}`];
+    (ds && ds.persons || []).forEach((p) => names.add(p.name));
+  });
+  dl.innerHTML = '';
+  [...names].sort().forEach((n) => {
+    const o = document.createElement('option');
+    o.value = n;
+    dl.appendChild(o);
+  });
+}
+
+function renderPersonSearch(query) {
+  const box = document.getElementById('prestPersonResult');
+  const q = (query || '').trim().toLowerCase();
+  if (!q) { box.innerHTML = ''; return; }
+
+  let found = null, foundType = null;
+  for (const type of ['employes', 'etudiants']) {
+    const ds = (settings.prestations || {})[`${type}-${prestYear}`];
+    const p = (ds && ds.persons || []).find((x) => x.name.toLowerCase() === q)
+      || (ds && ds.persons || []).find((x) => x.name.toLowerCase().includes(q));
+    if (p) { found = p; foundType = type; break; }
+  }
+  if (!found) {
+    box.innerHTML = '<div class="hint">Aucune personne de ce nom pour cette année.</div>';
+    return;
+  }
+
+  let totF = 0, totS = 0;
+  let rows = '';
+  PREST_MONTHS.forEach((mo) => {
+    const c = (found.months && found.months[mo]) || { fiche: 0, shyfter: 0 };
+    const f = Number(c.fiche) || 0, s = Number(c.shyfter) || 0;
+    const diff = s - f;
+    totF += f; totS += s;
+    const cls = diff < 0 ? 'diff-neg' : (diff > 0 ? 'diff-pos' : '');
+    const sign = diff > 0 ? '+' : '';
+    rows += `<tr><td class="month">${mo}</td><td>${f}</td><td>${s}</td>` +
+            `<td class="${cls}">${sign}${diff}</td></tr>`;
+  });
+  const totDiff = totS - totF;
+  const totCls = totDiff < 0 ? 'diff-neg' : (totDiff > 0 ? 'diff-pos' : '');
+  const totSign = totDiff > 0 ? '+' : '';
+  const typeLabel = foundType === 'employes' ? 'Employé(e)' : 'Étudiant(e)';
+
+  box.innerHTML =
+    `<div class="who">${escapeHtml(found.name)} — ${typeLabel} ${prestYear}</div>` +
+    '<div class="prest-table-wrap"><table class="prest-table">' +
+    '<thead><tr><th class="month">Mois</th><th>Fiche de paie</th><th>Shyfter</th><th>Différence</th></tr></thead>' +
+    `<tbody>${rows}</tbody>` +
+    `<tfoot><tr><td class="month">TOTAL</td><td>${totF}</td><td>${totS}</td>` +
+    `<td class="${totCls}">${totSign}${totDiff}</td></tr></tfoot>` +
+    '</table></div>' +
+    `<p class="hint">Différence = Shyfter − Fiche. ${totDiff < 0
+      ? 'Négatif (rouge) : a travaillé moins d\'heures que la fiche de paie.'
+      : (totDiff > 0 ? 'Positif (vert) : a travaillé plus d\'heures que la fiche de paie.'
+      : 'À l\'équilibre sur l\'année.')}</p>`;
+}
+
 function setupPrestations() {
   const yearSeg = document.getElementById('prestYear');
   const typeSeg = document.getElementById('prestType');
   const status = document.getElementById('prestStatus');
+  const personSearch = document.getElementById('prestPersonSearch');
 
   yearSeg.addEventListener('click', (e) => {
     if (!e.target.dataset.year) return;
     prestYear = e.target.dataset.year;
     yearSeg.querySelectorAll('.chip').forEach((b) => b.classList.toggle('active', b.dataset.year === prestYear));
     renderPrestTable();
+    updatePersonDatalist();
+    renderPersonSearch(personSearch.value);
   });
+
+  personSearch.addEventListener('input', () => renderPersonSearch(personSearch.value));
   typeSeg.addEventListener('click', (e) => {
     if (!e.target.dataset.type) return;
     prestType = e.target.dataset.type;
@@ -771,11 +842,14 @@ function setupPrestations() {
 
   document.getElementById('prestSave').addEventListener('click', async () => {
     await persistSettings();
+    updatePersonDatalist();
+    renderPersonSearch(personSearch.value);
     status.textContent = 'Enregistré ✓';
     setTimeout(() => (status.textContent = ''), 2000);
   });
 
   renderPrestTable();
+  updatePersonDatalist();
 }
 
 // ---------------------------------------------------------------------------

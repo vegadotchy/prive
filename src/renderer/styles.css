@@ -290,6 +290,11 @@ textarea { resize: vertical; }
 .prest-table input:focus { border-color: var(--gold2); box-shadow: none; }
 .prest-table td.mismatch input { background: rgba(239,68,68,0.22); }
 .prest-table tfoot td { font-weight: 700; background: rgba(255,255,255,0.05); }
+.diff-pos { color: #4ade80; font-weight: 700; }
+.diff-neg { color: #f87171; font-weight: 700; }
+#prestPersonResult { margin-top: 12px; }
+#prestPersonResult .who { margin: 6px 0 10px; color: var(--gold2); font-weight: 700; }
+#prestPersonResult table td.diff-pos, #prestPersonResult table td.diff-neg { font-weight: 700; }
 
 /* Onglets site web */
 .web-wrap { display: flex; flex-direction: column; height: 100%; }
