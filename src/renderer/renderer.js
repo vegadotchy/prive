@@ -13,7 +13,6 @@ const SITES = {
     title: 'Doctoranytime', ico: '🩺',
     url: 'https://www.doctoranytime.be/doctorcrmV2/ConnectedAccount/ChangeAccount?u=0'
   },
-  shyfter: { title: 'Shyfter', ico: '🗓️', url: 'https://v3-app.shyfter.co/app/dashboard' },
   inbody: { title: 'InBody', ico: '⚖️', url: 'https://bel.lookinbody.com/', print: true, printLast: true },
   clearfacts: { title: 'ClearFacts / Kyte', ico: '🧾', url: 'https://mbm.clearfacts.be/login' },
   iballab: { title: 'IBC Lab online', ico: '🔬', url: 'https://labonline.lhub-ulb.be/', labSearch: true },
@@ -37,7 +36,7 @@ const NAV = [
   { view: 'doctena', title: 'Doctena', ico: '📅', site: true },
   { view: 'doctoranytime', title: 'Doctoranytime', ico: '🩺', site: true },
   { view: 'sync', title: 'Synchronisation', ico: '🔄' },
-  { view: 'shyfter', title: 'Shyfter', ico: '🗓️', site: true },
+  { view: 'shyfter', title: 'Shyfter', ico: '🗓️' },
   { view: 'careconnect', title: 'CareConnect', ico: '💻' },
   { group: 'Examens & labo' },
   { view: 'inbody', title: 'InBody', ico: '⚖️', site: true },
@@ -90,10 +89,18 @@ function ensureSyncPanes() {
   syncPanesLoaded = true;
 }
 
+let shyPaneLoaded = false;
+function ensureShyfterPane() {
+  if (shyPaneLoaded) return;
+  const wv = document.getElementById('shyWv');
+  if (wv && wv.dataset.src) { wv.src = wv.dataset.src; shyPaneLoaded = true; }
+}
+
 function showView(viewId) {
   // Onglet site web : créé à la demande.
   if (SITES[viewId]) ensureWebview(viewId);
   if (viewId === 'sync') ensureSyncPanes();
+  if (viewId === 'shyfter') ensureShyfterPane();
 
   document.querySelectorAll('.view').forEach((v) => v.classList.remove('active'));
   const target = document.querySelector(`.view[data-view="${viewId}"]`);
@@ -363,6 +370,7 @@ function buildHomeTiles() {
     calendrier: { title: 'Calendrier & rappels', ico: '📆' },
     prestations: { title: 'Prestations', ico: '⏱️' },
     sync: { title: 'Synchronisation', ico: '🔄' },
+    shyfter: { title: 'Shyfter', ico: '🗓️' },
     chatgpt: { title: 'Chat IA', ico: '🤖' }
   };
   for (const key of quick) {
@@ -1586,6 +1594,102 @@ function setupSync() {
 }
 
 // ---------------------------------------------------------------------------
+// Shyfter — formulaire de disponibilités (lot + best-effort)
+// ---------------------------------------------------------------------------
+
+let shyBatch = [];
+
+function setupShyfter() {
+  const wv = () => document.getElementById('shyWv');
+  const slotsEl = document.getElementById('shySlots');
+  const batchEl = document.getElementById('shyBatch');
+  const countEl = document.getElementById('shyBatchCount');
+  const status = document.getElementById('shyStatus');
+  const addStatus = document.getElementById('shyAddStatus');
+
+  // Liste des noms (employés + étudiants de toutes les feuilles de prestations).
+  const names = new Set();
+  Object.values(settings.prestations || {}).forEach((ds) => {
+    (ds && ds.persons || []).forEach((p) => names.add(p.name));
+  });
+  const dl = document.getElementById('shyNameList');
+  [...names].sort().forEach((n) => { const o = document.createElement('option'); o.value = n; dl.appendChild(o); });
+
+  const addSlotRow = (from = '09:00', to = '17:00') => {
+    const row = document.createElement('div');
+    row.className = 'shy-slot';
+    row.innerHTML = '<span>de</span><input type="time" class="sf" value="' + from + '">' +
+      '<span>à</span><input type="time" class="st" value="' + to + '">' +
+      '<span class="rm" title="Retirer">×</span>';
+    row.querySelector('.rm').addEventListener('click', () => row.remove());
+    slotsEl.appendChild(row);
+  };
+  addSlotRow();
+  document.getElementById('shyAddSlot').addEventListener('click', () => addSlotRow());
+
+  const renderBatch = () => {
+    countEl.textContent = String(shyBatch.length);
+    batchEl.innerHTML = shyBatch.length ? '' : '<span class="hint">Lot vide.</span>';
+    shyBatch.forEach((b, i) => {
+      const row = document.createElement('div');
+      row.className = 'shy-bitem';
+      row.innerHTML = `<b>${escapeHtml(b.name)}</b> · ${b.date} · ${b.from}–${b.to}<span class="rm" title="Retirer">×</span>`;
+      row.querySelector('.rm').addEventListener('click', () => { shyBatch.splice(i, 1); renderBatch(); });
+      batchEl.appendChild(row);
+    });
+  };
+  renderBatch();
+
+  const eachDate = (from, to) => {
+    const out = [];
+    if (!from) return out;
+    const d0 = new Date(from + 'T00:00');
+    const d1 = to ? new Date(to + 'T00:00') : d0;
+    for (let d = new Date(d0); d <= d1; d.setDate(d.getDate() + 1)) {
+      out.push(`${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`);
+    }
+    return out;
+  };
+
+  document.getElementById('shyAddBatch').addEventListener('click', () => {
+    const name = document.getElementById('shyName').value.trim();
+    const from = document.getElementById('shyDateFrom').value;
+    const to = document.getElementById('shyDateTo').value;
+    if (!name) { addStatus.textContent = 'Nom requis.'; return; }
+    if (!from) { addStatus.textContent = 'Date requise.'; return; }
+    const slots = [...slotsEl.querySelectorAll('.shy-slot')].map((r) => ({
+      from: r.querySelector('.sf').value, to: r.querySelector('.st').value
+    })).filter((s) => s.from && s.to);
+    if (!slots.length) { addStatus.textContent = 'Au moins un créneau.'; return; }
+    const dates = eachDate(from, to);
+    let added = 0;
+    dates.forEach((date) => slots.forEach((s) => { shyBatch.push({ name, date, from: s.from, to: s.to }); added++; }));
+    renderBatch();
+    addStatus.textContent = `${added} créneau(x) ajouté(s).`;
+    setTimeout(() => (addStatus.textContent = ''), 2500);
+  });
+
+  const batchText = () => shyBatch.map((b) => `${b.name}\t${b.date}\t${b.from}-${b.to}`).join('\n');
+
+  document.getElementById('shyCopy').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(batchText()); status.textContent = 'Lot copié ✓'; }
+    catch (_) { status.textContent = 'Copie impossible.'; }
+    setTimeout(() => (status.textContent = ''), 2000);
+  });
+  document.getElementById('shyClear').addEventListener('click', () => { shyBatch = []; renderBatch(); });
+
+  document.getElementById('shyPlace').addEventListener('click', async () => {
+    if (!shyBatch.length) { status.textContent = 'Lot vide.'; return; }
+    // Best-effort : on copie le lot (prêt à saisir) et on tente une injection.
+    try { await navigator.clipboard.writeText(batchText()); } catch (_) { /* ignore */ }
+    status.textContent = `Lot de ${shyBatch.length} créneau(x) copié. Insertion directe Shyfter : en cours de calibrage — collez/saisissez dans Shyfter (envoyez-moi l'écran de création pour l'automatiser).`;
+  });
+
+  document.getElementById('shyReload').addEventListener('click', () => { ensureShyfterPane(); try { wv().reload(); } catch (_) {} });
+  document.getElementById('shyExt').addEventListener('click', () => { const w = wv(); if (w) window.prive.openExternal(w.getURL()); });
+}
+
+// ---------------------------------------------------------------------------
 // Bandeau défilant : date, heure, température
 // ---------------------------------------------------------------------------
 
@@ -1681,6 +1785,7 @@ async function init() {
   setupPrestations();
   setupCbip();
   setupCalendar();
+  setupShyfter();
   setupSync();
   setupCareconnect();
   setupSettings();

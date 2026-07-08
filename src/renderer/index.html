@@ -168,6 +168,52 @@
             </div>
           </section>
 
+          <!-- ===================== Shyfter (agenda + formulaire dispos) ===================== -->
+          <section class="view" data-view="shyfter">
+            <div class="sync-wrap">
+              <div class="sync-split" style="padding-top:8px">
+                <div class="sync-pane" style="flex:1.7">
+                  <div class="sync-pane-head">🗓️ Shyfter
+                    <button class="btn tiny" id="shyReload">↻</button>
+                    <button class="btn tiny" id="shyExt">Ouvrir</button>
+                  </div>
+                  <webview id="shyWv" partition="persist:prive" src="about:blank" data-src="https://v3-app.shyfter.co/app/dashboard"></webview>
+                </div>
+                <div class="shy-form">
+                  <h2>Ajouter des disponibilités</h2>
+                  <label>Employé / Étudiant
+                    <input type="text" id="shyName" list="shyNameList" placeholder="Nom" autocomplete="off" />
+                    <datalist id="shyNameList"></datalist>
+                  </label>
+                  <div class="shy-dates">
+                    <label>Date de
+                      <input type="date" id="shyDateFrom" />
+                    </label>
+                    <label>à (facultatif)
+                      <input type="date" id="shyDateTo" />
+                    </label>
+                  </div>
+                  <label>Créneaux horaires (de … à)</label>
+                  <div id="shySlots"></div>
+                  <button class="btn tiny" id="shyAddSlot">+ ajouter un créneau</button>
+                  <div class="row-btns">
+                    <button class="btn gold" id="shyAddBatch">Ajouter au lot</button>
+                    <span class="hint" id="shyAddStatus"></span>
+                  </div>
+
+                  <h2>Lot à placer (<span id="shyBatchCount">0</span>)</h2>
+                  <div id="shyBatch" class="shy-batch"></div>
+                  <div class="row-btns">
+                    <button class="btn gold" id="shyPlace">Placer sur Shyfter</button>
+                    <button class="btn" id="shyCopy">Copier</button>
+                    <button class="btn danger" id="shyClear">Vider</button>
+                    <span class="hint" id="shyStatus"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
           <!-- ===================== Synchronisation agendas ===================== -->
           <section class="view" data-view="sync">
             <div class="sync-wrap">
