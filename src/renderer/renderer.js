@@ -79,9 +79,21 @@ function buildNav() {
   }
 }
 
+// Charge (une seule fois) les deux agendas intégrés de la vue Synchronisation.
+let syncPanesLoaded = false;
+function ensureSyncPanes() {
+  if (syncPanesLoaded) return;
+  ['syncWvDoctena', 'syncWvDa'].forEach((id) => {
+    const wv = document.getElementById(id);
+    if (wv && wv.dataset.src) wv.src = wv.dataset.src;
+  });
+  syncPanesLoaded = true;
+}
+
 function showView(viewId) {
   // Onglet site web : créé à la demande.
   if (SITES[viewId]) ensureWebview(viewId);
+  if (viewId === 'sync') ensureSyncPanes();
 
   document.querySelectorAll('.view').forEach((v) => v.classList.remove('active'));
   const target = document.querySelector(`.view[data-view="${viewId}"]`);
@@ -1388,18 +1400,18 @@ function setupCalendar() {
 // ---------------------------------------------------------------------------
 
 // Récupère le texte visible d'une webview (y compris iframes de même origine).
-async function readAgendaText(viewId) {
-  const wv = getWebview(viewId);
+const AGENDA_READ_JS = `(function(){
+  function grab(doc){ try { return (doc.body && doc.body.innerText) || ''; } catch(e){ return ''; } }
+  var txt = grab(document);
+  var frames = document.querySelectorAll('iframe');
+  for (var i=0;i<frames.length;i++){ try { txt += '\\n' + grab(frames[i].contentDocument); } catch(e){} }
+  return txt;
+})()`;
+
+async function readAgendaWv(wv) {
   if (!wv) return '';
-  const code = `(function(){
-    function grab(doc){ try { return (doc.body && doc.body.innerText) || ''; } catch(e){ return ''; } }
-    var txt = grab(document);
-    var frames = document.querySelectorAll('iframe');
-    for (var i=0;i<frames.length;i++){ try { txt += '\\n' + grab(frames[i].contentDocument); } catch(e){} }
-    return txt;
-  })()`;
   try {
-    return await wv.executeJavaScript(code, true);
+    return await wv.executeJavaScript(AGENDA_READ_JS, true);
   } catch (_) {
     return '';
   }
@@ -1522,16 +1534,35 @@ function setupSync() {
     dateEl.value = `${t.getFullYear()}-${pad2(t.getMonth() + 1)}-${pad2(t.getDate())}`;
   }
 
-  document.getElementById('syncOpenDoctena').addEventListener('click', () => showView('doctena'));
-  document.getElementById('syncOpenDa').addEventListener('click', () => showView('doctoranytime'));
+  const wvDoctena = () => document.getElementById('syncWvDoctena');
+  const wvDa = () => document.getElementById('syncWvDa');
+
+  // Boutons recharger / ouvrir de chaque panneau.
+  const splitEl = document.querySelector('.sync-split');
+  if (splitEl) {
+    splitEl.addEventListener('click', (e) => {
+      const r = e.target.dataset ? e.target.dataset.reload : null;
+      const x = e.target.dataset ? e.target.dataset.ext : null;
+      const wv = (r === 'd' || x === 'd') ? wvDoctena() : ((r === 'a' || x === 'a') ? wvDa() : null);
+      if (r && wv) wv.reload();
+      if (x && wv) window.prive.openExternal(wv.getURL());
+    });
+  }
+  document.getElementById('syncReload').addEventListener('click', () => {
+    ensureSyncPanes();
+    [wvDoctena(), wvDa()].forEach((wv) => { try { wv.reload(); } catch (_) { /* pas encore prêt */ } });
+    status.textContent = 'Rechargement des deux agendas…';
+    setTimeout(() => (status.textContent = ''), 2000);
+  });
 
   document.getElementById('syncCompare').addEventListener('click', async () => {
+    ensureSyncPanes();
     status.textContent = 'Lecture des agendas…';
-    const [ta, tb] = await Promise.all([readAgendaText('doctena'), readAgendaText('doctoranytime')]);
+    const [ta, tb] = await Promise.all([readAgendaWv(wvDoctena()), readAgendaWv(wvDa())]);
     let aList = parseAppts(ta);
     let bList = parseAppts(tb);
     if (!ta && !tb) {
-      status.textContent = 'Impossible de lire les agendas. Ouvrez d\'abord les onglets Doctena et Doctoranytime.';
+      status.textContent = 'Agendas non lus : attendez leur chargement (et votre connexion) dans les deux panneaux, puis relancez.';
       return;
     }
 

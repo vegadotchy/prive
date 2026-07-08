@@ -170,32 +170,47 @@
 
           <!-- ===================== Synchronisation agendas ===================== -->
           <section class="view" data-view="sync">
-            <div class="panel wide">
-              <h1>Synchronisation Doctena ↔ Doctoranytime</h1>
-              <p class="muted">Réglez les deux agendas sur le <b>même médecin</b> et le <b>même jour</b>, précisez ci-dessous le médecin, la date et éventuellement une plage horaire, puis lancez la comparaison. L'app lit les rendez-vous affichés dans les deux agendas et signale les manquants, les écarts d'horaire et les doublons.</p>
-              <div class="sync-controls">
-                <label>Médecin
-                  <input type="text" id="syncDoctor" list="syncDocList" placeholder="Nom du médecin" autocomplete="off" />
-                  <datalist id="syncDocList"></datalist>
-                </label>
-                <label>Jour
-                  <input type="date" id="syncDate" />
-                </label>
-                <label>De
-                  <input type="time" id="syncFrom" />
-                </label>
-                <label>à
-                  <input type="time" id="syncTo" />
-                </label>
+            <div class="sync-wrap">
+              <div class="sync-top">
+                <h1>Synchronisation Doctena ↔ Doctoranytime</h1>
+                <div class="sync-controls">
+                  <label>Médecin
+                    <input type="text" id="syncDoctor" list="syncDocList" placeholder="Nom du médecin" autocomplete="off" />
+                    <datalist id="syncDocList"></datalist>
+                  </label>
+                  <label>Jour
+                    <input type="date" id="syncDate" />
+                  </label>
+                  <label>De
+                    <input type="time" id="syncFrom" />
+                  </label>
+                  <label>à
+                    <input type="time" id="syncTo" />
+                  </label>
+                  <button class="btn gold" id="syncCompare">🔄 Comparer</button>
+                  <button class="btn" id="syncReload">↻ Recharger</button>
+                  <span class="hint" id="syncStatus"></span>
+                </div>
               </div>
-              <div class="row-btns">
-                <button class="btn gold" id="syncCompare">🔄 Comparer maintenant</button>
-                <button class="btn" id="syncOpenDoctena">Ouvrir Doctena</button>
-                <button class="btn" id="syncOpenDa">Ouvrir Doctoranytime</button>
-                <span class="hint" id="syncStatus"></span>
+              <div class="sync-split">
+                <div class="sync-pane">
+                  <div class="sync-pane-head">📅 Doctena
+                    <button class="btn tiny" data-reload="d">↻</button>
+                    <button class="btn tiny" data-ext="d">Ouvrir</button>
+                  </div>
+                  <webview id="syncWvDoctena" partition="persist:prive" src="about:blank" data-src="https://secure.doctena.com/"></webview>
+                </div>
+                <div class="sync-pane">
+                  <div class="sync-pane-head">🩺 Doctoranytime
+                    <button class="btn tiny" data-reload="a">↻</button>
+                    <button class="btn tiny" data-ext="a">Ouvrir</button>
+                  </div>
+                  <webview id="syncWvDa" partition="persist:prive" src="about:blank" data-src="https://www.doctoranytime.be/doctorcrmV2/ConnectedAccount/ChangeAccount?u=0"></webview>
+                </div>
               </div>
-              <div id="syncResult"></div>
-              <p class="hint">Astuce : réglez les deux agendas sur la vue « Jour » du même praticien. La comparaison ignore l'ordre des nom/prénom et les accents.</p>
+              <div class="sync-results" id="syncResult">
+                <p class="hint">Réglez chaque agenda sur le <b>même praticien / même jour</b> (vue « Jour »), puis cliquez <b>Comparer</b>. Les rendez-vous manquants, écarts d'horaire et doublons s'afficheront ici. La comparaison ignore l'ordre nom/prénom et les accents.</p>
+              </div>
             </div>
           </section>
 
