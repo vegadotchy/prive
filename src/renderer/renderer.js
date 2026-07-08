@@ -1275,6 +1275,25 @@ function setupCalendar() {
       : (s.hasCreds ? 'Non connecté — cliquez pour autoriser.' : 'Renseignez Client ID/Secret dans Réglages.');
     return s;
   };
+  // Champs Client ID / Secret directement dans l'onglet Calendrier.
+  const gId = document.getElementById('calGoogleId');
+  const gSecret = document.getElementById('calGoogleSecret');
+  if (gId) gId.value = (settings.google && settings.google.clientId) || '';
+  if (gSecret) gSecret.value = (settings.google && settings.google.clientSecret) || '';
+  const saveCredsBtn = document.getElementById('calGoogleSaveCreds');
+  if (saveCredsBtn) {
+    saveCredsBtn.addEventListener('click', async () => {
+      settings.google = settings.google || {};
+      settings.google.clientId = gId.value.trim();
+      settings.google.clientSecret = gSecret.value.trim();
+      await persistSettings();
+      const rId = document.getElementById('setGoogleId'); if (rId) rId.value = settings.google.clientId;
+      const rSec = document.getElementById('setGoogleSecret'); if (rSec) rSec.value = settings.google.clientSecret;
+      await refreshGoogleStatus();
+      gStatusEl.textContent = 'Clé enregistrée ✓ — ' + gStatusEl.textContent;
+    });
+  }
+
   refreshGoogleStatus();
   document.getElementById('calGoogleConnect').addEventListener('click', async () => {
     gStatusEl.textContent = 'Ouverture de la fenêtre d\'autorisation Google…';

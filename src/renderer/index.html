@@ -126,6 +126,23 @@
                 <button class="btn tiny" id="calExport">Exporter .ics</button>
                 <span class="hint" id="calLinkStatus"></span>
               </div>
+              <div class="cal-google">
+                <b>🔗 Connexion Google Agenda</b>
+                <div class="cal-google-fields">
+                  <label>Client ID
+                    <input type="text" id="calGoogleId" placeholder="…apps.googleusercontent.com" />
+                  </label>
+                  <label>Client Secret
+                    <input type="password" id="calGoogleSecret" placeholder="GOCSPX-…" />
+                  </label>
+                </div>
+                <div class="row-btns">
+                  <button class="btn" id="calGoogleSaveCreds" type="button">Enregistrer la clé</button>
+                  <button class="btn gold" id="calGoogleConnect" type="button">Connecter Google Agenda</button>
+                  <span class="hint" id="calGoogleStatus"></span>
+                </div>
+                <p class="hint">Identifiants à créer une fois dans Google Cloud (API Google Calendar activée → ID client OAuth type « Application de bureau »). Une fois connecté, chaque événement part automatiquement dans l'agenda rattaché.</p>
+              </div>
               <div class="cal-layout">
                 <div class="cal-col">
                   <div class="cal-header">
@@ -156,10 +173,6 @@
                   <label>Note (facultatif)
                     <input type="text" id="calEvNote" />
                   </label>
-                  <div class="row-btns">
-                    <button class="btn" id="calGoogleConnect" type="button">🔗 Connecter Google Agenda</button>
-                    <span class="hint" id="calGoogleStatus"></span>
-                  </div>
                   <div class="row-btns">
                     <button class="btn gold" id="calAdd">Ajouter</button>
                     <button class="btn" id="calTestSound">Tester le son</button>

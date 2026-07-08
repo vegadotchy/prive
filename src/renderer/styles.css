@@ -377,6 +377,10 @@ textarea { resize: vertical; }
 .cal-link { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; margin: 4px 0 14px; }
 .cal-link label { margin: 0; }
 .cal-link input { margin-top: 4px; width: 260px; }
+.cal-google { border: 1px solid var(--glass-brd); border-radius: 12px; padding: 10px 14px; margin: 0 0 14px; background: rgba(255,255,255,0.03); }
+.cal-google > b { color: var(--gold2); }
+.cal-google-fields { display: flex; gap: 12px; flex-wrap: wrap; margin: 6px 0; }
+.cal-google-fields label { flex: 1; min-width: 240px; margin: 4px 0; }
 .cal-ev .tag { font-size: 10px; padding: 2px 7px; border-radius: 999px; text-transform: uppercase; }
 .cal-ev .tag.rdv { background: rgba(96,165,250,0.2); color: #93c5fd; }
 .cal-ev .tag.tache { background: rgba(74,222,128,0.2); color: #86efac; }
