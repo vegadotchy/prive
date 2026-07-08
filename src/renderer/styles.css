@@ -362,6 +362,17 @@ textarea { resize: vertical; }
 .web-bar input[type=text] { margin-top: 0; width: 240px; }
 .web-wrap webview { flex: 1; border: none; background: #fff; }
 
+/* Sous-barre de recherche native (IBC Lab) */
+.web-subbar {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 8px 10px; background: var(--glass-2);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--glass-brd);
+}
+.web-subbar .sub-label { font-weight: 600; color: var(--gold2); font-size: 12.5px; }
+.web-subbar input { margin: 0; width: 150px; padding: 6px 9px; }
+.web-subbar .hint { margin: 0; }
+
 /* Barre d'état */
 .statusbar {
   height: 34px; display: flex; align-items: center; gap: 18px;

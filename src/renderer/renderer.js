@@ -16,7 +16,7 @@ const SITES = {
   shyfter: { title: 'Shyfter', ico: '🗓️', url: 'https://v3-app.shyfter.co/app/dashboard' },
   inbody: { title: 'InBody', ico: '⚖️', url: 'https://bel.lookinbody.com/', print: true, printLast: true },
   clearfacts: { title: 'ClearFacts / Kyte', ico: '🧾', url: 'https://mbm.clearfacts.be/login' },
-  iballab: { title: 'IBC Lab online', ico: '🔬', url: 'https://labonline.lhub-ulb.be/' },
+  iballab: { title: 'IBC Lab online', ico: '🔬', url: 'https://labonline.lhub-ulb.be/', labSearch: true },
   examens: { title: 'Examens du jour', ico: '📋', urlFromSettings: 'examsUrl' },
   medipost: { title: 'Medipost', ico: '📦', url: 'https://www.medipost.shop/' }
 };
@@ -230,6 +230,94 @@ function ensureWebview(viewId) {
   });
 
   wrap.appendChild(bar);
+
+  // Barre de recherche native pour IBC Lab (remplit et valide le formulaire du site).
+  if (cfg.labSearch) {
+    const sub = document.createElement('div');
+    sub.className = 'web-subbar';
+    sub.innerHTML = `
+      <span class="sub-label">🔬 Rechercher une analyse :</span>
+      <input type="text" data-f="nom" placeholder="Nom de famille" />
+      <input type="text" data-f="prenom" placeholder="Prénom" />
+      <input type="text" data-f="dob" placeholder="Naissance jj/mm/aaaa" />
+      <input type="text" data-f="niss" placeholder="NISS" />
+      <button class="btn tiny gold" data-act="labsearch">Rechercher</button>
+      <button class="btn tiny" data-act="labreset">Effacer</button>
+      <span class="hint" data-el="labstatus"></span>
+    `;
+    const val = (f) => (sub.querySelector(`input[data-f="${f}"]`).value || '').trim();
+    const status = sub.querySelector('[data-el="labstatus"]');
+
+    const runSearch = async () => {
+      const nom = val('nom'), prenom = val('prenom'), dob = val('dob'), niss = val('niss');
+      if (!nom && !prenom && !dob && !niss) { status.textContent = 'Saisissez au moins un critère.'; return; }
+      status.textContent = 'Recherche…';
+      const script = `(function(nom, prenom, dob, niss){
+        function setVal(inp, value){
+          try {
+            var proto = window.HTMLInputElement && window.HTMLInputElement.prototype;
+            var setter = proto && Object.getOwnPropertyDescriptor(proto,'value').set;
+            if (setter) setter.call(inp, value); else inp.value = value;
+          } catch(e){ inp.value = value; }
+          ['input','change','keyup','blur'].forEach(function(t){
+            inp.dispatchEvent(new Event(t,{bubbles:true}));
+          });
+        }
+        function setByLabel(labelText, value){
+          if(value===undefined||value==='') return false;
+          var nodes = document.querySelectorAll('label,td,th,span,div');
+          var lab=null;
+          for (var i=0;i<nodes.length;i++){
+            var t=(nodes[i].textContent||'').trim().replace(/[:*]/g,'').toLowerCase();
+            if(t===labelText.toLowerCase()){ lab=nodes[i]; break; }
+          }
+          if(!lab) return false;
+          var scope=lab.parentElement;
+          for (var d=0; d<5 && scope; d++){
+            var inp=scope.querySelector('input:not([type=hidden]):not([readonly]):not([disabled])');
+            if(inp){ setVal(inp, value); return true; }
+            scope=scope.parentElement;
+          }
+          return false;
+        }
+        var r={};
+        r.nom=setByLabel('Nom de famille', nom);
+        r.prenom=setByLabel('Prénom', prenom);
+        r.dob=setByLabel('Date de naissance', dob);
+        r.niss= niss ? setByLabel('Code', niss) : false;
+        var applied=false;
+        var els=document.querySelectorAll('button,a,span,input[type=button],input[type=submit]');
+        for (var i=0;i<els.length;i++){
+          var tx=(els[i].textContent||els[i].value||'').trim();
+          if(/^appliquer$/i.test(tx)){ (els[i].closest('button,a')||els[i]).click(); applied=true; break; }
+        }
+        r.applied=applied;
+        return JSON.stringify(r);
+      })(${JSON.stringify(nom)}, ${JSON.stringify(prenom)}, ${JSON.stringify(dob)}, ${JSON.stringify(niss)})`;
+
+      let out = {};
+      try { out = JSON.parse(await webview.executeJavaScript(script, true)); } catch (_) { out = {}; }
+      if (out.applied) {
+        status.textContent = 'Recherche lancée ✓ (résultats ci-dessous)';
+      } else {
+        const filled = out.nom || out.prenom || out.dob || out.niss;
+        status.textContent = filled
+          ? 'Champs remplis, mais bouton « Appliquer » introuvable — cliquez-le sur la page.'
+          : 'Formulaire introuvable : ouvrez « Mes patients » sur la page, puis relancez.';
+      }
+    };
+
+    sub.addEventListener('click', (e) => {
+      const act = e.target.dataset ? e.target.dataset.act : null;
+      if (act === 'labsearch') runSearch();
+      if (act === 'labreset') sub.querySelectorAll('input').forEach((i) => (i.value = ''));
+    });
+    sub.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && e.target.tagName === 'INPUT') runSearch();
+    });
+    wrap.appendChild(sub);
+  }
+
   wrap.appendChild(webview);
   view.appendChild(wrap);
   container.appendChild(view);
