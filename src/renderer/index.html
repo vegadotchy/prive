@@ -6,16 +6,21 @@
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; script-src 'self';"
     />
-    <title>Prive</title>
+    <title>IATECH-CONTROL PRO</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
+    <!-- Bandeau défilant : date, heure, température temps réel -->
+    <div class="marquee" id="marquee">
+      <div class="marquee-track" id="marqueeTrack"></div>
+    </div>
+
     <div class="app">
       <!-- Barre latérale de navigation -->
       <nav class="sidebar" id="sidebar">
         <div class="brand">
           <span class="brand-dot"></span>
-          <span class="brand-name">Prive</span>
+          <span class="brand-name">IATECH-CONTROL <b>PRO</b></span>
         </div>
         <div class="nav-list" id="navList"><!-- rempli par renderer.js --></div>
       </nav>
@@ -87,6 +92,53 @@
                 </div>
               </form>
               <p class="hint">« Ouvrir dans Gmail » pré-remplit un nouveau message dans l’onglet Gmail. « Logiciel de messagerie » utilise l’application mail par défaut de Windows.</p>
+            </div>
+          </section>
+
+          <!-- ===================== Modèles de correspondance ===================== -->
+          <section class="view" data-view="modeles">
+            <div class="panel wide">
+              <h1>Modèles de correspondance</h1>
+              <p class="muted">Mails, rapports, prescriptions et autres documents types, réutilisables en un clic.</p>
+              <div class="modeles-layout">
+                <div class="modeles-list-col">
+                  <div class="modeles-filter" id="modelesFilter">
+                    <button class="chip active" data-cat="all">Tous</button>
+                    <button class="chip" data-cat="mail">Mails</button>
+                    <button class="chip" data-cat="rapport">Rapports</button>
+                    <button class="chip" data-cat="prescription">Prescriptions</button>
+                    <button class="chip" data-cat="autre">Autres</button>
+                  </div>
+                  <div class="modeles-list" id="modelesList"></div>
+                  <button class="btn gold" id="modeleNew">+ Nouveau modèle</button>
+                </div>
+                <div class="modeles-editor">
+                  <label>Nom
+                    <input type="text" id="modeleName" />
+                  </label>
+                  <label>Catégorie
+                    <select id="modeleCategory">
+                      <option value="mail">Mail</option>
+                      <option value="rapport">Rapport</option>
+                      <option value="prescription">Prescription</option>
+                      <option value="autre">Autre</option>
+                    </select>
+                  </label>
+                  <label>Objet / Titre
+                    <input type="text" id="modeleSubject" />
+                  </label>
+                  <label>Contenu
+                    <textarea id="modeleBody" rows="14"></textarea>
+                  </label>
+                  <div class="row-btns">
+                    <button class="btn gold" id="modeleSave">Enregistrer</button>
+                    <button class="btn" id="modeleCopy">Copier</button>
+                    <button class="btn" id="modeleToMail">Utiliser dans un mail</button>
+                    <button class="btn danger" id="modeleDelete">Supprimer</button>
+                    <span class="hint" id="modeleStatus"></span>
+                  </div>
+                </div>
+              </div>
             </div>
           </section>
 

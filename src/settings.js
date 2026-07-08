@@ -55,7 +55,41 @@ const DEFAULTS = {
   ],
   // Répertoires de départ pour la recherche de fichiers (vide = dossier
   // personnel de l'utilisateur).
-  searchRoots: []
+  searchRoots: [],
+  // Localisation pour la météo du bandeau défilant (défaut : Bruxelles).
+  weather: {
+    label: 'Bruxelles',
+    latitude: 50.8503,
+    longitude: 4.3517
+  },
+  // Modèles de correspondance (mails, rapports, prescriptions, autres),
+  // gérés depuis l'onglet « Modèles ».
+  correspondence: [
+    {
+      id: 'm1', category: 'mail', name: 'Rendez-vous — confirmation',
+      subject: 'Confirmation de votre rendez-vous',
+      body:
+        'Bonjour,\n\nNous confirmons votre rendez-vous au cabinet le [DATE] à [HEURE].\n\nEn cas d’empêchement, merci de nous prévenir au moins 24h à l’avance.\n\nBien à vous,\nLe cabinet'
+    },
+    {
+      id: 'm2', category: 'mail', name: 'Résultats disponibles',
+      subject: 'Vos résultats sont disponibles',
+      body:
+        'Bonjour,\n\nVos résultats sont disponibles. Merci de prendre contact avec le cabinet afin d’en discuter.\n\nBien à vous,\nLe cabinet'
+    },
+    {
+      id: 'r1', category: 'rapport', name: 'Rapport de consultation',
+      subject: 'Rapport de consultation — [PATIENT]',
+      body:
+        'Patient : [NOM PRÉNOM]\nDate de naissance : [JJ/MM/AAAA]\nDate de consultation : [DATE]\n\nMotif :\n\nAnamnèse :\n\nExamen clinique :\n\nConclusion :\n\nConduite à tenir :\n\nDr [NOM]'
+    },
+    {
+      id: 'p1', category: 'prescription', name: 'Prescription type',
+      subject: 'Prescription — [PATIENT]',
+      body:
+        'Patient : [NOM PRÉNOM]\nDate de naissance : [JJ/MM/AAAA]\nDate : [DATE]\n\nRp/\n1) [Médicament] [dosage] — [posologie] — [durée]\n2) \n\nDr [NOM]\nN° INAMI : [……]'
+    }
+  ]
 };
 
 function deepMerge(base, override) {

@@ -14,15 +14,21 @@ const CHROME_UA =
 
 let mainWindow = null;
 
+// L'icône est embarquée dans les ressources en version packagée, et dans build/
+// en développement.
+const iconPath = app.isPackaged
+  ? path.join(process.resourcesPath, 'icon.ico')
+  : path.join(__dirname, '..', 'build', 'icon.ico');
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
     minWidth: 1000,
     minHeight: 640,
-    title: 'Prive',
-    backgroundColor: '#0f172a',
-    icon: path.join(__dirname, '..', 'build', 'icon.ico'),
+    title: 'IATECH-CONTROL PRO',
+    backgroundColor: '#0b1220',
+    icon: iconPath,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -140,4 +146,24 @@ ipcMain.handle('speed:runNow', async () => {
 ipcMain.handle('chat:send', async (_e, payload) => {
   const settings = loadSettings();
   return chatCompletion(settings, payload);
+});
+
+// Météo temps réel (Open-Meteo, sans clé) pour le bandeau défilant.
+ipcMain.handle('weather:get', async () => {
+  const s = loadSettings();
+  const w = s.weather || {};
+  const lat = w.latitude != null ? w.latitude : 50.8503;
+  const lon = w.longitude != null ? w.longitude : 4.3517;
+  const url =
+    `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+    `&current=temperature_2m`;
+  try {
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) return { ok: false };
+    const data = await res.json();
+    const temp = data && data.current ? data.current.temperature_2m : null;
+    return { ok: temp != null, temp, label: w.label || '' };
+  } catch (_) {
+    return { ok: false };
+  }
 });

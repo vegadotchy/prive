@@ -21,5 +21,7 @@ contextBridge.exposeInMainWorld('prive', {
     return () => ipcRenderer.removeListener('speed:update', listener);
   },
 
-  chat: (messages) => ipcRenderer.invoke('chat:send', { messages })
+  chat: (messages) => ipcRenderer.invoke('chat:send', { messages }),
+
+  getWeather: () => ipcRenderer.invoke('weather:get')
 });

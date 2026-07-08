@@ -7,6 +7,7 @@
 // Onglets « site web » (affichés dans une <webview>).
 const SITES = {
   gmail: { title: 'Gmail', ico: '✉️', url: 'https://mail.google.com/mail/u/0/?tab=wm&ogbl#inbox' },
+  whatsapp: { title: 'WhatsApp', ico: '💬', url: 'https://web.whatsapp.com/' },
   doctena: { title: 'Doctena', ico: '📅', url: 'https://secure.doctena.com/' },
   doctoranytime: {
     title: 'Doctoranytime', ico: '🩺',
@@ -27,7 +28,9 @@ const NAV = [
   { view: 'accueil', title: 'Accueil', ico: '🏠' },
   { group: 'Communication' },
   { view: 'gmail', title: 'Gmail', ico: '✉️', site: true },
+  { view: 'whatsapp', title: 'WhatsApp', ico: '💬', site: true },
   { view: 'mail', title: 'Envoyer un mail', ico: '📧' },
+  { view: 'modeles', title: 'Modèles', ico: '📄' },
   { view: 'chatgpt', title: 'Chat IA', ico: '🤖' },
   { group: 'Agenda & patients' },
   { view: 'doctena', title: 'Doctena', ico: '📅', site: true },
@@ -188,14 +191,15 @@ function getWebview(viewId) {
 function buildHomeTiles() {
   const grid = document.getElementById('homeTiles');
   const quick = [
-    'gmail', 'doctena', 'doctoranytime', 'shyfter', 'inbody',
+    'gmail', 'whatsapp', 'doctena', 'doctoranytime', 'shyfter', 'inbody',
     'clearfacts', 'iballab', 'examens', 'cbip', 'medipost',
-    'careconnect', 'recherche', 'mail', 'chatgpt'
+    'careconnect', 'recherche', 'mail', 'modeles', 'chatgpt'
   ];
   const labels = {
     careconnect: { title: 'CareConnect', ico: '💻' },
     recherche: { title: 'Recherche fichiers', ico: '🔎' },
     mail: { title: 'Envoyer un mail', ico: '📧' },
+    modeles: { title: 'Modèles', ico: '📄' },
     chatgpt: { title: 'Chat IA', ico: '🤖' }
   };
   for (const key of quick) {
@@ -328,23 +332,30 @@ function setupFileSearch() {
 // Envoyer un mail (modèles)
 // ---------------------------------------------------------------------------
 
+// Recharge la liste déroulante des modèles de mail (catégorie « mail »).
+function refreshMailTemplates() {
+  const select = document.getElementById('mailTemplate');
+  if (!select) return;
+  const mails = (settings.correspondence || []).filter((c) => c.category === 'mail');
+  select.innerHTML = '<option value="">— Choisir un modèle —</option>';
+  mails.forEach((t) => {
+    const opt = document.createElement('option');
+    opt.value = t.id;
+    opt.textContent = t.name;
+    select.appendChild(opt);
+  });
+}
+
 function setupMail() {
   const select = document.getElementById('mailTemplate');
   const subject = document.getElementById('mailSubject');
   const body = document.getElementById('mailBody');
   const to = document.getElementById('mailTo');
 
-  const templates = (settings && settings.emailTemplates) || [];
-  select.innerHTML = '<option value="">— Choisir un modèle —</option>';
-  templates.forEach((t, i) => {
-    const opt = document.createElement('option');
-    opt.value = String(i);
-    opt.textContent = t.name;
-    select.appendChild(opt);
-  });
+  refreshMailTemplates();
 
   select.addEventListener('change', () => {
-    const t = templates[Number(select.value)];
+    const t = (settings.correspondence || []).find((c) => c.id === select.value);
     if (t) {
       subject.value = t.subject || '';
       body.value = t.body || '';
@@ -398,26 +409,182 @@ function fillSettingsForm() {
   document.getElementById('setInsecureHosts').value = (settings.allowedInsecureHosts || []).join(', ');
 }
 
+// Persiste l'objet settings complet (évite d'écraser les autres champs).
+async function persistSettings() {
+  settings = await window.prive.saveSettings(settings);
+}
+
 function setupSettings() {
   document.getElementById('saveSettings').addEventListener('click', async () => {
-    const next = {
-      ai: {
-        apiKey: document.getElementById('setApiKey').value.trim(),
-        baseUrl: document.getElementById('setBaseUrl').value.trim(),
-        model: document.getElementById('setModel').value.trim()
-      },
-      launchers: {
-        careconnect: document.getElementById('setCareconnect').value.trim()
-      },
-      examsUrl: document.getElementById('setExamsUrl').value.trim(),
-      allowedInsecureHosts: document.getElementById('setInsecureHosts').value
-        .split(',').map((s) => s.trim()).filter(Boolean)
-    };
-    settings = await window.prive.saveSettings(next);
+    settings.ai.apiKey = document.getElementById('setApiKey').value.trim();
+    settings.ai.baseUrl = document.getElementById('setBaseUrl').value.trim();
+    settings.ai.model = document.getElementById('setModel').value.trim();
+    settings.launchers = settings.launchers || {};
+    settings.launchers.careconnect = document.getElementById('setCareconnect').value.trim();
+    settings.examsUrl = document.getElementById('setExamsUrl').value.trim();
+    settings.allowedInsecureHosts = document.getElementById('setInsecureHosts').value
+      .split(',').map((s) => s.trim()).filter(Boolean);
+    await persistSettings();
     const saved = document.getElementById('settingsSaved');
     saved.textContent = 'Enregistré ✓';
     setTimeout(() => (saved.textContent = ''), 2500);
   });
+}
+
+// ---------------------------------------------------------------------------
+// Modèles de correspondance
+// ---------------------------------------------------------------------------
+
+let modeleFilter = 'all';
+let modeleCurrentId = null;
+
+function setupModeles() {
+  const listEl = document.getElementById('modelesList');
+  const filterEl = document.getElementById('modelesFilter');
+  const nameEl = document.getElementById('modeleName');
+  const catEl = document.getElementById('modeleCategory');
+  const subjEl = document.getElementById('modeleSubject');
+  const bodyEl = document.getElementById('modeleBody');
+  const statusEl = document.getElementById('modeleStatus');
+
+  const catLabel = { mail: 'Mail', rapport: 'Rapport', prescription: 'Prescription', autre: 'Autre' };
+
+  const renderList = () => {
+    const items = (settings.correspondence || [])
+      .filter((c) => modeleFilter === 'all' || c.category === modeleFilter);
+    listEl.innerHTML = '';
+    if (!items.length) {
+      listEl.innerHTML = '<div class="hint">Aucun modèle dans cette catégorie.</div>';
+    }
+    items.forEach((c) => {
+      const div = document.createElement('div');
+      div.className = 'modele-item' + (c.id === modeleCurrentId ? ' active' : '');
+      div.innerHTML = `<div class="m-cat">${catLabel[c.category] || c.category}</div><div class="m-name">${escapeHtml(c.name)}</div>`;
+      div.addEventListener('click', () => selectModele(c.id));
+      listEl.appendChild(div);
+    });
+  };
+
+  const selectModele = (id) => {
+    const c = (settings.correspondence || []).find((x) => x.id === id);
+    if (!c) return;
+    modeleCurrentId = id;
+    nameEl.value = c.name || '';
+    catEl.value = c.category || 'autre';
+    subjEl.value = c.subject || '';
+    bodyEl.value = c.body || '';
+    renderList();
+  };
+
+  const newModele = () => {
+    modeleCurrentId = null;
+    nameEl.value = '';
+    catEl.value = modeleFilter === 'all' ? 'mail' : modeleFilter;
+    subjEl.value = '';
+    bodyEl.value = '';
+    renderList();
+    nameEl.focus();
+  };
+
+  filterEl.addEventListener('click', (e) => {
+    if (!e.target.dataset.cat) return;
+    modeleFilter = e.target.dataset.cat;
+    filterEl.querySelectorAll('.chip').forEach((b) =>
+      b.classList.toggle('active', b.dataset.cat === modeleFilter));
+    renderList();
+  });
+
+  document.getElementById('modeleNew').addEventListener('click', newModele);
+
+  document.getElementById('modeleSave').addEventListener('click', async () => {
+    const name = nameEl.value.trim();
+    if (!name) { statusEl.textContent = 'Nom requis.'; return; }
+    settings.correspondence = settings.correspondence || [];
+    if (modeleCurrentId) {
+      const c = settings.correspondence.find((x) => x.id === modeleCurrentId);
+      if (c) { c.name = name; c.category = catEl.value; c.subject = subjEl.value; c.body = bodyEl.value; }
+    } else {
+      modeleCurrentId = 'c' + Date.now();
+      settings.correspondence.push({
+        id: modeleCurrentId, name, category: catEl.value,
+        subject: subjEl.value, body: bodyEl.value
+      });
+    }
+    await persistSettings();
+    refreshMailTemplates();
+    renderList();
+    statusEl.textContent = 'Enregistré ✓';
+    setTimeout(() => (statusEl.textContent = ''), 2000);
+  });
+
+  document.getElementById('modeleDelete').addEventListener('click', async () => {
+    if (!modeleCurrentId) return;
+    settings.correspondence = (settings.correspondence || []).filter((x) => x.id !== modeleCurrentId);
+    await persistSettings();
+    refreshMailTemplates();
+    newModele();
+    statusEl.textContent = 'Supprimé.';
+    setTimeout(() => (statusEl.textContent = ''), 2000);
+  });
+
+  document.getElementById('modeleCopy').addEventListener('click', async () => {
+    const txt = (subjEl.value ? subjEl.value + '\n\n' : '') + bodyEl.value;
+    try {
+      await navigator.clipboard.writeText(txt);
+      statusEl.textContent = 'Copié dans le presse-papiers ✓';
+    } catch (_) {
+      statusEl.textContent = 'Copie impossible.';
+    }
+    setTimeout(() => (statusEl.textContent = ''), 2000);
+  });
+
+  document.getElementById('modeleToMail').addEventListener('click', () => {
+    document.getElementById('mailSubject').value = subjEl.value;
+    document.getElementById('mailBody').value = bodyEl.value;
+    showView('mail');
+  });
+
+  renderList();
+}
+
+// ---------------------------------------------------------------------------
+// Bandeau défilant : date, heure, température
+// ---------------------------------------------------------------------------
+
+function setupMarquee() {
+  const track = document.getElementById('marqueeTrack');
+  let temp = null;
+  let tempLabel = '';
+
+  const jours = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+  const mois = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet',
+    'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+
+  const render = () => {
+    const d = new Date();
+    const date = `${jours[d.getDay()]} ${d.getDate()} ${mois[d.getMonth()]} ${d.getFullYear()}`;
+    const heure = d.toLocaleTimeString('fr-BE');
+    const tempStr = temp != null ? `🌡️ ${tempLabel} : ${temp.toFixed(1)}°C` : '🌡️ température…';
+    const block =
+      `<span>📅 ${date}</span><span class="sep">•</span>` +
+      `<span>🕐 ${heure}</span><span class="sep">•</span>` +
+      `<span>${tempStr}</span><span class="sep">•</span>` +
+      `<span>IATECH-CONTROL PRO</span><span class="sep">•</span>`;
+    // Doublé pour un défilement continu et sans trou.
+    track.innerHTML = block + block;
+  };
+
+  const fetchWeather = async () => {
+    try {
+      const w = await window.prive.getWeather();
+      if (w && w.ok) { temp = w.temp; tempLabel = w.label || ''; }
+    } catch (_) { /* ignore */ }
+  };
+
+  render();
+  setInterval(render, 1000);
+  fetchWeather();
+  setInterval(fetchWeather, 15 * 60 * 1000); // toutes les 15 min
 }
 
 // ---------------------------------------------------------------------------
@@ -471,10 +638,12 @@ async function init() {
   setupChat();
   setupFileSearch();
   setupMail();
+  setupModeles();
   setupCareconnect();
   setupSettings();
   fillSettingsForm();
   setupSpeed();
+  setupMarquee();
   showView('accueil');
 }
 

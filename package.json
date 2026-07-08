@@ -1,7 +1,7 @@
 {
-  "name": "prive-dashboard",
+  "name": "iatech-control-pro",
   "version": "1.0.0",
-  "description": "Tableau de bord de bureau (Windows) regroupant les outils du cabinet : Gmail, Doctena, Doctoranytime, Shyfter, InBody, ClearFacts, CBIP, Medipost, recherche de fichiers, envoi de mails, chat IA et test de vitesse internet.",
+  "description": "IATECH-CONTROL PRO — tableau de bord de bureau (Windows) regroupant les outils du cabinet : Gmail, Doctena, Doctoranytime, Shyfter, InBody, ClearFacts, CBIP, Medipost, recherche de fichiers, envoi de mails, chat IA et test de vitesse internet.",
   "author": "Cabinet",
   "license": "MIT",
   "main": "src/main.js",
@@ -15,8 +15,8 @@
     "electron-builder": "^25.1.8"
   },
   "build": {
-    "appId": "be.cabinet.prive",
-    "productName": "Prive",
+    "appId": "be.iatech.controlpro",
+    "productName": "IATECH-CONTROL PRO",
     "directories": {
       "output": "dist",
       "buildResources": "build"
@@ -24,6 +24,9 @@
     "files": [
       "src/**/*",
       "package.json"
+    ],
+    "extraResources": [
+      "build/icon.ico"
     ],
     "win": {
       "target": [
@@ -40,7 +43,10 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Prive"
+      "shortcutName": "IATECH-CONTROL PRO",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico"
     }
   }
 }

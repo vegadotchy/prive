@@ -1,4 +1,4 @@
-# Prive — tableau de bord du cabinet (Windows)
+# IATECH-CONTROL PRO — tableau de bord du cabinet (Windows)
 
 Application de bureau **Windows** (`.exe`) regroupant, sous forme d'onglets et de
 boutons, tous les outils du cabinet dans une seule fenêtre. Construite avec
@@ -45,7 +45,7 @@ npm run dist
 ```
 
 L'installateur NSIS est produit dans le dossier `dist/`
-(par ex. `dist/Prive Setup 1.0.0.exe`). Double-cliquez dessus pour installer
+(par ex. `dist/IATECH-CONTROL PRO Setup 1.0.0.exe`). Double-cliquez dessus pour installer
 l'application, qui crée un raccourci sur le bureau et dans le menu Démarrer.
 
 > Astuce : `npm run pack` produit une version décompressée dans `dist/win-unpacked/`
@@ -57,7 +57,7 @@ Au premier lancement, ouvrez l'onglet **Réglages** pour renseigner :
 
 - **Clé d'API du Chat IA** — clé OpenAI (`sk-…`) ou toute API compatible
   `/chat/completions`. La clé est stockée localement dans le profil utilisateur
-  (`%APPDATA%/Prive/settings.json`) et **n'est jamais versionnée**.
+  (`%APPDATA%/IATECH-CONTROL PRO/settings.json`) et **n'est jamais versionnée**.
 - **Chemin de CareConnect** — l'exécutable à lancer, par ex.
   `C:\Program Files\CareConnect\CareConnect.exe`.
 - **URL des examens du jour** et **hôtes à certificat auto-signé autorisés**
@@ -81,7 +81,7 @@ fichier `settings.json` (clé `emailTemplates`).
 src/
   main.js         Processus principal (fenêtre, IPC, certificats, lanceurs)
   preload.js      Pont sécurisé exposé à l'interface
-  settings.js     Chargement/sauvegarde des réglages (%APPDATA%/Prive)
+  settings.js     Chargement/sauvegarde des réglages (%APPDATA%/IATECH-CONTROL PRO)
   fileSearch.js   Recherche de fichiers récursive
   speedtest.js    Test de vitesse permanent (Cloudflare)
   chat.js         Appel à l'API de chat (compatible OpenAI)
