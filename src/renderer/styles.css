@@ -302,6 +302,8 @@ textarea { resize: vertical; }
 .sync-controls input { margin-top: 4px; width: 180px; }
 .sync-controls input[type=time] { width: 120px; }
 .sync-context { color: var(--gold2); font-weight: 600; margin: 2px 0 8px; }
+.sync-notes { margin: 0 0 10px; display: flex; flex-direction: column; gap: 6px; }
+.sync-notes > div { padding: 8px 12px; border: 1px solid var(--amber); border-radius: 9px; background: rgba(245,196,81,0.12); color: #ffe9b0; font-size: 12.5px; }
 /* Vue partagée des deux agendas */
 .sync-wrap { display: flex; flex-direction: column; height: 100%; }
 .sync-top { padding: 14px 20px 8px; }

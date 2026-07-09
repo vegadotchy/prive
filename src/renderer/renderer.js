@@ -1507,23 +1507,41 @@ function normName(s) {
     .split(/\s+/).filter((w) => w.length > 1).sort().join(' ');
 }
 
+// Un texte contient-il un vrai nom (au moins un mot de 2 lettres) ?
+function hasName(s) {
+  return /[a-zà-ÿ]{2,}/i.test(cleanApptName(s));
+}
+
+// Détecte une page de connexion / sélection (pas un agenda).
+function looksLikeLogin(text) {
+  return /(connectez-vous|mot de passe|se souvenir de moi|s[ée]lectionner un h[ôo]pital|\bpassword\b|\blog\s?in\b|identifiant)/i.test(text || '');
+}
+
 function parseAppts(text) {
+  const lines = (text || '').split('\n').map((l) => l.trim()).filter(Boolean);
   const out = [];
-  (text || '').split('\n').forEach((raw) => {
-    const line = raw.trim();
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
     const m = line.match(/(\d{1,2})[:h.](\d{2})/);
-    if (!m) return;
+    if (!m) continue;
     const time = m[1].padStart(2, '0') + ':' + m[2];
     let rest = line.slice(line.indexOf(m[0]) + m[0].length).trim();
-    // Retire une éventuelle 2e heure de début (plage « 08:00 - 11:00 »).
+    // Retire une éventuelle 2e heure (plage « 08:00 - 11:00 »).
     rest = rest.replace(/^[\s\-–—à]*\d{1,2}[:h.]\d{2}\s*/, '').trim();
-    if (!rest) return;
-    const name = cleanApptName(rest);
-    const norm = normName(rest);
-    // Exige au moins un vrai mot (lettres) : élimine plages horaires / dispos.
-    if (!/[a-zà-ÿ]{2,}/i.test(name)) return;
-    if (name && norm) out.push({ time, name, norm });
-  });
+    if (rest && hasName(rest)) {
+      out.push({ time, name: cleanApptName(rest), norm: normName(rest) });
+      continue;
+    }
+    // Nom sur la/les ligne(s) suivante(s) — cas Doctoranytime (heure puis nom).
+    for (let j = i + 1; j < Math.min(i + 3, lines.length); j++) {
+      if (/\d{1,2}[:h.]\d{2}/.test(lines[j])) break; // prochaine heure : on arrête
+      if (hasName(lines[j])) {
+        out.push({ time, name: cleanApptName(lines[j]), norm: normName(lines[j]) });
+        i = j;
+        break;
+      }
+    }
+  }
   return out;
 }
 
@@ -1635,9 +1653,13 @@ function setupSync() {
     const [ta, tb] = await Promise.all([readAgendaWv(wvDoctena()), readAgendaWv(wvDa())]);
     let aList = parseAppts(ta);
     let bList = parseAppts(tb);
-    if (!ta && !tb) {
-      status.textContent = 'Agendas non lus : attendez leur chargement (et votre connexion) dans les deux panneaux, puis relancez.';
-      return;
+    // Diagnostics : un panneau est-il sur une page de connexion / sélection ?
+    const notes = [];
+    if (!aList.length && (looksLikeLogin(ta) || !ta)) {
+      notes.push('⚠️ Doctena n’est pas sur un agenda : connectez-vous dans le panneau de gauche, puis ouvrez la vue « Jour » du praticien.');
+    }
+    if (!bList.length && (looksLikeLogin(tb) || !tb)) {
+      notes.push('⚠️ Doctoranytime n’est pas sur un agenda : sélectionnez l’hôpital → « Sélectionner un praticien » → vue « Jour ».');
     }
 
     // Filtre optionnel sur la plage horaire choisie.
@@ -1652,10 +1674,21 @@ function setupSync() {
     if (from || to) ctx.push(`${from || '…'}–${to || '…'}`);
     renderSyncResult(res, aList.length, bList.length, ctx.join(' · '));
 
+    // Ajoute les avertissements en tête des résultats.
+    if (notes.length) {
+      const box = document.getElementById('syncResult');
+      box.insertAdjacentHTML('afterbegin',
+        '<div class="sync-notes">' + notes.map((n) => `<div>${escapeHtml(n)}</div>`).join('') + '</div>');
+    }
+
     const problems = res.onlyA.length + res.onlyB.length + res.timeDiff.length + res.dupes.length;
-    status.textContent = problems === 0
-      ? 'Agendas synchronisés ✓'
-      : `${problems} anomalie(s) détectée(s).`;
+    if (notes.length) {
+      status.textContent = 'Un ou deux agendas ne sont pas encore affichés — voir les avertissements.';
+    } else {
+      status.textContent = problems === 0
+        ? `Agendas synchronisés ✓ (${aList.length} RDV comparés)`
+        : `${problems} anomalie(s) détectée(s).`;
+    }
   });
 }
 
