@@ -742,6 +742,30 @@ function setupCareconnect() {
   document.getElementById('ccDownload').addEventListener('click', () => {
     window.prive.openExternal('https://services.careconnect.be/client/6.4/otherplatforms.html');
   });
+
+  // --- Opal Vision (lanceur d'exécutable local) ---
+  const opalHint = document.getElementById('opalHint');
+  const opalPathEl = document.getElementById('opalPath');
+  const refreshOpal = () => {
+    opalPathEl.textContent = (settings.launchers && settings.launchers.opalvision) || '(non configuré)';
+  };
+  refreshOpal();
+  document.getElementById('launchOpal').addEventListener('click', async () => {
+    opalHint.textContent = 'Lancement…';
+    const res = await window.prive.launchApp('opalvision');
+    opalHint.textContent = res.ok ? 'Opal Vision lancé ✓'
+      : (res.error || '') + ' — cliquez « Choisir le fichier .exe… » pour indiquer le bon programme.';
+  });
+  document.getElementById('opalPick').addEventListener('click', async () => {
+    const res = await window.prive.pickExe();
+    if (res.ok) {
+      settings.launchers = settings.launchers || {};
+      settings.launchers.opalvision = res.path;
+      await persistSettings();
+      refreshOpal();
+      opalHint.textContent = 'Fichier enregistré ✓';
+    }
+  });
 }
 
 // ---------------------------------------------------------------------------

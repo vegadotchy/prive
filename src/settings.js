@@ -38,7 +38,8 @@ const DEFAULTS = {
   },
   // Emplacements des exécutables locaux à lancer par bouton.
   launchers: {
-    careconnect: ''
+    careconnect: '',
+    opalvision: 'C:\\Program Files\\Opal Software\\Opal Vision\\Opal Vision.exe'
   },
   // Hôtes pour lesquels on tolère un certificat auto-signé (réseau interne).
   allowedInsecureHosts: ['192.168.1.220'],
