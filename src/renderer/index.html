@@ -416,31 +416,35 @@
                 </div>
               </div>
               <p class="muted">Heures prestées par mois — comparaison FICHE / SHYFTER. Années séparées. La colonne SHYFTER peut être remplie automatiquement depuis le rapport Shyfter.</p>
-              <div id="prestShyBox" style="display:none; margin:6px 0 12px">
-                <p class="hint">Rapport Shyfter (connectez-vous ici si demandé, puis relancez la synchro) :</p>
-                <webview id="prestShyWv" partition="persist:prive" src="about:blank" style="width:100%;height:320px;border:1px solid var(--glass-brd);border-radius:10px;background:#fff"></webview>
-              </div>
-              <div class="prest-controls">
-                <div class="seg" id="prestYear">
-                  <button class="chip active" data-year="2025">2025</button>
-                  <button class="chip" data-year="2026">2026</button>
-                </div>
-                <div class="seg" id="prestType">
-                  <button class="chip active" data-type="employes">Employés</button>
-                  <button class="chip" data-type="etudiants">Étudiants</button>
-                </div>
-                <button class="btn" id="prestAddPerson">+ Personne</button>
-              </div>
-              <div class="prest-table-wrap">
-                <table class="prest-table" id="prestTable"></table>
-              </div>
-              <p class="hint">Une cellule SHYFTER en rouge signale un écart avec la FICHE du même mois.</p>
+              <div class="prest-split">
+                <div class="prest-main">
+                  <div class="prest-controls">
+                    <div class="seg" id="prestYear">
+                      <button class="chip active" data-year="2025">2025</button>
+                      <button class="chip" data-year="2026">2026</button>
+                    </div>
+                    <div class="seg" id="prestType">
+                      <button class="chip active" data-type="employes">Employés</button>
+                      <button class="chip" data-type="etudiants">Étudiants</button>
+                    </div>
+                    <button class="btn" id="prestAddPerson">+ Personne</button>
+                  </div>
+                  <div class="prest-table-wrap">
+                    <table class="prest-table" id="prestTable"></table>
+                  </div>
+                  <p class="hint">Une cellule SHYFTER en rouge signale un écart avec la FICHE du même mois.</p>
 
-              <h2>Recherche par personne</h2>
-              <p class="muted">Tapez un nom : total Fiche de paie vs Shyfter et différence calculée automatiquement (rouge = a travaillé moins que la fiche, vert = a travaillé plus).</p>
-              <input type="text" id="prestPersonSearch" list="prestPersonList" placeholder="Nom de l'employé(e) ou étudiant(e)…" autocomplete="off" />
-              <datalist id="prestPersonList"></datalist>
-              <div id="prestPersonResult"></div>
+                  <h2>Recherche par personne</h2>
+                  <p class="muted">Tapez un nom : total Fiche de paie vs Shyfter et différence calculée automatiquement (rouge = a travaillé moins que la fiche, vert = a travaillé plus).</p>
+                  <input type="text" id="prestPersonSearch" list="prestPersonList" placeholder="Nom de l'employé(e) ou étudiant(e)…" autocomplete="off" />
+                  <datalist id="prestPersonList"></datalist>
+                  <div id="prestPersonResult"></div>
+                </div>
+                <div id="prestShyBox" class="prest-side" style="display:none">
+                  <p class="hint">Rapport Shyfter (connectez-vous ici si demandé, puis relancez la synchro) :</p>
+                  <webview id="prestShyWv" partition="persist:prive" src="about:blank" style="width:100%;height:74vh;border:1px solid var(--glass-brd);border-radius:10px;background:#fff"></webview>
+                </div>
+              </div>
             </div>
           </section>
 
