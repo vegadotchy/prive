@@ -6,6 +6,7 @@
 
 // Onglets « site web » (affichés dans une <webview>).
 const SITES = {
+  helpdesk: { title: 'Help desk', ico: '📞', url: 'https://c074ad90dcce.a.gdms.cloud/click2call/?from_user=webrtc_trunk_2&to_user=service' },
   gmail: { title: 'Gmail', ico: '✉️', url: 'https://mail.google.com/mail/u/0/?tab=wm&ogbl#inbox' },
   whatsapp: { title: 'WhatsApp', ico: '💬', url: 'https://web.whatsapp.com/' },
   doctena: { title: 'Doctena', ico: '📅', url: 'https://secure.doctena.com/' },
@@ -23,6 +24,7 @@ const SITES = {
 // panneau statique (accueil, chatgpt, …) ou une clé de SITES.
 const NAV = [
   { view: 'accueil', title: 'Accueil', ico: '🏠' },
+  { view: 'helpdesk', title: 'Contacter le help desk', ico: '📞', site: true },
   { group: 'Communication' },
   { view: 'gmail', title: 'Gmail', ico: '✉️', site: true },
   { view: 'whatsapp', title: 'WhatsApp', ico: '💬', site: true },

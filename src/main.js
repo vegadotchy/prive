@@ -61,6 +61,11 @@ app.whenReady().then(() => {
   // Applique un UA moderne à toutes les requêtes.
   session.defaultSession.setUserAgent(CHROME_UA);
 
+  // Autorise le micro/caméra (appels WebRTC du help desk) et les notifications.
+  session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {
+    callback(['media', 'audioCapture', 'videoCapture', 'notifications', 'clipboard-read', 'clipboard-sanitized-write'].includes(permission));
+  });
+
   createWindow();
 
   app.on('activate', () => {
