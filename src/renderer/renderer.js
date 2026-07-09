@@ -1365,6 +1365,103 @@ function setupPrestations() {
     setTimeout(() => (status.textContent = ''), 2000);
   });
 
+  // --- Synchronisation des heures SHYFTER depuis le rapport Shyfter ---
+  const monthKeyFromLabel = (label) => {
+    const n = (label || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    const map = [
+      ['janv', 'JANVIER'], ['fevr', 'FÉVRIER'], ['mars', 'MARS'], ['avri', 'AVRIL'],
+      ['mai', 'MAI'], ['juin', 'JUIN'], ['juil', 'JUILLET'], ['aout', 'AOÛT'],
+      ['sept', 'SEPTEMBRE'], ['octo', 'OCTOBRE'], ['nove', 'NOVEMBRE'], ['dece', 'DÉCEMBRE']
+    ];
+    for (const [p, m] of map) if (n.includes(p)) return m;
+    return null;
+  };
+  const normPersonName = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/\b(em|et)\b/g, ' ').replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter((w) => w.length >= 3);
+
+  document.getElementById('prestSyncShyfter').addEventListener('click', async () => {
+    const box = document.getElementById('prestShyBox');
+    const wv = document.getElementById('prestShyWv');
+    box.style.display = 'block';
+    status.textContent = 'Chargement du rapport Shyfter…';
+
+    const REPORT_URL = 'https://v3-app.shyfter.co/app/reports/timesheets/default';
+    const scrape = `(function(){
+      var MONTHS=['janvier','fevrier','février','mars','avril','mai','juin','juillet','aout','août','septembre','octobre','novembre','decembre','décembre'];
+      function norm(s){ return (s||'').toLowerCase(); }
+      var out=[];
+      var tables=document.querySelectorAll('table');
+      for(var ti=0;ti<tables.length;ti++){
+        var table=tables[ti];
+        var heads=table.querySelectorAll('thead th, thead td');
+        if(!heads.length){ var fr=table.querySelector('tr'); heads=fr?fr.querySelectorAll('th,td'):[]; }
+        var monthCols={};
+        for(var i=0;i<heads.length;i++){ var h=norm(heads[i].textContent); MONTHS.forEach(function(mn){ if(h.indexOf(mn)>=0) monthCols[i]=heads[i].textContent.trim(); }); }
+        if(!Object.keys(monthCols).length) continue;
+        var rows=table.querySelectorAll('tbody tr'); if(!rows.length) rows=table.querySelectorAll('tr');
+        for(var r=0;r<rows.length;r++){
+          var cells=rows[r].querySelectorAll('td,th'); if(cells.length<2) continue;
+          var name=(cells[0].textContent||'').trim(); if(!name || /total/i.test(name)) continue;
+          var months={};
+          Object.keys(monthCols).forEach(function(ci){
+            var raw=(cells[ci]?cells[ci].textContent:'')||'';
+            var v=raw.replace(',','.').replace(/[^0-9.]/g,'');
+            if(v!=='') months[monthCols[ci]]=parseFloat(v);
+          });
+          if(name && Object.keys(months).length) out.push({name:name, months:months});
+        }
+        if(out.length) break;
+      }
+      return JSON.stringify({rows:out, hasTable: document.querySelectorAll('table').length>0, login:/connect|mot de passe|login|password/i.test((document.body&&document.body.innerText)||'')});
+    })()`;
+
+    const scrapeNow = async () => {
+      try { return JSON.parse(await wv.executeJavaScript(scrape, true)); } catch (_) { return { rows: [] }; }
+    };
+
+    // (Re)charge le rapport puis lit après stabilisation.
+    await new Promise((resolve) => {
+      let done = false;
+      const finish = () => { if (done) return; done = true; wv.removeEventListener('did-stop-loading', finish); setTimeout(resolve, 2500); };
+      wv.addEventListener('did-stop-loading', finish);
+      try { wv.loadURL(REPORT_URL); } catch (_) { wv.src = REPORT_URL; }
+      setTimeout(finish, 8000); // filet de sécurité
+    });
+
+    const res = await scrapeNow();
+    if (res.login) { status.textContent = 'Connectez-vous à Shyfter dans le panneau ci-dessus, puis relancez la synchro.'; return; }
+    if (!res.rows || !res.rows.length) {
+      status.textContent = 'Aucun tableau mensuel détecté dans le rapport. Réglez le rapport sur l’année en vue mensuelle, ou envoyez-moi une capture pour calibrer.';
+      return;
+    }
+
+    // Applique aux jeux de l'année courante (employés + étudiants).
+    let filled = 0, matched = 0;
+    ['employes', 'etudiants'].forEach((type) => {
+      const ds = (settings.prestations || {})[`${type}-${prestYear}`];
+      if (!ds || !ds.persons) return;
+      res.rows.forEach((row) => {
+        const rTokens = normPersonName(row.name);
+        const person = ds.persons.find((p) => {
+          const pt = normPersonName(p.name);
+          return pt.some((w) => rTokens.includes(w));
+        });
+        if (!person) return;
+        matched++;
+        if (!person.months) person.months = emptyMonths();
+        Object.keys(row.months).forEach((label) => {
+          const mk = monthKeyFromLabel(label);
+          if (mk && person.months[mk]) { person.months[mk].shyfter = row.months[label]; filled++; }
+        });
+      });
+    });
+
+    await persistSettings();
+    renderPrestTable();
+    updatePersonDatalist();
+    status.textContent = `Synchronisé : ${matched} personne(s), ${filled} valeur(s) SHYFTER mises à jour (${prestYear}).`;
+  });
+
   renderPrestTable();
   updatePersonDatalist();
 }

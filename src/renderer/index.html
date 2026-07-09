@@ -384,11 +384,16 @@
               <div class="panel-head">
                 <h1>Prestations</h1>
                 <div class="row-btns" style="margin:0">
+                  <button class="btn" id="prestSyncShyfter">🔄 Synchroniser depuis Shyfter</button>
                   <button class="btn gold" id="prestSave">Enregistrer</button>
                   <span class="hint" id="prestStatus"></span>
                 </div>
               </div>
-              <p class="muted">Heures prestées par mois — comparaison FICHE / SHYFTER. Années séparées.</p>
+              <p class="muted">Heures prestées par mois — comparaison FICHE / SHYFTER. Années séparées. La colonne SHYFTER peut être remplie automatiquement depuis le rapport Shyfter.</p>
+              <div id="prestShyBox" style="display:none; margin:6px 0 12px">
+                <p class="hint">Rapport Shyfter (connectez-vous ici si demandé, puis relancez la synchro) :</p>
+                <webview id="prestShyWv" partition="persist:prive" src="about:blank" style="width:100%;height:320px;border:1px solid var(--glass-brd);border-radius:10px;background:#fff"></webview>
+              </div>
               <div class="prest-controls">
                 <div class="seg" id="prestYear">
                   <button class="chip active" data-year="2025">2025</button>
