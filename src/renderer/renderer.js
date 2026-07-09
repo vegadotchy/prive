@@ -16,7 +16,7 @@ const SITES = {
   },
   clearfacts: { title: 'ClearFacts / Kyte', ico: '🧾', url: 'https://mbm.clearfacts.be/login' },
   iballab: { title: 'IBC Lab online', ico: '🔬', url: 'https://labonline.lhub-ulb.be/', labSearch: true },
-  examens: { title: 'Rapport radiologie', ico: '📋', urlFromSettings: 'examsUrl' },
+  examens: { title: 'Rapport radiologie', ico: '📋', urlFromSettings: 'examsUrl', radioZip: true },
   medipost: { title: 'Medipost', ico: '📦', url: 'https://www.medipost.shop/' }
 };
 
@@ -130,6 +130,108 @@ function siteUrl(cfg) {
     return settings[cfg.urlFromSettings] || cfg.url || '';
   }
   return cfg.url || '';
+}
+
+// Capture toutes les images de la série d'un visualiseur radiologie (Ximeo) :
+// prend l'image affichée, parcourt la série (flèche droite + molette), et
+// récupère aussi les <img> annexes. Renvoie un JSON { frames, report, total }.
+const RADIO_CAPTURE_JS = `(async function(){
+  function png(el){
+    try{
+      if(el.tagName==='CANVAS'){ return el.toDataURL('image/png'); }
+      var w=el.naturalWidth||el.width, h=el.naturalHeight||el.height;
+      if(!w||!h) return null;
+      var c=document.createElement('canvas'); c.width=w; c.height=h;
+      c.getContext('2d').drawImage(el,0,0,w,h); return c.toDataURL('image/png');
+    }catch(e){ return null; }
+  }
+  function biggestCanvas(){
+    var cs=document.querySelectorAll('canvas'), best=null, ba=0;
+    for(var i=0;i<cs.length;i++){ var r=cs[i].getBoundingClientRect(); var a=r.width*r.height; if(a>ba){ba=a;best=cs[i];} }
+    return best;
+  }
+  function wait(ms){ return new Promise(function(r){ setTimeout(r,ms); }); }
+  function reportText(){
+    var t=(document.body.innerText||'').split('\\n').map(function(l){return l.trim();}).filter(Boolean);
+    var out=[],seen={};
+    for(var i=0;i<t.length && out.length<50;i++){ if(!seen[t[i]]){ seen[t[i]]=1; out.push(t[i]); } }
+    return out.join('\\n');
+  }
+  var total=1, mt=(document.body.innerText||'').match(/\\b(\\d{1,3})\\s*\\/\\s*(\\d{1,3})\\b/);
+  if(mt){ total=parseInt(mt[2],10)||1; }
+  if(total>80) total=80;
+  var frames=[], seen={};
+  function grab(prefix){
+    var el=biggestCanvas();
+    var d=el?png(el):null;
+    if(d && !seen[d]){ seen[d]=1; frames.push({ name:(prefix||'image_')+('0'+(frames.length+1)).slice(-2)+'.png', dataUrl:d }); return true; }
+    return false;
+  }
+  grab('image_');
+  var stagnate=0;
+  for(var i=1;i<total && stagnate<5;i++){
+    var vp=biggestCanvas()||document.body;
+    try{
+      ['keydown','keyup'].forEach(function(tp){
+        var ev={key:'ArrowRight',code:'ArrowRight',keyCode:39,which:39,bubbles:true};
+        vp.dispatchEvent(new KeyboardEvent(tp,ev));
+        document.dispatchEvent(new KeyboardEvent(tp,ev));
+      });
+      vp.dispatchEvent(new WheelEvent('wheel',{deltaY:120,bubbles:true}));
+    }catch(e){}
+    await wait(700);
+    if(grab('image_')) stagnate=0; else stagnate++;
+  }
+  var imgs=document.querySelectorAll('img');
+  for(var j=0;j<imgs.length;j++){
+    var im=imgs[j]; if((im.naturalWidth||0)<140||(im.naturalHeight||0)<140) continue;
+    var d=png(im); if(d && !seen[d]){ seen[d]=1; frames.push({ name:'annexe_'+('0'+(frames.length+1)).slice(-2)+'.png', dataUrl:d }); }
+  }
+  return JSON.stringify({ frames:frames, report:reportText(), total:total });
+})()`;
+
+async function downloadRadioZip(webview, btn) {
+  const prev = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Capture des images…';
+  let payload;
+  try {
+    payload = await webview.executeJavaScript(RADIO_CAPTURE_JS, true);
+  } catch (e) {
+    btn.disabled = false; btn.textContent = prev;
+    alert('Capture impossible : ' + e.message);
+    return;
+  }
+  let data = null;
+  try { data = JSON.parse(payload); } catch (_) { /* ignore */ }
+  if (!data || !data.frames || !data.frames.length) {
+    btn.disabled = false; btn.textContent = prev;
+    alert('Aucune image exportable détectée.\n\nOuvrez d’abord l’image/le rapport dans le visualiseur, laissez-la s’afficher, puis réessayez. (Certaines images protégées par le visualiseur peuvent ne pas être exportables.)');
+    return;
+  }
+  const total = data.total || data.frames.length;
+  if (data.frames.length < total) {
+    btn.textContent = `Création du ZIP (${data.frames.length}/${total})…`;
+  } else {
+    btn.textContent = `Création du ZIP (${data.frames.length} img)…`;
+  }
+  let res;
+  try {
+    res = await window.prive.saveRadioZip({ frames: data.frames, report: data.report || '' });
+  } catch (e) {
+    res = { ok: false, reason: e.message };
+  }
+  btn.disabled = false; btn.textContent = prev;
+  if (res && res.ok) {
+    const missed = total > data.frames.length
+      ? `\n\nNote : ${total - data.frames.length} image(s) de la série n’ont pas pu être parcourues automatiquement. Faites défiler la série dans le visualiseur puis relancez pour les ajouter.`
+      : '';
+    alert(`ZIP enregistré ✓ (${res.count} fichier(s)).${missed}`);
+  } else if (res && res.canceled) {
+    /* annulé par l'utilisateur */
+  } else {
+    alert('Enregistrement du ZIP impossible' + (res && res.reason ? ' : ' + res.reason : '') + '.');
+  }
 }
 
 function ensureWebview(viewId) {
@@ -251,6 +353,16 @@ function ensureWebview(viewId) {
       }
     });
     bar.insertBefore(printBtn, bar.querySelector('[data-act="external"]'));
+  }
+
+  // Rapport radiologie : télécharge toutes les images de la série + le rapport en ZIP.
+  if (cfg.radioZip) {
+    const zipBtn = document.createElement('button');
+    zipBtn.className = 'btn tiny gold';
+    zipBtn.textContent = '⬇️ Tout télécharger (ZIP)';
+    zipBtn.title = 'Parcourt toutes les images de la série affichée, les capture et les enregistre avec le rapport dans un fichier ZIP';
+    zipBtn.addEventListener('click', () => downloadRadioZip(webview, zipBtn));
+    bar.insertBefore(zipBtn, bar.querySelector('[data-act="external"]'));
   }
 
   bar.addEventListener('click', (e) => {

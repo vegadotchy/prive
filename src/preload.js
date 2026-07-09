@@ -34,6 +34,7 @@ contextBridge.exposeInMainWorld('prive', {
 
   exportPdf: (html, filename) => ipcRenderer.invoke('export:pdf', { html, filename }),
   exportSave: (content, filename) => ipcRenderer.invoke('export:save', { content, filename }),
+  saveRadioZip: (payload) => ipcRenderer.invoke('radio:saveZip', payload),
   pickTextFile: () => ipcRenderer.invoke('dialog:pickTextFile'),
 
   vaultGet: () => ipcRenderer.invoke('vault:get'),
