@@ -350,7 +350,18 @@ textarea { resize: vertical; }
 .shy-slot input { margin: 0; width: 100px; }
 .shy-slot .rm { color: #ffb4b4; cursor: pointer; font-weight: 700; }
 .shy-batch { display: flex; flex-direction: column; gap: 5px; max-height: 22vh; overflow-y: auto; margin-bottom: 8px; }
-.shy-results { display: flex; flex-direction: column; gap: 5px; max-height: 52vh; overflow-y: auto; }
+.shy-counters { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.shy-counter-who { grid-column: 1 / -1; font-weight: 700; color: var(--gold2); font-size: 13px; }
+.shy-counter {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 10px 6px; border: 1px solid var(--glass-brd); border-radius: 10px;
+  background: linear-gradient(180deg, rgba(233,196,106,0.10), rgba(255,255,255,0.03));
+  box-shadow: 0 0 14px rgba(233,196,106,0.12) inset;
+}
+.shy-counter .c-val { font-size: 17px; font-weight: 800; color: #ffe9b0; font-variant-numeric: tabular-nums; text-shadow: 0 0 10px rgba(233,196,106,0.35); }
+.shy-counter .c-lbl { font-size: 10.5px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); }
+.shy-counter-note { grid-column: 1 / -1; font-size: 11px; color: var(--muted); margin-top: 2px; }
+.shy-results { display: flex; flex-direction: column; gap: 5px; max-height: 40vh; overflow-y: auto; margin-top: 6px; }
 .shy-result { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 7px 9px; border: 1px solid var(--glass-brd); border-radius: 8px; background: rgba(255,255,255,0.04); font-size: 12.5px; }
 .shy-result .sr-time { color: var(--gold2); font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .shy-result .sr-name { font-weight: 600; }

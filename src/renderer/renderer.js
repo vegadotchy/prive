@@ -2761,43 +2761,48 @@ function setupSync() {
 // personnes avec leur plage horaire et la section (jour) à laquelle elles
 // appartiennent (« Pointages du jour », « Pointages d'hier », une date…).
 const SHYFTER_READ_JS = `(function(){
-  function collapse(s){ return (s||'').replace(/\\s+/g,' ').trim(); }
+  function collapse(s){ return (s||'').replace(/[ \\t]+/g,' ').trim(); }
   var RANGE=/(\\d{1,2}[:h]\\d{2})\\s*[-–—]\\s*(\\d{1,2}[:h]\\d{2}|en cours)/i;
-  var SECTION=/^(pointages?\\s+(du jour|d.?hier|de la semaine|de la p[ée]riode)|planning|horaires?)\\b/i;
-  var DATE=/^\\s*\\w{0,10}\\s*\\d{1,2}[\\/.\\s][\\w.]{2,9}[\\/.\\s]?\\d{0,4}\\s*$/;
+  var SECTION=/(pointages?\\s+(du jour|d.?hier)|personnel\\s+.\\s*l.horaire\\s+(aujourd|demain)|planning|semaine|p[ée]riode)/i;
+  var STATUS=/^(arriv|parti|en cours|en retard|en avance|absent|cong[ée]|\\bva\\b|\\brm\\b|\\beuro)/i;
   var all=document.querySelectorAll('body *');
   var section='', out=[], seen={};
+  function isName(c){
+    if(!c || c.length<2 || c.length>48) return false;
+    if(!/[a-zà-ÿ]{2,}/i.test(c)) return false;
+    if(RANGE.test(c) || STATUS.test(c)) return false;
+    if(/^\\d/.test(c)) return false;
+    return true;
+  }
   for(var i=0;i<all.length;i++){
     var el=all[i];
-    var txt='';
-    try{ txt=collapse(el.innerText||el.textContent||''); }catch(e){ continue; }
-    if(!txt) continue;
+    var full='';
+    try{ full=(el.innerText||el.textContent||''); }catch(e){ continue; }
+    var flat=collapse(full.replace(/\\n+/g,' '));
+    if(!flat) continue;
     // Titre de section (élément court)
-    if(txt.length<=42 && (SECTION.test(txt) || DATE.test(txt))){ section=txt; continue; }
-    // Ligne de pointage : contient une plage horaire ET un nom avant l'heure.
-    var m=txt.match(RANGE);
-    if(!m || txt.length>140) continue;
-    var idx=txt.indexOf(m[0]);
-    var nameRaw=collapse(txt.slice(0,idx));
-    if(!/[a-zà-ÿ]{2,}/i.test(nameRaw)) continue;   // pas de nom avant l'heure : ce n'est qu'une cellule d'heure
-    // On garde la plus petite ligne « nom + heure » : on écarte si un enfant est
-    // lui-même une ligne complète (nom + heure) → c'est un conteneur de plusieurs lignes.
-    var childRow=false;
-    for(var c=0;c<el.children.length;c++){
-      try{
-        var ct=collapse(el.children[c].innerText||el.children[c].textContent||'');
-        var cm=ct.match(RANGE);
-        if(cm){ var ci=ct.indexOf(cm[0]); if(/[a-zà-ÿ]{2,}/i.test(ct.slice(0,ci))){ childRow=true; break; } }
-      }catch(e){}
-    }
-    if(childRow) continue;
-    var name=nameRaw.replace(/^[•\\-\\u2013\\s]+/,'');
-    var status=collapse(txt.slice(idx+m[0].length));
-    if(!name || name.length<2 || name.length>60) continue;
-    if(!/[a-zà-ÿ]{2,}/i.test(name)) continue;
-    var key=name+'|'+m[1]+'|'+section;
+    if(flat.length<=48 && SECTION.test(flat) && !RANGE.test(flat)){ section=flat; continue; }
+    if(flat.length>200 || !RANGE.test(flat)) continue;
+    // Cellules de la ligne (séparées par des sauts de ligne dans le rendu)
+    var cells=full.split('\\n').map(collapse).filter(Boolean);
+    if(cells.length<2) continue;
+    // Cette ligne doit être « serrée » : on écarte si un enfant contient déjà une plage.
+    var childRange=false;
+    for(var c=0;c<el.children.length;c++){ try{ if(RANGE.test(el.children[c].innerText||'')){ childRange=true; break; } }catch(e){} }
+    if(childRange) continue;
+    // Trouve la cellule d'heure et la cellule de nom.
+    var m=null, ri=-1;
+    for(var k=0;k<cells.length;k++){ var mm=cells[k].match(RANGE); if(mm){ m=mm; ri=k; break; } }
+    if(!m) continue;
+    var name='';
+    for(var k=0;k<cells.length;k++){ if(k===ri) continue; if(/^(e[mt]|zz?|z)[-\\s]/i.test(cells[k]) && isName(cells[k])){ name=cells[k]; break; } }
+    if(!name){ for(var k=0;k<cells.length;k++){ if(k!==ri && isName(cells[k])){ name=cells[k]; break; } } }
+    if(!name) continue;
+    name=name.replace(/^[•\\-\\u2013\\s]+/,'').replace(/\\s+(eurocare|euro).*$/i,'').trim();
+    if(!isName(name)) continue;
+    var key=name.toLowerCase()+'|'+m[1]+'|'+section;
     if(seen[key]) continue; seen[key]=1;
-    out.push({ name:name, start:m[1].replace('h',':'), end:(/en cours/i.test(m[2])?'':m[2].replace('h',':')), status:status, day:section });
+    out.push({ name:name, start:m[1].replace('h',':'), end:(/en cours/i.test(m[2])?'':m[2].replace('h',':')), status:'', day:section });
   }
   return JSON.stringify({ rows:out, login:/mot de passe|se connecter|password|log ?in/i.test((document.body&&document.body.innerText)||'') });
 })()`;
@@ -2815,9 +2820,44 @@ function setupShyfter() {
 
   let entries = [];
 
+  const countersEl = document.getElementById('shyCounters');
+
   const toMin = (t) => {
     const m = /(\d{1,2})[:h](\d{2})/.exec(t || '');
     return m ? (Number(m[1]) * 60 + Number(m[2])) : null;
+  };
+  const fmtDur = (min) => {
+    if (!min || min <= 0) return '0h00';
+    return `${Math.floor(min / 60)}h${pad2(min % 60)}`;
+  };
+  // Date associée à un libellé de section (« du jour » = aujourd'hui, « d'hier »
+  // = hier, une date explicite si présente).
+  const dayToDate = (label) => {
+    const l = (label || '').toLowerCase();
+    const base = new Date(); base.setHours(0, 0, 0, 0);
+    const md = l.match(/(\d{1,2})[\/.](\d{1,2})(?:[\/.](\d{2,4}))?/);
+    if (md) {
+      const y = md[3] ? (md[3].length === 2 ? 2000 + Number(md[3]) : Number(md[3])) : base.getFullYear();
+      return new Date(y, Number(md[2]) - 1, Number(md[1]));
+    }
+    if (/hier/.test(l)) { base.setDate(base.getDate() - 1); return base; }
+    if (/demain/.test(l)) { base.setDate(base.getDate() + 1); return base; }
+    if (/jour|aujourd|horaire/.test(l)) return base;
+    return null;
+  };
+  // Durée pointée d'une entrée (en minutes). « En cours » : jusqu'à maintenant
+  // si c'est aujourd'hui, sinon 0.
+  const entryMinutes = (e) => {
+    const s = toMin(e.start); if (s == null) return 0;
+    let en;
+    if (e.end) { en = toMin(e.end); }
+    else {
+      const dd = dayToDate(e.day); const t = new Date();
+      if (dd && dd.toDateString() !== new Date(t.getFullYear(), t.getMonth(), t.getDate()).toDateString()) return 0;
+      en = t.getHours() * 60 + t.getMinutes();
+    }
+    if (en == null || en < s) return 0;
+    return en - s;
   };
 
   const fillSelect = (sel, values, keepAll) => {
@@ -2849,6 +2889,32 @@ function setupShyfter() {
     });
 
     countEl.textContent = `${rows.length} personne(s)`;
+
+    // --- Compteur d'heures (jour / semaine / mois / année) ---
+    // Basé sur le nom choisi (ou tout le monde) ; sur les données lues.
+    const t = new Date();
+    const monday = new Date(t); monday.setHours(0, 0, 0, 0);
+    monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7)); // lundi de la semaine
+    const nextMonday = new Date(monday); nextMonday.setDate(nextMonday.getDate() + 7);
+    let tDay = 0, tWeek = 0, tMonth = 0, tYear = 0, tAll = 0;
+    entries.filter((e) => !wantName || e.name === wantName).forEach((e) => {
+      const min = entryMinutes(e); tAll += min;
+      const dd = dayToDate(e.day); if (!dd) return;
+      if (dd.toDateString() === new Date(t.getFullYear(), t.getMonth(), t.getDate()).toDateString()) tDay += min;
+      if (dd >= monday && dd < nextMonday) tWeek += min;
+      if (dd.getFullYear() === t.getFullYear() && dd.getMonth() === t.getMonth()) tMonth += min;
+      if (dd.getFullYear() === t.getFullYear()) tYear += min;
+    });
+    const who = wantName ? escapeHtml(wantName) : 'Tous';
+    const cnt = (lbl, v) => `<div class="shy-counter"><span class="c-val">${fmtDur(v)}</span><span class="c-lbl">${lbl}</span></div>`;
+    if (countersEl) {
+      countersEl.innerHTML = entries.length
+        ? `<div class="shy-counter-who">${who}</div>` +
+          cnt('Jour', tDay) + cnt('Semaine', tWeek) + cnt('Mois', tMonth) + cnt('Année', tYear) +
+          `<div class="shy-counter-note">Total lu : ${fmtDur(tAll)}. Semaine/mois/année = d'après les jours affichés dans Shyfter — pour l'historique complet, ouvrez le rapport des prestations puis relisez.</div>`
+        : '';
+    }
+
     if (!entries.length) {
       resultsEl.innerHTML = '<div class="hint">Cliquez « 🔄 Lire les pointages » (Shyfter doit afficher les pointages/horaires à gauche).</div>';
       return;
