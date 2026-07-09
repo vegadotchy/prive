@@ -196,36 +196,42 @@
                   </div>
                   <webview id="shyWv" partition="persist:prive" src="about:blank" data-src="https://v3-app.shyfter.co/app/dashboard"></webview>
                 </div>
-                <div class="shy-form">
-                  <h2>Ajouter des disponibilités</h2>
-                  <label>Employé / Étudiant
-                    <input type="text" id="shyName" list="shyNameList" placeholder="Nom" autocomplete="off" />
-                    <datalist id="shyNameList"></datalist>
-                  </label>
-                  <div class="shy-dates">
-                    <label>Date de
-                      <input type="date" id="shyDateFrom" />
-                    </label>
-                    <label>à (facultatif)
-                      <input type="date" id="shyDateTo" />
-                    </label>
-                  </div>
-                  <label>Créneaux horaires (de … à)</label>
-                  <div id="shySlots"></div>
-                  <button class="btn tiny" id="shyAddSlot">+ ajouter un créneau</button>
+                <div class="shy-form" id="shyFilterPanel">
+                  <h2>Qui travaille ? — Filtre</h2>
+                  <p class="hint">Lit les pointages/horaires affichés dans Shyfter (à gauche) et filtre par nom, jour et heure.</p>
                   <div class="row-btns">
-                    <button class="btn gold" id="shyAddBatch">Ajouter au lot</button>
-                    <span class="hint" id="shyAddStatus"></span>
+                    <button class="btn gold" id="shyRead">🔄 Lire les pointages</button>
+                    <span class="hint" id="shyReadStatus"></span>
                   </div>
 
-                  <h2>Lot à placer (<span id="shyBatchCount">0</span>)</h2>
-                  <div id="shyBatch" class="shy-batch"></div>
-                  <div class="row-btns">
-                    <button class="btn gold" id="shyPlace">Placer sur Shyfter</button>
-                    <button class="btn" id="shyCopy">Copier</button>
-                    <button class="btn danger" id="shyClear">Vider</button>
-                    <span class="hint" id="shyStatus"></span>
+                  <label>Nom (employé / étudiant)
+                    <select id="shyFName">
+                      <option value="">— Tous —</option>
+                    </select>
+                  </label>
+                  <label>Jour
+                    <select id="shyFDay">
+                      <option value="">— Tous les jours lus —</option>
+                    </select>
+                  </label>
+                  <label>Présent(e) à cette heure (facultatif)
+                    <input type="time" id="shyFTime" />
+                  </label>
+                  <div class="shy-dates">
+                    <label>Heure ≥
+                      <input type="time" id="shyFFrom" />
+                    </label>
+                    <label>Heure ≤
+                      <input type="time" id="shyFTo" />
+                    </label>
                   </div>
+                  <div class="row-btns">
+                    <button class="btn" id="shyFReset">Effacer les filtres</button>
+                    <span class="hint" id="shyFCount"></span>
+                  </div>
+
+                  <h2>Résultats</h2>
+                  <div id="shyFResults" class="shy-results"></div>
                 </div>
               </div>
             </div>
@@ -281,17 +287,29 @@
                   <span class="hint" id="syncStatus"></span>
                 </div>
               </div>
-              <div class="sync-split">
-                <div class="sync-pane">
-                  <div class="sync-pane-head">📅 Doctena
-                    <button class="btn tiny" data-reload="d">↻</button>
+              <div class="sync-split" id="syncSplit">
+                <div class="sync-pane" data-pane="d">
+                  <div class="sync-pane-head">
+                    <span class="sp-title">📅 Doctena</span>
+                    <button class="btn tiny" data-nav="prev" data-pane="d" title="Jour précédent">◀</button>
+                    <button class="btn tiny" data-nav="today" data-pane="d" title="Aujourd’hui">Auj.</button>
+                    <button class="btn tiny" data-nav="next" data-pane="d" title="Jour suivant">▶</button>
+                    <button class="btn tiny" data-home="d" title="Fermer les fenêtres et revenir à l’agenda">🏠 Agenda</button>
+                    <button class="btn tiny" data-expand="d" title="Agrandir / réduire ce panneau">⤢</button>
+                    <button class="btn tiny" data-reload="d" title="Recharger">↻</button>
                     <button class="btn tiny" data-ext="d">Ouvrir</button>
                   </div>
                   <webview id="syncWvDoctena" partition="persist:prive" src="about:blank" data-src="https://secure.doctena.com/"></webview>
                 </div>
-                <div class="sync-pane">
-                  <div class="sync-pane-head">🩺 Doctoranytime
-                    <button class="btn tiny" data-reload="a">↻</button>
+                <div class="sync-pane" data-pane="a">
+                  <div class="sync-pane-head">
+                    <span class="sp-title">🩺 Doctoranytime</span>
+                    <button class="btn tiny" data-nav="prev" data-pane="a" title="Jour précédent">◀</button>
+                    <button class="btn tiny" data-nav="today" data-pane="a" title="Aujourd’hui">Auj.</button>
+                    <button class="btn tiny" data-nav="next" data-pane="a" title="Jour suivant">▶</button>
+                    <button class="btn tiny" data-home="a" title="Fermer les fenêtres et revenir à l’agenda">🏠 Agenda</button>
+                    <button class="btn tiny" data-expand="a" title="Agrandir / réduire ce panneau">⤢</button>
+                    <button class="btn tiny" data-reload="a" title="Recharger">↻</button>
                     <button class="btn tiny" data-ext="a">Ouvrir</button>
                   </div>
                   <webview id="syncWvDa" partition="persist:prive" src="about:blank" data-src="https://www.doctoranytime.be/doctorcrmV2/ConnectedAccount/ChangeAccount?u=0"></webview>

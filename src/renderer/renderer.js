@@ -135,9 +135,9 @@ function siteUrl(cfg) {
   return cfg.url || '';
 }
 
-// Capture toutes les images de la série d'un visualiseur radiologie (Ximeo) :
-// prend l'image affichée, parcourt la série (flèche droite + molette), et
-// récupère aussi les <img> annexes. Renvoie un JSON { frames, report, total }.
+// Capture UNIQUEMENT l'image médicale principale de la série (le grand
+// visualiseur), image par image, en parcourant la série (flèche droite +
+// molette). N'inclut PAS les icônes, vignettes ni logos.
 const RADIO_CAPTURE_JS = `(async function(){
   function png(el){
     try{
@@ -148,9 +148,16 @@ const RADIO_CAPTURE_JS = `(async function(){
       c.getContext('2d').drawImage(el,0,0,w,h); return c.toDataURL('image/png');
     }catch(e){ return null; }
   }
-  function biggestCanvas(){
-    var cs=document.querySelectorAll('canvas'), best=null, ba=0;
-    for(var i=0;i<cs.length;i++){ var r=cs[i].getBoundingClientRect(); var a=r.width*r.height; if(a>ba){ba=a;best=cs[i];} }
+  // Le plus grand média affiché (canvas ou img) = le visualiseur principal.
+  // Un seuil élimine les icônes / vignettes / logos.
+  function mainMedia(){
+    var els=document.querySelectorAll('canvas,img'), best=null, ba=0;
+    for(var i=0;i<els.length;i++){
+      var el=els[i]; var r; try{ r=el.getBoundingClientRect(); }catch(e){ continue; }
+      var a=r.width*r.height;
+      if(r.width<220 || r.height<220) continue;      // trop petit = icône/vignette
+      if(a>ba){ ba=a; best=el; }
+    }
     return best;
   }
   function wait(ms){ return new Promise(function(r){ setTimeout(r,ms); }); }
@@ -164,16 +171,16 @@ const RADIO_CAPTURE_JS = `(async function(){
   if(mt){ total=parseInt(mt[2],10)||1; }
   if(total>80) total=80;
   var frames=[], seen={};
-  function grab(prefix){
-    var el=biggestCanvas();
+  function grab(){
+    var el=mainMedia();
     var d=el?png(el):null;
-    if(d && !seen[d]){ seen[d]=1; frames.push({ name:(prefix||'image_')+('0'+(frames.length+1)).slice(-2)+'.png', dataUrl:d }); return true; }
+    if(d && !seen[d]){ seen[d]=1; frames.push({ name:'image_'+('0'+(frames.length+1)).slice(-2)+'.png', dataUrl:d }); return true; }
     return false;
   }
-  grab('image_');
+  grab();
   var stagnate=0;
   for(var i=1;i<total && stagnate<5;i++){
-    var vp=biggestCanvas()||document.body;
+    var vp=mainMedia()||document.body;
     try{
       ['keydown','keyup'].forEach(function(tp){
         var ev={key:'ArrowRight',code:'ArrowRight',keyCode:39,which:39,bubbles:true};
@@ -183,12 +190,7 @@ const RADIO_CAPTURE_JS = `(async function(){
       vp.dispatchEvent(new WheelEvent('wheel',{deltaY:120,bubbles:true}));
     }catch(e){}
     await wait(700);
-    if(grab('image_')) stagnate=0; else stagnate++;
-  }
-  var imgs=document.querySelectorAll('img');
-  for(var j=0;j<imgs.length;j++){
-    var im=imgs[j]; if((im.naturalWidth||0)<140||(im.naturalHeight||0)<140) continue;
-    var d=png(im); if(d && !seen[d]){ seen[d]=1; frames.push({ name:'annexe_'+('0'+(frames.length+1)).slice(-2)+'.png', dataUrl:d }); }
+    if(grab()) stagnate=0; else stagnate++;
   }
   return JSON.stringify({ frames:frames, report:reportText(), total:total });
 })()`;
@@ -2555,15 +2557,72 @@ function setupSync() {
   const wvDoctena = () => document.getElementById('syncWvDoctena');
   const wvDa = () => document.getElementById('syncWvDa');
 
-  // Boutons recharger / ouvrir de chaque panneau.
+  const wvOf = (k) => (k === 'd' ? wvDoctena() : (k === 'a' ? wvDa() : null));
+
+  // Script best-effort : clique le bouton « jour précédent / suivant / aujourd'hui »
+  // de l'agenda affiché (Doctena / Doctoranytime), quels que soient leurs libellés.
+  const navScript = (dir) => `(function(){
+    function vis(el){ try{ var r=el.getBoundingClientRect(); return r.width>0&&r.height>0; }catch(e){ return false; } }
+    function attrs(el){ return ((el.getAttribute&&(el.getAttribute('aria-label')||el.getAttribute('title')||el.getAttribute('data-tooltip'))||'')+' '+(el.textContent||'')+' '+((el.className&&el.className.baseVal!==undefined)?el.className.baseVal:(el.className||''))).toLowerCase(); }
+    var dir=${JSON.stringify(dir)};
+    var wants;
+    if(dir==='today') wants=[/aujourd/,/today/,/\\bce jour\\b/];
+    else if(dir==='prev') wants=[/pr[eé]c[eé]dent/,/previous/,/\\bprev\\b/,/back/,/arrow.?left/,/chevron.?left/,/fa-chevron-left/,/fa-angle-left/,/-left\\b/];
+    else wants=[/suivant/,/next/,/forward/,/arrow.?right/,/chevron.?right/,/fa-chevron-right/,/fa-angle-right/,/-right\\b/];
+    var cands=document.querySelectorAll('button,a,[role=button],i,svg,span,div');
+    for(var i=0;i<cands.length;i++){
+      var el=cands[i]; if(!vis(el)) continue;
+      var s=attrs(el);
+      for(var w=0;w<wants.length;w++){ if(wants[w].test(s)){ (el.closest('button,a,[role=button]')||el).click(); return 'ok'; } }
+    }
+    // Repli : flèches clavier pour changer de jour
+    var key = dir==='prev' ? 37 : (dir==='next' ? 39 : null);
+    if(key){ ['keydown','keyup'].forEach(function(t){ document.dispatchEvent(new KeyboardEvent(t,{keyCode:key,which:key,bubbles:true})); }); return 'key'; }
+    return 'notfound';
+  })()`;
+
+  // Ferme une éventuelle fenêtre (modale/pop-up) puis revient à l'agenda.
+  const closePopupScript = `(function(){
+    document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',keyCode:27,which:27,bubbles:true}));
+    var sel=['[aria-label*="ferm" i]','[aria-label*="close" i]','[title*="ferm" i]','[title*="close" i]','.close','.modal-close','button.close'];
+    for(var s=0;s<sel.length;s++){ var el=document.querySelector(sel[s]); if(el){ try{ el.click(); }catch(e){} } }
+    return 'ok';
+  })()`;
+
+  // Boutons de chaque panneau : recharger / ouvrir / naviguer / revenir / agrandir.
   const splitEl = document.querySelector('.sync-split');
   if (splitEl) {
-    splitEl.addEventListener('click', (e) => {
-      const r = e.target.dataset ? e.target.dataset.reload : null;
-      const x = e.target.dataset ? e.target.dataset.ext : null;
-      const wv = (r === 'd' || x === 'd') ? wvDoctena() : ((r === 'a' || x === 'a') ? wvDa() : null);
-      if (r && wv) wv.reload();
-      if (x && wv) window.prive.openExternal(wv.getURL());
+    splitEl.addEventListener('click', async (e) => {
+      const d = e.target.dataset || {};
+      if (d.reload) { const wv = wvOf(d.reload); if (wv) wv.reload(); return; }
+      if (d.ext) { const wv = wvOf(d.ext); if (wv) window.prive.openExternal(wv.getURL()); return; }
+      if (d.home) {
+        const wv = wvOf(d.home);
+        if (wv) { try { await wv.executeJavaScript(closePopupScript, true); } catch (_) {} }
+        status.textContent = 'Fenêtre fermée — retour à l’agenda.';
+        setTimeout(() => (status.textContent = ''), 1800);
+        return;
+      }
+      if (d.nav && d.pane) {
+        const wv = wvOf(d.pane);
+        if (!wv) return;
+        try {
+          const r = await wv.executeJavaScript(navScript(d.nav), true);
+          status.textContent = r === 'notfound'
+            ? 'Bouton de navigation introuvable sur cet agenda — utilisez ses propres flèches.'
+            : 'Jour changé.';
+        } catch (_) { status.textContent = 'Navigation impossible.'; }
+        setTimeout(() => (status.textContent = ''), 2200);
+        return;
+      }
+      if (d.expand) {
+        const pane = e.target.closest('.sync-pane');
+        const wasExpanded = pane.classList.contains('expanded');
+        splitEl.querySelectorAll('.sync-pane').forEach((p) => p.classList.remove('expanded'));
+        splitEl.classList.toggle('has-expanded', !wasExpanded);
+        if (!wasExpanded) pane.classList.add('expanded');
+        return;
+      }
     });
   }
   document.getElementById('syncReload').addEventListener('click', () => {
@@ -2641,195 +2700,140 @@ function setupSync() {
 // Shyfter — formulaire de disponibilités (lot + best-effort)
 // ---------------------------------------------------------------------------
 
-let shyBatch = [];
+// Lit les pointages/horaires affichés dans Shyfter : renvoie la liste des
+// personnes avec leur plage horaire et la section (jour) à laquelle elles
+// appartiennent (« Pointages du jour », « Pointages d'hier », une date…).
+const SHYFTER_READ_JS = `(function(){
+  function collapse(s){ return (s||'').replace(/\\s+/g,' ').trim(); }
+  var RANGE=/(\\d{1,2}[:h]\\d{2})\\s*[-–—]\\s*(\\d{1,2}[:h]\\d{2}|en cours)/i;
+  var SECTION=/^(pointages?\\s+(du jour|d.?hier|de la semaine|de la p[ée]riode)|planning|horaires?)\\b/i;
+  var DATE=/^\\s*\\w{0,10}\\s*\\d{1,2}[\\/.\\s][\\w.]{2,9}[\\/.\\s]?\\d{0,4}\\s*$/;
+  var all=document.querySelectorAll('body *');
+  var section='', out=[], seen={};
+  for(var i=0;i<all.length;i++){
+    var el=all[i];
+    var txt='';
+    try{ txt=collapse(el.innerText||el.textContent||''); }catch(e){ continue; }
+    if(!txt) continue;
+    // Titre de section (élément court)
+    if(txt.length<=42 && (SECTION.test(txt) || DATE.test(txt))){ section=txt; continue; }
+    // Ligne de pointage : contient une plage horaire, et l'élément est « serré »
+    var m=txt.match(RANGE);
+    if(!m || txt.length>120) continue;
+    var childHas=false;
+    for(var c=0;c<el.children.length;c++){ try{ if(RANGE.test(collapse(el.children[c].innerText||''))){ childHas=true; break; } }catch(e){} }
+    if(childHas) continue;
+    var idx=txt.indexOf(m[0]);
+    var name=collapse(txt.slice(0,idx)).replace(/^[•\\-\\u2013\\s]+/,'');
+    var status=collapse(txt.slice(idx+m[0].length));
+    if(!name || name.length<2 || name.length>60) continue;
+    if(!/[a-zà-ÿ]{2,}/i.test(name)) continue;
+    var key=name+'|'+m[1]+'|'+section;
+    if(seen[key]) continue; seen[key]=1;
+    out.push({ name:name, start:m[1].replace('h',':'), end:(/en cours/i.test(m[2])?'':m[2].replace('h',':')), status:status, day:section });
+  }
+  return JSON.stringify({ rows:out, login:/mot de passe|se connecter|password|log ?in/i.test((document.body&&document.body.innerText)||'') });
+})()`;
 
 function setupShyfter() {
   const wv = () => document.getElementById('shyWv');
-  const slotsEl = document.getElementById('shySlots');
-  const batchEl = document.getElementById('shyBatch');
-  const countEl = document.getElementById('shyBatchCount');
-  const status = document.getElementById('shyStatus');
-  const addStatus = document.getElementById('shyAddStatus');
+  const readStatus = document.getElementById('shyReadStatus');
+  const nameSel = document.getElementById('shyFName');
+  const daySel = document.getElementById('shyFDay');
+  const atTime = document.getElementById('shyFTime');
+  const fromTime = document.getElementById('shyFFrom');
+  const toTime = document.getElementById('shyFTo');
+  const countEl = document.getElementById('shyFCount');
+  const resultsEl = document.getElementById('shyFResults');
 
-  // Liste des noms (employés + étudiants de toutes les feuilles de prestations).
-  const names = new Set();
-  Object.values(settings.prestations || {}).forEach((ds) => {
-    (ds && ds.persons || []).forEach((p) => names.add(p.name));
-  });
-  const dl = document.getElementById('shyNameList');
-  [...names].sort().forEach((n) => { const o = document.createElement('option'); o.value = n; dl.appendChild(o); });
+  let entries = [];
 
-  const addSlotRow = (from = '09:00', to = '17:00') => {
-    const row = document.createElement('div');
-    row.className = 'shy-slot';
-    row.innerHTML = '<span>de</span><input type="time" class="sf" value="' + from + '">' +
-      '<span>à</span><input type="time" class="st" value="' + to + '">' +
-      '<span class="rm" title="Retirer">×</span>';
-    row.querySelector('.rm').addEventListener('click', () => row.remove());
-    slotsEl.appendChild(row);
+  const toMin = (t) => {
+    const m = /(\d{1,2})[:h](\d{2})/.exec(t || '');
+    return m ? (Number(m[1]) * 60 + Number(m[2])) : null;
   };
-  addSlotRow();
-  document.getElementById('shyAddSlot').addEventListener('click', () => addSlotRow());
 
-  const renderBatch = () => {
-    countEl.textContent = String(shyBatch.length);
-    batchEl.innerHTML = shyBatch.length ? '' : '<span class="hint">Lot vide.</span>';
-    shyBatch.forEach((b, i) => {
-      const row = document.createElement('div');
-      row.className = 'shy-bitem';
-      row.innerHTML = `<b>${escapeHtml(b.name)}</b> · ${b.date} · ${b.from}–${b.to}<span class="rm" title="Retirer">×</span>`;
-      row.querySelector('.rm').addEventListener('click', () => { shyBatch.splice(i, 1); renderBatch(); });
-      batchEl.appendChild(row);
+  const fillSelect = (sel, values, keepAll) => {
+    const cur = sel.value;
+    sel.innerHTML = keepAll ? `<option value="">${keepAll}</option>` : '';
+    values.forEach((v) => {
+      const o = document.createElement('option');
+      o.value = v; o.textContent = v; sel.appendChild(o);
     });
+    if ([...sel.options].some((o) => o.value === cur)) sel.value = cur;
   };
-  renderBatch();
 
-  const eachDate = (from, to) => {
-    const out = [];
-    if (!from) return out;
-    const d0 = new Date(from + 'T00:00');
-    const d1 = to ? new Date(to + 'T00:00') : d0;
-    for (let d = new Date(d0); d <= d1; d.setDate(d.getDate() + 1)) {
-      out.push(`${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`);
+  const render = () => {
+    const wantName = nameSel.value;
+    const wantDay = daySel.value;
+    const at = toMin(atTime.value);
+    const fMin = toMin(fromTime.value);
+    const tMin = toMin(toTime.value);
+
+    const rows = entries.filter((e) => {
+      if (wantName && e.name !== wantName) return false;
+      if (wantDay && e.day !== wantDay) return false;
+      const s = toMin(e.start);
+      const en = e.end ? toMin(e.end) : 24 * 60;   // « en cours » = jusqu'à la fin de journée
+      if (at != null) { if (s == null || at < s || at > en) return false; }
+      if (fMin != null && en != null && en < fMin) return false;
+      if (tMin != null && s != null && s > tMin) return false;
+      return true;
+    });
+
+    countEl.textContent = `${rows.length} personne(s)`;
+    if (!entries.length) {
+      resultsEl.innerHTML = '<div class="hint">Cliquez « 🔄 Lire les pointages » (Shyfter doit afficher les pointages/horaires à gauche).</div>';
+      return;
     }
-    return out;
+    if (!rows.length) { resultsEl.innerHTML = '<div class="hint">Personne ne correspond à ces filtres.</div>'; return; }
+    resultsEl.innerHTML = rows.map((e) => {
+      const range = e.end ? `${e.start}–${e.end}` : `${e.start} · en cours`;
+      const st = e.status ? `<span class="sr-status">${escapeHtml(e.status)}</span>` : '';
+      const day = e.day ? `<span class="sr-day">${escapeHtml(e.day)}</span>` : '';
+      return `<div class="shy-result"><span class="sr-time">${range}</span>` +
+        `<span class="sr-name">${escapeHtml(e.name)}</span>${st}${day}</div>`;
+    }).join('');
   };
 
-  document.getElementById('shyAddBatch').addEventListener('click', () => {
-    const name = document.getElementById('shyName').value.trim();
-    const from = document.getElementById('shyDateFrom').value;
-    const to = document.getElementById('shyDateTo').value;
-    if (!name) { addStatus.textContent = 'Nom requis.'; return; }
-    if (!from) { addStatus.textContent = 'Date requise.'; return; }
-    const slots = [...slotsEl.querySelectorAll('.shy-slot')].map((r) => ({
-      from: r.querySelector('.sf').value, to: r.querySelector('.st').value
-    })).filter((s) => s.from && s.to);
-    if (!slots.length) { addStatus.textContent = 'Au moins un créneau.'; return; }
-    const dates = eachDate(from, to);
-    let added = 0;
-    dates.forEach((date) => slots.forEach((s) => { shyBatch.push({ name, date, from: s.from, to: s.to }); added++; }));
-    renderBatch();
-    addStatus.textContent = `${added} créneau(x) ajouté(s).`;
-    setTimeout(() => (addStatus.textContent = ''), 2500);
-  });
-
-  const batchText = () => shyBatch.map((b) => `${b.name}\t${b.date}\t${b.from}-${b.to}`).join('\n');
-
-  document.getElementById('shyCopy').addEventListener('click', async () => {
-    try { await navigator.clipboard.writeText(batchText()); status.textContent = 'Lot copié ✓'; }
-    catch (_) { status.textContent = 'Copie impossible.'; }
-    setTimeout(() => (status.textContent = ''), 2000);
-  });
-  document.getElementById('shyClear').addEventListener('click', () => { shyBatch = []; renderBatch(); });
-
-  // Remplit la modale « Création d'un shift » ouverte dans Shyfter avec le
-  // 1er créneau du lot (Début/Fin) puis clique « Créer shift ». L'utilisateur
-  // choisit le bon Utilisateur dans la modale (indiqué par l'app).
-  // Compare un nom (ex. "GHANI") au texte utilisateur de la modale
-  // (ex. "EM-A. GHANI Bouali").
-  const nameMatches = (name, userText) => {
-    const norm = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
-      .replace(/\bem\b|\bet\b/g, ' ').replace(/[^a-z0-9\s]/g, ' ');
-    const u = norm(userText);
-    return norm(name).split(/\s+/).filter((w) => w.length >= 3).some((w) => u.includes(w));
+  const refreshFilters = () => {
+    const names = [...new Set(entries.map((e) => e.name))].sort((a, b) => a.localeCompare(b));
+    const days = [...new Set(entries.map((e) => e.day).filter(Boolean))];
+    fillSelect(nameSel, names, '— Tous —');
+    fillSelect(daySel, days, '— Tous les jours lus —');
   };
 
-  document.getElementById('shyPlace').addEventListener('click', async () => {
+  document.getElementById('shyRead').addEventListener('click', async () => {
     ensureShyfterPane();
-    // Item : 1er du lot, sinon les valeurs du formulaire.
-    let item;
-    if (shyBatch.length) {
-      item = shyBatch[0];
+    readStatus.textContent = 'Lecture…';
+    let data = {};
+    try { data = JSON.parse(await wv().executeJavaScript(SHYFTER_READ_JS, true)); } catch (_) { data = {}; }
+    entries = (data.rows || []).map((r) => ({
+      name: r.name, start: r.start, end: r.end, status: r.status, day: r.day || '—'
+    }));
+    if (!entries.length) {
+      readStatus.textContent = data.login
+        ? 'Connectez-vous à Shyfter dans le panneau de gauche, puis relisez.'
+        : 'Aucun pointage lu — ouvrez la page qui liste les horaires/pointages, puis relisez.';
     } else {
-      const slot = slotsEl.querySelector('.shy-slot');
-      const from = slot ? slot.querySelector('.sf').value : '';
-      const to = slot ? slot.querySelector('.st').value : '';
-      if (!from || !to) { status.textContent = 'Renseignez un créneau (de…à), ou cliquez « Ajouter au lot ».'; return; }
-      item = { name: document.getElementById('shyName').value.trim(), date: document.getElementById('shyDateFrom').value, from, to };
+      readStatus.textContent = `${entries.length} ligne(s) lue(s) ✓`;
     }
+    refreshFilters();
+    render();
+    setTimeout(() => (readStatus.textContent = ''), 4000);
+  });
 
-    // Étape 1 : lire l'état de la modale (présence + utilisateur sélectionné).
-    const readScript = `(function(){
-      var btn=null, btns=document.querySelectorAll('button,[role=button]');
-      for (var i=0;i<btns.length;i++){ if(/Créer shift/i.test(btns[i].textContent||'')){ btn=btns[i]; break; } }
-      if(!btn) return JSON.stringify({modal:false});
-      var userText='';
-      var labs=document.querySelectorAll('label,span,div,p');
-      for (var i=0;i<labs.length;i++){
-        var t=(labs[i].textContent||'').trim().replace(/[*:]/g,'').toLowerCase();
-        if(t==='utilisateur'){
-          var scope=labs[i].parentElement;
-          for(var d=0; d<5 && scope; d++){
-            var sel=scope.querySelector('[class*=singleValue],[class*=single-value],[class*=Value]');
-            if(sel && sel.textContent.trim()){ userText=sel.textContent.trim(); break; }
-            var inp=scope.querySelector('input:not([type=hidden])');
-            if(inp && inp.value){ userText=inp.value; break; }
-            scope=scope.parentElement;
-          }
-          if(userText) break;
-        }
-      }
-      return JSON.stringify({modal:true, user:userText});
-    })()`;
-
-    let st = {};
-    try { st = JSON.parse(await wv().executeJavaScript(readScript, true)); } catch (_) { st = {}; }
-    if (!st.modal) {
-      status.textContent = `Dans Shyfter (à gauche), ouvrez « Création d'un shift » avec l'utilisateur ${item.name || '(voulu)'} — puis recliquez « Placer ».`;
-      return;
-    }
-    // Sécurité : ne pas placer si l'utilisateur de la modale ne correspond pas.
-    if (item.name && st.user && !nameMatches(item.name, st.user)) {
-      status.textContent = `⚠️ La fenêtre Shyfter est sur « ${st.user} », pas « ${item.name} ». Corrigez l'utilisateur dans Shyfter, puis replacez. (Rien n'a été envoyé.)`;
-      return;
-    }
-
-    // Étape 2 : remplir Début/Fin et cliquer « Créer shift ».
-    const fillScript = `(function(from, to){
-      function setVal(inp, value){
-        try { var s=Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set; s.call(inp, value); }
-        catch(e){ inp.value = value; }
-        ['input','change','keyup','blur'].forEach(function(t){ inp.dispatchEvent(new Event(t,{bubbles:true})); });
-      }
-      function inputByLabel(labelText){
-        var labs=document.querySelectorAll('label,span,div,p');
-        for (var i=0;i<labs.length;i++){
-          var t=(labs[i].textContent||'').trim().replace(/[*:]/g,'').toLowerCase();
-          if(t===labelText.toLowerCase()){
-            var scope=labs[i].parentElement;
-            for(var d=0; d<4 && scope; d++){
-              var inp=scope.querySelector('input:not([type=hidden]):not([type=checkbox])');
-              if(inp) return inp;
-              scope=scope.parentElement;
-            }
-          }
-        }
-        return null;
-      }
-      var deb=inputByLabel('Début'), fin=inputByLabel('Fin');
-      if(deb) setVal(deb, from);
-      if(fin) setVal(fin, to);
-      var ok=!!(deb && fin);
-      if(ok){
-        var btn=null, btns=document.querySelectorAll('button,[role=button]');
-        for (var i=0;i<btns.length;i++){ if(/Créer shift/i.test(btns[i].textContent||'')){ btn=btns[i]; break; } }
-        if(btn) setTimeout(function(){ btn.click(); }, 350);
-      }
-      return JSON.stringify({deb:!!deb, fin:!!fin, submitted:ok});
-    })(${JSON.stringify(item.from)}, ${JSON.stringify(item.to)})`;
-
-    let out = {};
-    try { out = JSON.parse(await wv().executeJavaScript(fillScript, true)); } catch (_) { out = {}; }
-    if (out.submitted) {
-      if (shyBatch.length) { shyBatch.shift(); renderBatch(); }
-      status.textContent = `Créneau ${item.from}–${item.to} envoyé pour « ${st.user || item.name} ». ${shyBatch.length ? 'Ouvrez la modale pour le suivant.' : 'Vérifiez dans Shyfter.'}`;
-    } else {
-      status.textContent = 'Champs Début/Fin introuvables dans la fenêtre — vérifiez qu\'elle est bien ouverte.';
-    }
+  [nameSel, daySel].forEach((el) => el.addEventListener('change', render));
+  [atTime, fromTime, toTime].forEach((el) => el.addEventListener('input', render));
+  document.getElementById('shyFReset').addEventListener('click', () => {
+    nameSel.value = ''; daySel.value = ''; atTime.value = ''; fromTime.value = ''; toTime.value = '';
+    render();
   });
 
   document.getElementById('shyReload').addEventListener('click', () => { ensureShyfterPane(); try { wv().reload(); } catch (_) {} });
   document.getElementById('shyExt').addEventListener('click', () => { const w = wv(); if (w) window.prive.openExternal(w.getURL()); });
+
+  render();
 }
 
 // ---------------------------------------------------------------------------
