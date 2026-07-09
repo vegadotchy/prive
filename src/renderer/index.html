@@ -340,6 +340,14 @@
                   <div class="hint" id="medCount"></div>
                   <div class="modeles-list" id="medList"></div>
                   <button class="btn gold" id="medNew">+ Nouveau médecin</button>
+                  <div class="med-export">
+                    <label class="check"><input type="checkbox" id="medSelectAll" /> Tout sélectionner</label>
+                    <div class="row-btns" style="margin-top:6px">
+                      <button class="btn" id="medExportXls">📊 Exporter XLS</button>
+                      <button class="btn" id="medExportPdf">📄 Exporter PDF</button>
+                    </div>
+                    <span class="hint" id="medExportStatus"></span>
+                  </div>
                 </div>
                 <div class="modeles-editor">
                   <label>Nom &amp; Prénom
@@ -356,6 +364,9 @@
                   </label>
                   <label>NISS
                     <input type="text" id="medNiss" />
+                  </label>
+                  <label>N° INAMI
+                    <input type="text" id="medInami" />
                   </label>
                   <div class="row-btns">
                     <button class="btn gold" id="medSave">Enregistrer</button>
@@ -411,6 +422,7 @@
               <div class="row-btns">
                 <button class="btn" id="ccDetect">Détecter automatiquement</button>
                 <button class="btn" id="ccPick">Choisir le fichier .exe…</button>
+                <button class="btn" id="ccDownload">⤓ Télécharger CareConnect</button>
               </div>
               <p class="hint">Fichier configuré : <span id="ccPath">—</span></p>
               <p class="hint" id="careconnectHint"></p>

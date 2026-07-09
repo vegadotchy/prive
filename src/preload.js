@@ -32,6 +32,9 @@ contextBridge.exposeInMainWorld('prive', {
   addAttachments: () => ipcRenderer.invoke('attach:add'),
   extractText: (filePath) => ipcRenderer.invoke('attach:extractText', filePath),
 
+  exportPdf: (html, filename) => ipcRenderer.invoke('export:pdf', { html, filename }),
+  exportSave: (content, filename) => ipcRenderer.invoke('export:save', { content, filename }),
+
   googleStatus: () => ipcRenderer.invoke('google:status'),
   googleConnect: () => ipcRenderer.invoke('google:connect'),
   googleAddEvent: (ev) => ipcRenderer.invoke('google:addEvent', ev)

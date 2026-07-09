@@ -270,6 +270,11 @@ textarea { resize: vertical; }
 .modele-item:hover { border-color: var(--gold2); }
 .modele-item.active { border-color: var(--gold2); background: rgba(233,196,106,0.12); }
 .modele-item .m-name { font-weight: 600; }
+.med-item { display: flex; align-items: center; gap: 9px; }
+.med-item .med-check { width: auto; margin: 0; flex: 0 0 auto; }
+.med-item .med-item-body { flex: 1; min-width: 0; }
+.med-export { margin-top: 12px; border-top: 1px solid var(--glass-brd); padding-top: 10px; }
+.med-export .check { margin-bottom: 4px; }
 .modele-item .m-cat { font-size: 11px; color: var(--gold2); text-transform: uppercase; letter-spacing: .5px; }
 
 /* Prestations */

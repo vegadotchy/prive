@@ -227,6 +227,46 @@ ipcMain.handle('chat:send', async (_e, payload) => {
   return chatCompletion(settings, payload);
 });
 
+// Exporte un contenu HTML en PDF (fenêtre hors-écran + printToPDF).
+ipcMain.handle('export:pdf', async (_e, payload) => {
+  const html = (payload && payload.html) || '';
+  const suggested = (payload && payload.filename) || 'export.pdf';
+  const save = await dialog.showSaveDialog(mainWindow, {
+    title: 'Enregistrer le PDF',
+    defaultPath: suggested,
+    filters: [{ name: 'PDF', extensions: ['pdf'] }]
+  });
+  if (save.canceled || !save.filePath) return { ok: false };
+  const win = new BrowserWindow({ show: false, webPreferences: { sandbox: true } });
+  try {
+    await win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+    const pdf = await win.webContents.printToPDF({ printBackground: true, landscape: true });
+    fs.writeFileSync(save.filePath, pdf);
+    return { ok: true, path: save.filePath };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  } finally {
+    win.destroy();
+  }
+});
+
+// Enregistre un contenu texte/binaire via une boîte de dialogue (ex. XLS/CSV).
+ipcMain.handle('export:save', async (_e, payload) => {
+  const content = (payload && payload.content) || '';
+  const suggested = (payload && payload.filename) || 'export.xls';
+  const save = await dialog.showSaveDialog(mainWindow, {
+    title: 'Enregistrer le fichier',
+    defaultPath: suggested
+  });
+  if (save.canceled || !save.filePath) return { ok: false };
+  try {
+    fs.writeFileSync(save.filePath, content, 'utf8');
+    return { ok: true, path: save.filePath };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+});
+
 // Importe des documents (copie dans le profil) à joindre à un modèle.
 ipcMain.handle('attach:add', async () => {
   const result = await dialog.showOpenDialog(mainWindow, {

@@ -602,6 +602,10 @@ function setupCareconnect() {
     const res = await window.prive.pickExe();
     if (res.ok) { await savePath(res.path); hint.textContent = 'Fichier enregistré ✓'; }
   });
+
+  document.getElementById('ccDownload').addEventListener('click', () => {
+    window.prive.openExternal('https://services.careconnect.be/client/6.4/otherplatforms.html');
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -812,6 +816,7 @@ function setupModeles() {
 // ---------------------------------------------------------------------------
 
 let medCurrentId = null;
+const medSelected = new Set();
 
 function setupMedecins() {
   const searchEl = document.getElementById('medSearch');
@@ -822,28 +827,44 @@ function setupMedecins() {
   const adresseEl = document.getElementById('medAdresse');
   const telEl = document.getElementById('medTel');
   const nissEl = document.getElementById('medNiss');
+  const inamiEl = document.getElementById('medInami');
   const statusEl = document.getElementById('medStatus');
+  const exportStatus = document.getElementById('medExportStatus');
+  const selectAllEl = document.getElementById('medSelectAll');
 
-  const renderList = () => {
+  const filtered = () => {
     const q = searchEl.value.trim().toLowerCase();
-    const all = settings.doctors || [];
-    const items = all.filter((d) => {
+    return (settings.doctors || []).filter((d) => {
       if (!q) return true;
-      return [d.name, d.societe, d.adresse, d.tel, d.niss]
+      return [d.name, d.societe, d.adresse, d.tel, d.niss, d.inami]
         .filter(Boolean).join(' ').toLowerCase().includes(q);
     });
-    countEl.textContent = `${items.length} / ${all.length} médecin(s)`;
+  };
+
+  const renderList = () => {
+    const all = settings.doctors || [];
+    const items = filtered();
+    countEl.textContent = `${items.length} / ${all.length} médecin(s)` +
+      (medSelected.size ? ` · ${medSelected.size} sélectionné(s)` : '');
     listEl.innerHTML = '';
     if (!items.length) {
       listEl.innerHTML = '<div class="hint">Aucun médecin trouvé.</div>';
     }
     items.forEach((d) => {
       const div = document.createElement('div');
-      div.className = 'modele-item' + (d.id === medCurrentId ? ' active' : '');
+      div.className = 'modele-item med-item' + (d.id === medCurrentId ? ' active' : '');
       div.innerHTML =
-        `<div class="m-name">${escapeHtml(d.name)}</div>` +
-        `<div class="m-cat">${escapeHtml(d.societe || '—')}</div>`;
-      div.addEventListener('click', () => select(d.id));
+        `<input type="checkbox" class="med-check" ${medSelected.has(d.id) ? 'checked' : ''} />` +
+        `<div class="med-item-body"><div class="m-name">${escapeHtml(d.name)}</div>` +
+        `<div class="m-cat">${escapeHtml(d.societe || '—')}</div></div>`;
+      const chk = div.querySelector('.med-check');
+      chk.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (chk.checked) medSelected.add(d.id); else medSelected.delete(d.id);
+        countEl.textContent = `${items.length} / ${all.length} médecin(s)` +
+          (medSelected.size ? ` · ${medSelected.size} sélectionné(s)` : '');
+      });
+      div.querySelector('.med-item-body').addEventListener('click', () => select(d.id));
       listEl.appendChild(div);
     });
   };
@@ -857,18 +878,26 @@ function setupMedecins() {
     adresseEl.value = d.adresse || '';
     telEl.value = d.tel || '';
     nissEl.value = d.niss || '';
+    inamiEl.value = d.inami || '';
     renderList();
   };
 
   const blank = () => {
     medCurrentId = null;
-    [nameEl, societeEl, adresseEl, telEl, nissEl].forEach((e) => (e.value = ''));
+    [nameEl, societeEl, adresseEl, telEl, nissEl, inamiEl].forEach((e) => (e.value = ''));
     renderList();
     nameEl.focus();
   };
 
   searchEl.addEventListener('input', renderList);
   document.getElementById('medNew').addEventListener('click', blank);
+
+  selectAllEl.addEventListener('change', () => {
+    const items = filtered();
+    if (selectAllEl.checked) items.forEach((d) => medSelected.add(d.id));
+    else items.forEach((d) => medSelected.delete(d.id));
+    renderList();
+  });
 
   document.getElementById('medSave').addEventListener('click', async () => {
     const name = nameEl.value.trim();
@@ -879,7 +908,8 @@ function setupMedecins() {
       societe: societeEl.value.trim(),
       adresse: adresseEl.value.trim(),
       tel: telEl.value.trim(),
-      niss: nissEl.value.trim()
+      niss: nissEl.value.trim(),
+      inami: inamiEl.value.trim()
     };
     if (medCurrentId) {
       const d = settings.doctors.find((x) => x.id === medCurrentId);
@@ -897,10 +927,48 @@ function setupMedecins() {
   document.getElementById('medDelete').addEventListener('click', async () => {
     if (!medCurrentId) return;
     settings.doctors = (settings.doctors || []).filter((x) => x.id !== medCurrentId);
+    medSelected.delete(medCurrentId);
     await persistSettings();
     blank();
     statusEl.textContent = 'Supprimé.';
     setTimeout(() => (statusEl.textContent = ''), 2000);
+  });
+
+  // --- Export XLS / PDF ---
+  const COLS = ['Nom & Prénom', 'Société', 'Adresse', 'Téléphone / N°', 'NISS', 'N° INAMI'];
+  const rowsToExport = () => {
+    const all = settings.doctors || [];
+    const chosen = medSelected.size ? all.filter((d) => medSelected.has(d.id)) : filtered();
+    return chosen;
+  };
+  const esc = (s) => escapeHtml(String(s == null ? '' : s));
+  const buildTableHtml = (docs) => {
+    const head = '<tr>' + COLS.map((c) => `<th style="border:1px solid #999;padding:4px 8px;background:#eee;text-align:left">${c}</th>`).join('') + '</tr>';
+    const body = docs.map((d) =>
+      '<tr>' + [d.name, d.societe, d.adresse, d.tel, d.niss, d.inami]
+        .map((v) => `<td style="border:1px solid #999;padding:4px 8px">${esc(v)}</td>`).join('') + '</tr>'
+    ).join('');
+    return `<table style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:12px">${head}${body}</table>`;
+  };
+
+  document.getElementById('medExportXls').addEventListener('click', async () => {
+    const docs = rowsToExport();
+    if (!docs.length) { exportStatus.textContent = 'Aucun médecin à exporter.'; return; }
+    const html = '<html><head><meta charset="utf-8"></head><body>' + buildTableHtml(docs) + '</body></html>';
+    const res = await window.prive.exportSave(html, 'medecins.xls');
+    exportStatus.textContent = res.ok ? `Exporté (${docs.length}) ✓` : (res.ok === false && res.error ? res.error : '');
+    setTimeout(() => (exportStatus.textContent = ''), 3000);
+  });
+
+  document.getElementById('medExportPdf').addEventListener('click', async () => {
+    const docs = rowsToExport();
+    if (!docs.length) { exportStatus.textContent = 'Aucun médecin à exporter.'; return; }
+    const html = '<html><head><meta charset="utf-8"><title>Médecins</title></head><body>' +
+      '<h2 style="font-family:Arial">Liste des médecins (' + docs.length + ')</h2>' +
+      buildTableHtml(docs) + '</body></html>';
+    const res = await window.prive.exportPdf(html, 'medecins.pdf');
+    exportStatus.textContent = res.ok ? `PDF exporté (${docs.length}) ✓` : (res.error || '');
+    setTimeout(() => (exportStatus.textContent = ''), 3000);
   });
 
   renderList();
