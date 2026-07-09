@@ -2741,14 +2741,24 @@ const SHYFTER_READ_JS = `(function(){
     if(!txt) continue;
     // Titre de section (élément court)
     if(txt.length<=42 && (SECTION.test(txt) || DATE.test(txt))){ section=txt; continue; }
-    // Ligne de pointage : contient une plage horaire, et l'élément est « serré »
+    // Ligne de pointage : contient une plage horaire ET un nom avant l'heure.
     var m=txt.match(RANGE);
-    if(!m || txt.length>120) continue;
-    var childHas=false;
-    for(var c=0;c<el.children.length;c++){ try{ if(RANGE.test(collapse(el.children[c].innerText||''))){ childHas=true; break; } }catch(e){} }
-    if(childHas) continue;
+    if(!m || txt.length>140) continue;
     var idx=txt.indexOf(m[0]);
-    var name=collapse(txt.slice(0,idx)).replace(/^[•\\-\\u2013\\s]+/,'');
+    var nameRaw=collapse(txt.slice(0,idx));
+    if(!/[a-zà-ÿ]{2,}/i.test(nameRaw)) continue;   // pas de nom avant l'heure : ce n'est qu'une cellule d'heure
+    // On garde la plus petite ligne « nom + heure » : on écarte si un enfant est
+    // lui-même une ligne complète (nom + heure) → c'est un conteneur de plusieurs lignes.
+    var childRow=false;
+    for(var c=0;c<el.children.length;c++){
+      try{
+        var ct=collapse(el.children[c].innerText||el.children[c].textContent||'');
+        var cm=ct.match(RANGE);
+        if(cm){ var ci=ct.indexOf(cm[0]); if(/[a-zà-ÿ]{2,}/i.test(ct.slice(0,ci))){ childRow=true; break; } }
+      }catch(e){}
+    }
+    if(childRow) continue;
+    var name=nameRaw.replace(/^[•\\-\\u2013\\s]+/,'');
     var status=collapse(txt.slice(idx+m[0].length));
     if(!name || name.length<2 || name.length>60) continue;
     if(!/[a-zà-ÿ]{2,}/i.test(name)) continue;
@@ -2856,6 +2866,15 @@ function setupShyfter() {
 
   document.getElementById('shyReload').addEventListener('click', () => { ensureShyfterPane(); try { wv().reload(); } catch (_) {} });
   document.getElementById('shyExt').addEventListener('click', () => { const w = wv(); if (w) window.prive.openExternal(w.getURL()); });
+
+  // Lecture automatique quand la page Shyfter finit de charger (remplit la liste
+  // déroulante des noms sans action manuelle).
+  const w = wv();
+  if (w) {
+    w.addEventListener('did-stop-loading', () => {
+      setTimeout(() => { try { document.getElementById('shyRead').click(); } catch (_) {} }, 1500);
+    });
+  }
 
   render();
 }
