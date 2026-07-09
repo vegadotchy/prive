@@ -487,3 +487,172 @@ textarea { resize: vertical; }
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); border-radius: 8px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(233,196,106,0.4); }
+
+/* =====================================================================
+   THÈME FUTURISTE — effets visuels, boutons 3D, animations (x5)
+   Ces règles complètent/écrasent les précédentes.
+   ===================================================================== */
+:root {
+  --neon-gold: rgba(233, 196, 106, 0.75);
+  --neon-red: rgba(193, 39, 45, 0.65);
+  --neon-cyan: rgba(96, 210, 255, 0.55);
+}
+
+/* --- Fond animé : aurores mouvantes + grille holographique + scanline --- */
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  inset: -20%;
+  pointer-events: none;
+  z-index: 0;
+}
+body::before {
+  background:
+    radial-gradient(closest-side, rgba(193,39,45,0.22), transparent 70%),
+    radial-gradient(closest-side, rgba(10,107,59,0.20), transparent 70%),
+    radial-gradient(closest-side, rgba(233,196,106,0.14), transparent 70%);
+  background-repeat: no-repeat;
+  background-size: 55% 55%, 50% 50%, 45% 45%;
+  background-position: 10% 0%, 100% 100%, 80% 10%;
+  filter: blur(30px);
+  animation: auroraFloat 18s ease-in-out infinite alternate;
+}
+body::after {
+  background-image:
+    linear-gradient(rgba(120,170,255,0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(120,170,255,0.05) 1px, transparent 1px);
+  background-size: 46px 46px, 46px 46px;
+  mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, #000 40%, transparent 85%);
+  -webkit-mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, #000 40%, transparent 85%);
+  animation: gridDrift 40s linear infinite;
+  opacity: 0.6;
+}
+@keyframes auroraFloat {
+  0%   { transform: translate3d(0,0,0) scale(1); }
+  50%  { transform: translate3d(2%, 1.5%, 0) scale(1.08); }
+  100% { transform: translate3d(-2%, -1%, 0) scale(1.04); }
+}
+@keyframes gridDrift {
+  0% { background-position: 0 0, 0 0; }
+  100% { background-position: 46px 92px, 92px 46px; }
+}
+/* Le contenu passe au-dessus du fond animé */
+.marquee, .app, .statusbar { position: relative; z-index: 1; }
+
+/* --- Titres néon --- */
+.panel h1, .sync-top h1 {
+  text-shadow: 0 0 1px rgba(255,255,255,0.4), 0 0 18px rgba(233,196,106,0.25);
+  letter-spacing: .3px;
+}
+.panel h1::after, .sync-top h1::after {
+  background: linear-gradient(90deg, var(--gold1), var(--ma-red), var(--ma-green));
+  background-size: 200% 100%;
+  animation: hueSlide 6s linear infinite;
+  box-shadow: 0 0 12px rgba(233,196,106,0.5);
+}
+@keyframes hueSlide { 0% { background-position: 0% 0; } 100% { background-position: 200% 0; } }
+
+/* --- Panneaux : bordure lumineuse + entrée animée --- */
+.panel, .tile, .sync-pane, .shy-form, .prest-table-wrap, .modele-item, .sync-group {
+  position: relative;
+}
+.panel {
+  animation: panelIn .5s cubic-bezier(.2,.8,.2,1) both;
+  box-shadow:
+    0 10px 30px rgba(0,0,0,0.45),
+    0 0 0 1px rgba(255,255,255,0.04) inset,
+    0 0 40px rgba(96,160,255,0.06) inset;
+}
+.panel::before {
+  content: "";
+  position: absolute; inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(130deg, rgba(233,196,106,0.55), rgba(193,39,45,0.35), rgba(10,107,59,0.35), rgba(96,210,255,0.35));
+  background-size: 300% 300%;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+  opacity: .5;
+  animation: borderFlow 10s ease infinite;
+  pointer-events: none;
+}
+@keyframes borderFlow { 0%,100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+@keyframes panelIn {
+  from { opacity: 0; transform: translateY(14px) scale(.985); filter: blur(2px); }
+  to   { opacity: 1; transform: none; filter: none; }
+}
+/* Entrée des vues (opacité seule : ne casse pas le rendu des webviews) */
+.view.active { animation: viewIn .4s ease both; }
+@keyframes viewIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* --- Boutons 3D + balayage lumineux --- */
+.btn { position: relative; overflow: hidden; transition: transform .12s cubic-bezier(.2,.8,.2,1), box-shadow .18s, filter .18s, background .18s; }
+.btn::after {
+  content: ""; position: absolute; top: 0; left: -120%;
+  width: 60%; height: 100%;
+  background: linear-gradient(100deg, transparent, rgba(255,255,255,0.35), transparent);
+  transform: skewX(-18deg);
+  transition: left .55s ease;
+  pointer-events: none;
+}
+.btn:hover::after { left: 130%; }
+.btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.4); }
+.btn:active { transform: translateY(1px) scale(.98); }
+
+.btn.primary, .btn.gold {
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.7) inset,
+    0 -3px 8px rgba(0,0,0,0.22) inset,
+    0 6px 16px rgba(0,0,0,0.45),
+    0 0 18px rgba(233,196,106,0.28);
+}
+.btn.primary:hover, .btn.gold:hover {
+  filter: brightness(1.08) saturate(1.05);
+  transform: translateY(-2px);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.8) inset,
+    0 -3px 8px rgba(0,0,0,0.22) inset,
+    0 10px 24px rgba(0,0,0,0.5),
+    0 0 26px rgba(233,196,106,0.55);
+}
+.btn.primary:active, .btn.gold:active { transform: translateY(2px) scale(.99); }
+.btn.gold.big, .btn.primary.big { animation: goldPulse 2.6s ease-in-out infinite; }
+@keyframes goldPulse {
+  0%,100% { box-shadow: 0 1px 0 rgba(255,255,255,0.7) inset, 0 6px 16px rgba(0,0,0,0.45), 0 0 16px rgba(233,196,106,0.30); }
+  50%     { box-shadow: 0 1px 0 rgba(255,255,255,0.8) inset, 0 8px 20px rgba(0,0,0,0.5), 0 0 30px rgba(233,196,106,0.6); }
+}
+
+/* --- Sidebar : items glissants + actif lumineux --- */
+.nav-item { transition: background .18s, color .18s, border-color .18s, transform .12s, box-shadow .18s; }
+.nav-item:hover { transform: translateX(3px); box-shadow: -8px 0 18px -12px rgba(233,196,106,0.6) inset; }
+.nav-item.active { box-shadow: 0 1px 0 rgba(255,255,255,0.5) inset, 0 4px 10px rgba(0,0,0,0.35), 0 0 22px rgba(233,196,106,0.45); }
+.brand-dot { animation: dotPulse 2.4s ease-in-out infinite; }
+@keyframes dotPulse {
+  0%,100% { box-shadow: 0 0 10px rgba(233,196,106,0.7); transform: scale(1); }
+  50%     { box-shadow: 0 0 20px rgba(233,196,106,1); transform: scale(1.12); }
+}
+
+/* --- Tiles : relief 3D au survol + halo --- */
+.tile { transition: transform .18s cubic-bezier(.2,.8,.2,1), box-shadow .2s, border-color .2s; transform-style: preserve-3d; }
+.tile:hover {
+  transform: translateY(-5px) scale(1.02);
+  box-shadow: 0 16px 34px rgba(0,0,0,0.5), 0 0 26px rgba(233,196,106,0.28);
+}
+.tile .tile-ico { transition: transform .2s ease, filter .2s; }
+.tile:hover .tile-ico { transform: translateY(-2px) scale(1.12); filter: drop-shadow(0 4px 10px rgba(233,196,106,0.6)); }
+
+/* --- Champs : halo au focus --- */
+input:focus, select:focus, textarea:focus {
+  box-shadow: 0 0 0 3px rgba(233,196,106,0.20), 0 0 18px rgba(233,196,106,0.22);
+  transition: box-shadow .2s, border-color .2s;
+}
+
+/* --- Badges/statuts pulsés --- */
+.sync-badge.bad, .dot.bad { animation: alertPulse 1.8s ease-in-out infinite; }
+@keyframes alertPulse { 0%,100% { filter: none; } 50% { filter: drop-shadow(0 0 6px rgba(239,68,68,0.8)); } }
+
+/* Respecte la préférence « animations réduites » */
+@media (prefers-reduced-motion: reduce) {
+  *, body::before, body::after { animation: none !important; transition: none !important; }
+}
