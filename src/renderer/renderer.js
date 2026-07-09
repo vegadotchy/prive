@@ -823,8 +823,87 @@ function setupModeles() {
     showView('mail');
   });
 
+  // --- Coller un texte / mail et le transformer en modèle -------------------
+  const pasteEl = document.getElementById('modelePaste');
+  const pasteBtn = document.getElementById('modelePasteBtn');
+  const phEl = document.getElementById('modelePastePlaceholders');
+  pasteBtn.addEventListener('click', () => {
+    const raw = (pasteEl.value || '').trim();
+    if (!raw) { statusEl.textContent = 'Collez d’abord un texte à transformer.'; return; }
+    const t = transformToModele(raw, phEl && phEl.checked);
+    modeleCurrentId = null;                 // nouveau modèle (pas d'écrasement)
+    nameEl.value = t.name;
+    catEl.value = t.category;
+    subjEl.value = t.subject;
+    bodyEl.value = t.body;
+    modeleAttachments = [];
+    renderList(); renderAttach();
+    nameEl.focus();
+    statusEl.textContent = 'Modèle prêt — vérifiez puis cliquez « Enregistrer ».';
+    setTimeout(() => (statusEl.textContent = ''), 4000);
+  });
+
   renderList();
   renderAttach();
+}
+
+// Transforme un texte/mail collé en modèle : devine la catégorie, extrait
+// l'objet, nettoie les en-têtes de mail et remplace éventuellement les
+// données personnelles (noms, dates…) par des champs {{…}} réutilisables.
+function transformToModele(raw, usePlaceholders) {
+  let text = String(raw).replace(/\r\n/g, '\n').trim();
+  let subject = '';
+
+  // 1) Objet explicite (Objet:/Subject:/Sujet:) puis retrait des en-têtes de mail.
+  const subjM = text.match(/^\s*(?:objet|subject|sujet)\s*:\s*(.+)$/im);
+  if (subjM) subject = subjM[1].trim();
+  const HEADER = /^\s*(?:de|from|à|a|to|cc|cci|bcc|envoyé|sent|date|objet|subject|sujet|reply-to|répondre à)\s*:.*$/gim;
+  // Ne retire les en-têtes que s'il y en a au moins deux (vrai bloc d'en-tête de mail).
+  if ((text.match(HEADER) || []).length >= 2) text = text.replace(HEADER, '').trim();
+  text = text.replace(/^\n+/, '').trim();
+
+  // 2) Objet de repli : première ligne courte non vide.
+  if (!subject) {
+    const first = text.split('\n').map((l) => l.trim()).find(Boolean) || '';
+    subject = first.length > 90 ? first.slice(0, 87) + '…' : first;
+  }
+
+  // 3) Catégorie devinée par mots-clés.
+  const low = (subject + ' ' + text).toLowerCase();
+  let category = 'mail';
+  if (/prescription|ordonnance|rp\/|posologie|à prendre|comprimé|gélule|mg\b|renouvel/.test(low)) category = 'prescription';
+  else if (/rapport|compte[- ]rendu|conclusion|anamnèse|examen clinique|diagnostic|bilan|résultat/.test(low)) category = 'rapport';
+  else if (/bonjour|madame|monsieur|cordialement|bien à vous|cher|chère|rendez-vous|confirmation/.test(low)) category = 'mail';
+
+  // 4) Nom du modèle : à partir de l'objet.
+  let name = subject.replace(/^(re|tr|fwd|fw)\s*:\s*/i, '').trim() || 'Modèle importé';
+  if (name.length > 60) name = name.slice(0, 57) + '…';
+
+  // 5) Remplacement optionnel des données personnelles par des champs.
+  let body = text;
+  if (usePlaceholders) {
+    // Dates : 12/07/2026, 12-07-26, 12 juillet 2026, 2026-07-12…
+    body = body.replace(/\b\d{1,2}[\/.\-]\d{1,2}[\/.\-]\d{2,4}\b/g, '{{DATE}}');
+    body = body.replace(/\b\d{4}-\d{2}-\d{2}\b/g, '{{DATE}}');
+    body = body.replace(/\b\d{1,2}\s+(janvier|février|fevrier|mars|avril|mai|juin|juillet|août|aout|septembre|octobre|novembre|décembre|decembre)\s+\d{4}\b/gi, '{{DATE}}');
+    // Heures : 14h30, 08:15
+    body = body.replace(/\b\d{1,2}\s*[:h]\s*\d{2}\b/g, '{{HEURE}}');
+    // Nom après une formule d'appel : « Cher M. Dupont », « Bonjour Madame Martin ».
+    // (on n'attrape pas « Madame, Monsieur » : le mot suivant ne doit pas être une civilité)
+    body = body.replace(
+      /\b(Cher|Chère|Bonjour|Madame|Monsieur|Mme|Mr|Dr)\.?\s+(?!(?:Madame|Monsieur|Mme|Mr)\b)([A-ZÀ-Ý][\wÀ-ÿ'-]+(?:\s+[A-ZÀ-Ý][\wÀ-ÿ'-]+){0,2})/g,
+      '$1 {{PATIENT}}');
+    // E-mails et téléphones
+    body = body.replace(/\b[\w.+-]+@[\w-]+\.[\w.-]+\b/g, '{{EMAIL}}');
+    body = body.replace(/(?:\+?\d[\d\s().-]{7,}\d)/g, '{{TELEPHONE}}');
+    // Montants
+    body = body.replace(/\b\d+(?:[.,]\d{2})?\s*€/g, '{{MONTANT}}');
+    if (subject) {
+      subject = subject.replace(/\b\d{1,2}[\/.\-]\d{1,2}[\/.\-]\d{2,4}\b/g, '{{DATE}}');
+    }
+  }
+
+  return { name, category, subject, body: body.trim() };
 }
 
 // ---------------------------------------------------------------------------
@@ -1855,12 +1934,62 @@ function setupCalendar() {
 // ---------------------------------------------------------------------------
 
 // Récupère le texte visible d'une webview (y compris iframes de même origine).
+// Lit un agenda de deux façons complémentaires :
+//   1) « events » : chaque carte de rendez-vous est associée à son heure par sa
+//      position verticale (utile quand les noms sont dans la grille et les heures
+//      dans une colonne séparée — cas Doctoranytime).
+//   2) « raw » : texte brut de la page (utile quand chaque ligne porte déjà son
+//      heure — cas Doctena « 8:15 Jeanie Brunet »).
+// Les deux sont fusionnés puis dédupliqués côté application.
 const AGENDA_READ_JS = `(function(){
-  function grab(doc){ try { return (doc.body && doc.body.innerText) || ''; } catch(e){ return ''; } }
-  var txt = grab(document);
+  function txtOf(el){ try { return ((el.innerText||el.textContent||'')+'').replace(/\\s+/g,' ').trim(); } catch(e){ return ''; } }
+  var TIME_ONLY = /^\\s*(\\d{1,2})[:h.](\\d{2})\\s*$/;
+  var TIME_ANY  = /(\\d{1,2})[:h.](\\d{2})/;
+  var NAME_RE   = /[A-Za-zÀ-ÿ]{2,}/;
+  function collect(doc, out){
+    try { out.raw += '\\n' + ((doc.body && doc.body.innerText) || ''); } catch(e){}
+    var all; try { all = doc.querySelectorAll('*'); } catch(e){ return; }
+    // a) repère la colonne des heures (labels « 08:00 », « 8h30 »…)
+    var labels = [];
+    for (var i=0;i<all.length;i++){
+      var t = txtOf(all[i]); var m = t.match(TIME_ONLY);
+      if (!m) continue;
+      var r; try { r = all[i].getBoundingClientRect(); } catch(e){ continue; }
+      if (r.height>0 && r.width>0) labels.push({ y:r.top+r.height/2, left:r.left, right:r.right, time:('0'+m[1]).slice(-2)+':'+m[2] });
+    }
+    var gutterLeft = 0;
+    if (labels.length){ gutterLeft = labels[0].left; for (var k=1;k<labels.length;k++){ if (labels[k].left<gutterLeft) gutterLeft=labels[k].left; } }
+    // b) cartes de rendez-vous : plus petit élément portant un nom, à droite de la colonne des heures
+    for (var i=0;i<all.length;i++){
+      var el = all[i];
+      if (el.children && el.children.length > 3) continue;      // conteneur, pas une carte
+      var t = txtOf(el);
+      if (!t || t.length > 160) continue;
+      if (TIME_ONLY.test(t)) continue;                          // c'est un label d'heure
+      if (!NAME_RE.test(t)) continue;                           // pas de nom
+      var same = false;
+      for (var c=0; c<el.children.length; c++){ if (txtOf(el.children[c]) === t){ same = true; break; } }
+      if (same) continue;                                       // un enfant porte déjà tout le texte
+      var r; try { r = el.getBoundingClientRect(); } catch(e){ continue; }
+      if (r.height<=0 || r.width<=0) continue;
+      if (labels.length && r.left < gutterLeft - 8) continue;   // à gauche des heures = menu/sidebar
+      // heure : d'abord dans le texte de la carte, sinon par la ligne la plus proche
+      var time = null, own = t.match(TIME_ANY);
+      if (own && t.indexOf(own[0]) < 4){ time = ('0'+own[1]).slice(-2)+':'+own[2]; }
+      if (!time && labels.length){
+        var best=null, bd=1e9, cy=r.top+r.height/2;
+        for (var k=0;k<labels.length;k++){ var d=Math.abs(labels[k].y-cy); if (d<bd){ bd=d; best=labels[k]; } }
+        if (best && bd < 26) time = best.time;
+      }
+      if (!time) continue;
+      out.events.push({ time:time, name:t });
+    }
+  }
+  var out = { events: [], raw: '' };
+  collect(document, out);
   var frames = document.querySelectorAll('iframe');
-  for (var i=0;i<frames.length;i++){ try { txt += '\\n' + grab(frames[i].contentDocument); } catch(e){} }
-  return txt;
+  for (var f=0; f<frames.length; f++){ try { collect(frames[f].contentDocument, out); } catch(e){} }
+  return JSON.stringify(out);
 })()`;
 
 async function readAgendaWv(wv) {
@@ -1905,6 +2034,38 @@ function looksLikeHeader(name) {
   if (/^\W*\d{1,2}\s*(janv|f[eé]vr|mars|avri|mai|juin|juil|ao[uû]t|sept|octo|nove|d[eé]ce)/.test(n)) return true;
   if (/^(lun|mar|mer|jeu|ven|sam|dim)\.?\b/.test(n) && n.replace(/[^a-zà-ÿ]/g, '').length < 9) return true;
   return false;
+}
+
+// Extrait le texte brut (.raw) d'une lecture d'agenda (JSON ou texte simple).
+function rawOf(read) {
+  if (typeof read !== 'string') return '';
+  try { const o = JSON.parse(read); if (o && typeof o === 'object') return o.raw || ''; } catch (_) {}
+  return read;
+}
+
+// Fusionne les rendez-vous « géométriques » (events) et ceux lus ligne par ligne
+// (raw), dédupliqués par nom. Les heures « inline » (raw) sont prioritaires.
+function apptsFromRead(read) {
+  let data = null;
+  if (typeof read === 'string') { try { data = JSON.parse(read); } catch (_) {} }
+  const out = [];
+  const seen = new Set();
+  const add = (time, src) => {
+    const name = cleanApptName(src);
+    if (!hasName(name) || looksLikeHeader(name)) return;
+    const norm = normName(src);
+    if (!norm || seen.has(norm)) return;
+    seen.add(norm);
+    out.push({ time, name, norm });
+  };
+  // 1) raw d'abord : heures les plus fiables (chaque ligne porte son heure).
+  const raw = data && typeof data.raw === 'string' ? data.raw
+            : (data ? '' : (read || ''));
+  parseAppts(raw).forEach((a) => add(a.time, a.name));
+  // 2) events (association par position) : complète les rendez-vous manquants.
+  if (data && Array.isArray(data.events)) data.events.forEach((e) => add(e.time, e.name));
+  out.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+  return out;
 }
 
 function parseAppts(text) {
@@ -2044,7 +2205,7 @@ function setupSync() {
     ensureSyncPanes();
     status.textContent = 'Lecture…';
     const [ta, tb] = await Promise.all([readAgendaWv(wvDoctena()), readAgendaWv(wvDa())]);
-    const a = parseAppts(ta), b = parseAppts(tb);
+    const a = apptsFromRead(ta), b = apptsFromRead(tb);
     const fmt = (list) => list.length
       ? list.map((x) => `<div class="sync-row"><span class="t">${x.time}</span><span>${escapeHtml(x.name)}</span></div>`).join('')
       : '<div class="hint">(rien détecté — l\'agenda est peut-être dans un cadre sécurisé illisible)</div>';
@@ -2059,14 +2220,15 @@ function setupSync() {
     ensureSyncPanes();
     status.textContent = 'Lecture des agendas…';
     const [ta, tb] = await Promise.all([readAgendaWv(wvDoctena()), readAgendaWv(wvDa())]);
-    let aList = parseAppts(ta);
-    let bList = parseAppts(tb);
+    let aList = apptsFromRead(ta);
+    let bList = apptsFromRead(tb);
+    const rawA = rawOf(ta), rawB = rawOf(tb);
     // Diagnostics : un panneau est-il sur une page de connexion / sélection ?
     const notes = [];
-    if (!aList.length && (looksLikeLogin(ta) || !ta)) {
+    if (!aList.length && (looksLikeLogin(rawA) || !rawA)) {
       notes.push('⚠️ Doctena n’est pas sur un agenda : connectez-vous dans le panneau de gauche, puis ouvrez la vue « Jour » du praticien.');
     }
-    if (!bList.length && (looksLikeLogin(tb) || !tb)) {
+    if (!bList.length && (looksLikeLogin(rawB) || !rawB)) {
       notes.push('⚠️ Doctoranytime n’est pas sur un agenda : sélectionnez l’hôpital → « Sélectionner un praticien » → vue « Jour ».');
     }
 

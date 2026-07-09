@@ -321,6 +321,15 @@
                   <button class="btn gold" id="modeleNew">+ Nouveau modèle</button>
                 </div>
                 <div class="modeles-editor">
+                  <div class="paste-block">
+                    <label>Coller un texte ou un mail — le programme le transforme en modèle
+                      <textarea id="modelePaste" rows="4" placeholder="Collez ici le texte ou le mail (Ctrl+V)… Le titre, la catégorie et le contenu seront remplis automatiquement, avec des champs {{PATIENT}}, {{DATE}}… à personnaliser."></textarea>
+                    </label>
+                    <div class="row-btns">
+                      <button class="btn gold" id="modelePasteBtn" type="button">✨ Transformer en modèle</button>
+                      <label class="chk"><input type="checkbox" id="modelePastePlaceholders" checked /> Remplacer noms/dates par des champs {{…}}</label>
+                    </div>
+                  </div>
                   <label>Nom
                     <input type="text" id="modeleName" />
                   </label>
