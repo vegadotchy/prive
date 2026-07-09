@@ -1957,8 +1957,20 @@ const AGENDA_READ_JS = `(function(){
       var r; try { r = all[i].getBoundingClientRect(); } catch(e){ continue; }
       if (r.height>0 && r.width>0) labels.push({ y:r.top+r.height/2, left:r.left, right:r.right, time:('0'+m[1]).slice(-2)+':'+m[2] });
     }
-    var gutterLeft = 0;
-    if (labels.length){ gutterLeft = labels[0].left; for (var k=1;k<labels.length;k++){ if (labels[k].left<gutterLeft) gutterLeft=labels[k].left; } }
+    var gutterLeft = 0, yMin = 1e9, yMax = -1e9, gap = 40;
+    if (labels.length){
+      gutterLeft = labels[0].left;
+      var ys = [];
+      for (var k=0;k<labels.length;k++){
+        if (labels[k].left<gutterLeft) gutterLeft=labels[k].left;
+        if (labels[k].y<yMin) yMin=labels[k].y;
+        if (labels[k].y>yMax) yMax=labels[k].y;
+        ys.push(labels[k].y);
+      }
+      ys.sort(function(a,b){return a-b;});
+      var diffs=[]; for (var k=1;k<ys.length;k++){ var d=ys[k]-ys[k-1]; if (d>2) diffs.push(d); }
+      if (diffs.length){ diffs.sort(function(a,b){return a-b;}); gap = diffs[Math.floor(diffs.length/2)] || 40; }
+    }
     // b) cartes de rendez-vous : plus petit élément portant un nom, à droite de la colonne des heures
     for (var i=0;i<all.length;i++){
       var el = all[i];
@@ -1972,14 +1984,18 @@ const AGENDA_READ_JS = `(function(){
       if (same) continue;                                       // un enfant porte déjà tout le texte
       var r; try { r = el.getBoundingClientRect(); } catch(e){ continue; }
       if (r.height<=0 || r.width<=0) continue;
-      if (labels.length && r.left < gutterLeft - 8) continue;   // à gauche des heures = menu/sidebar
+      var cy = r.top + r.height/2;
+      if (labels.length){
+        if (r.left < gutterLeft - 8) continue;                 // à gauche des heures = menu/sidebar
+        if (cy < yMin - gap || cy > yMax + gap) continue;      // hors de la grille horaire (bannière/entête/pied)
+      }
       // heure : d'abord dans le texte de la carte, sinon par la ligne la plus proche
       var time = null, own = t.match(TIME_ANY);
       if (own && t.indexOf(own[0]) < 4){ time = ('0'+own[1]).slice(-2)+':'+own[2]; }
       if (!time && labels.length){
-        var best=null, bd=1e9, cy=r.top+r.height/2;
+        var best=null, bd=1e9;
         for (var k=0;k<labels.length;k++){ var d=Math.abs(labels[k].y-cy); if (d<bd){ bd=d; best=labels[k]; } }
-        if (best && bd < 26) time = best.time;
+        if (best && bd < Math.max(14, gap*0.6)) time = best.time;
       }
       if (!time) continue;
       out.events.push({ time:time, name:t });
@@ -2027,12 +2043,17 @@ function looksLikeLogin(text) {
   return /(connectez-vous|mot de passe|se souvenir de moi|s[ée]lectionner un h[ôo]pital|\bpassword\b|\blog\s?in\b|identifiant)/i.test(text || '');
 }
 
-// Rejette les faux « rendez-vous » : en-têtes de semaine/date, fuseau horaire…
+// Rejette les faux « rendez-vous » : en-têtes de semaine/date, fuseau horaire,
+// libellés d'interface (menus, bannières…).
+const UI_NOISE = /\b(aujourd|semaine|jour|mois|agenda|layouts?|rechercher|recherche|contacter|support|chat disponible|changer d.utilisateur|en tant que|acc[ée]dant|connect[ée]|d[ée]connexion|param[èe]tres|r[ée]glages|nouveau|ajouter|imprimer|t[âa]ches?|filtres?|options?|profil|compte|notifications?)\b/;
+const MONTHS_ONLY = /^(janvier|f[ée]vrier|mars|avril|mai|juin|juillet|ao[uû]t|septembre|octobre|novembre|d[ée]cembre)(\s+\d{4})?$/;
 function looksLikeHeader(name) {
-  const n = (name || '').toLowerCase();
+  const n = (name || '').toLowerCase().trim();
   if (/\bsem\.?\s*\d|\bsemaine\b|aujourd|\bgmt\b|\bphone\b|\bemail\b/.test(n)) return true;
   if (/^\W*\d{1,2}\s*(janv|f[eé]vr|mars|avri|mai|juin|juil|ao[uû]t|sept|octo|nove|d[eé]ce)/.test(n)) return true;
   if (/^(lun|mar|mer|jeu|ven|sam|dim)\.?\b/.test(n) && n.replace(/[^a-zà-ÿ]/g, '').length < 9) return true;
+  if (MONTHS_ONLY.test(n)) return true;
+  if (UI_NOISE.test(n)) return true;
   return false;
 }
 
@@ -2141,7 +2162,7 @@ function renderSyncResult(res, aCount, bCount, context) {
 
   const group = (cls, title, rows) => {
     if (!rows.length) return '';
-    return `<div class="sync-group ${cls}"><h3>${title} (${rows.length})</h3>${rows.join('')}</div>`;
+    return `<div class="sync-group ${cls}"><h3>${title} (${rows.length})</h3><div class="sync-rows">${rows.join('')}</div></div>`;
   };
 
   html += group('bad', '⛔ Présents dans Doctena mais ABSENTS de Doctoranytime',
