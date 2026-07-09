@@ -1487,6 +1487,109 @@ function renderPrestTable() {
   });
 }
 
+// Reconnaît un libellé de mois (« Janvier », « févr », « JUILLET »…) → clé PREST_MONTHS.
+function prestMonthKey(label) {
+  const n = (label || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const map = [
+    ['janv', 'JANVIER'], ['fevr', 'FÉVRIER'], ['mars', 'MARS'], ['avri', 'AVRIL'],
+    ['mai', 'MAI'], ['juin', 'JUIN'], ['juil', 'JUILLET'], ['aout', 'AOÛT'],
+    ['sept', 'SEPTEMBRE'], ['octo', 'OCTOBRE'], ['nove', 'NOVEMBRE'], ['dece', 'DÉCEMBRE']
+  ];
+  for (const [p, m] of map) if (n.includes(p)) return m;
+  return null;
+}
+
+// Construit les lignes d'export (en-tête aplati « Nom FICHE / Nom SHYFTER »).
+function prestExportRows() {
+  const ds = prestDataset();
+  const persons = ds.persons;
+  const header = ['Mois'];
+  persons.forEach((p) => { header.push(`${p.name} FICHE`, `${p.name} SHYFTER`); });
+  const rows = [header];
+  PREST_MONTHS.forEach((mo) => {
+    const row = [mo];
+    persons.forEach((p) => {
+      const c = (p.months && p.months[mo]) || {};
+      row.push(Number(c.fiche) || 0, Number(c.shyfter) || 0);
+    });
+    rows.push(row);
+  });
+  const totals = ['TOTAL'];
+  persons.forEach((p) => {
+    let tf = 0, ts = 0;
+    PREST_MONTHS.forEach((mo) => { const c = (p.months && p.months[mo]) || {}; tf += Number(c.fiche) || 0; ts += Number(c.shyfter) || 0; });
+    totals.push(tf, ts);
+  });
+  rows.push(totals);
+  return rows;
+}
+
+function prestTableHtml(rows) {
+  const cell = (v, i, isHead) => {
+    const tag = isHead ? 'th' : 'td';
+    const bg = isHead ? 'background:#eee;' : (i === 0 ? 'background:#f5f5f5;font-weight:bold;' : '');
+    const align = i === 0 ? 'left' : 'center';
+    return `<${tag} style="border:1px solid #999;padding:4px 8px;text-align:${align};${bg}">${escapeHtml(String(v))}</${tag}>`;
+  };
+  const body = rows.map((r, ri) =>
+    '<tr>' + r.map((v, i) => cell(v, i, ri === 0)).join('') + '</tr>').join('');
+  return `<table style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:12px">${body}</table>`;
+}
+
+// Analyse un fichier importé (CSV ou XLS-HTML) → tableau de lignes (array d'array).
+function prestParseImport(content) {
+  if (/<table[\s>]/i.test(content)) {
+    try {
+      const doc = new DOMParser().parseFromString(content, 'text/html');
+      const trs = doc.querySelectorAll('table tr');
+      const rows = [];
+      trs.forEach((tr) => {
+        const cells = Array.from(tr.querySelectorAll('th,td')).map((c) => (c.textContent || '').trim());
+        if (cells.length) rows.push(cells);
+      });
+      return rows;
+    } catch (_) { /* repli CSV */ }
+  }
+  return parseCsv(content);
+}
+
+// Applique les lignes importées au jeu de données courant (type + année).
+function prestApplyImport(rows) {
+  if (!rows || rows.length < 2) return { ok: false, reason: 'fichier vide' };
+  // Trouve l'en-tête (ligne avec « Mois » en 1re cellule, sinon 1re ligne).
+  let hi = rows.findIndex((r) => /^mois$/i.test((r[0] || '').trim()));
+  if (hi < 0) hi = 0;
+  const header = rows[hi];
+  // Détermine les personnes et leurs colonnes FICHE / SHYFTER.
+  const persons = [];
+  const colMap = [];   // { idx, personIndex, field }
+  for (let i = 1; i < header.length; i++) {
+    const h = (header[i] || '').trim();
+    const m = h.match(/^(.*?)[\s_-]*(fiche|shyfter|paie)$/i);
+    if (!m) continue;
+    const name = m[1].trim().replace(/[|/]+$/, '').trim();
+    const field = /shyfter/i.test(m[2]) ? 'shyfter' : 'fiche';
+    if (!name) continue;
+    let pi = persons.findIndex((p) => p.name.toLowerCase() === name.toLowerCase());
+    if (pi < 0) { persons.push({ name, months: emptyMonths() }); pi = persons.length - 1; }
+    colMap.push({ idx: i, personIndex: pi, field });
+  }
+  if (!persons.length) return { ok: false, reason: 'aucune colonne « Nom FICHE / SHYFTER » reconnue' };
+  // Remplit les valeurs par mois.
+  for (let r = hi + 1; r < rows.length; r++) {
+    const row = rows[r];
+    const mo = prestMonthKey(row[0]);
+    if (!mo) continue;   // ignore TOTAL et autres lignes
+    colMap.forEach((c) => {
+      const raw = (row[c.idx] == null ? '' : String(row[c.idx])).replace(',', '.').replace(/[^0-9.\-]/g, '');
+      const val = raw === '' ? 0 : Number(raw);
+      persons[c.personIndex].months[mo][c.field] = isNaN(val) ? 0 : val;
+    });
+  }
+  prestDataset().persons = persons;
+  return { ok: true, persons: persons.length };
+}
+
 // Cherche une personne (par nom) dans les jeux de l'année courante et
 // affiche Fiche vs Shyfter et la différence (Shyfter − Fiche) par mois.
 function updatePersonDatalist() {
@@ -1589,6 +1692,44 @@ function setupPrestations() {
     renderPersonSearch(personSearch.value);
     status.textContent = 'Enregistré ✓';
     setTimeout(() => (status.textContent = ''), 2000);
+  });
+
+  const typeLabelFr = () => (prestType === 'employes' ? 'Employés' : 'Étudiants');
+
+  document.getElementById('prestExportXls').addEventListener('click', async () => {
+    const rows = prestExportRows();
+    if (rows.length <= 2 || rows[0].length <= 1) { status.textContent = 'Aucune donnée à exporter.'; return; }
+    const html = '<html><head><meta charset="utf-8"></head><body>' + prestTableHtml(rows) + '</body></html>';
+    const res = await window.prive.exportSave(html, `prestations-${prestType}-${prestYear}.xls`);
+    status.textContent = res.ok ? 'Export XLS ✓' : (res.error || 'Export impossible.');
+    setTimeout(() => (status.textContent = ''), 3000);
+  });
+
+  document.getElementById('prestExportPdf').addEventListener('click', async () => {
+    const rows = prestExportRows();
+    if (rows.length <= 2 || rows[0].length <= 1) { status.textContent = 'Aucune donnée à exporter.'; return; }
+    const html = '<html><head><meta charset="utf-8"><title>Prestations</title></head><body>' +
+      `<h2 style="font-family:Arial">Prestations — ${typeLabelFr()} ${prestYear}</h2>` +
+      prestTableHtml(rows) + '</body></html>';
+    const res = await window.prive.exportPdf(html, `prestations-${prestType}-${prestYear}.pdf`);
+    status.textContent = res.ok ? 'Export PDF ✓' : (res.error || 'Export impossible.');
+    setTimeout(() => (status.textContent = ''), 3000);
+  });
+
+  document.getElementById('prestImport').addEventListener('click', async () => {
+    const res = await window.prive.pickTextFile();
+    if (!res.ok) return;
+    const rows = prestParseImport(res.content);
+    if (!rows.length) { status.textContent = 'Fichier illisible ou vide.'; return; }
+    if (!confirm(`Importer ces données dans « ${typeLabelFr()} ${prestYear} » ? Les personnes actuelles de cette vue seront remplacées.`)) return;
+    const r = prestApplyImport(rows);
+    if (!r.ok) { status.textContent = 'Import : ' + r.reason + '. Utilisez un CSV ou un XLS exporté par ce programme.'; return; }
+    await persistSettings();
+    renderPrestTable();
+    updatePersonDatalist();
+    renderPersonSearch(personSearch.value);
+    status.textContent = `Importé ✓ (${r.persons} personne(s)).`;
+    setTimeout(() => (status.textContent = ''), 4000);
   });
 
   // --- Synchronisation des heures SHYFTER depuis le rapport Shyfter ---
