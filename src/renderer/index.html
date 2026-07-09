@@ -231,6 +231,31 @@
             </div>
           </section>
 
+          <!-- ===================== InBody (split + ChatGPT) ===================== -->
+          <section class="view" data-view="inbody">
+            <div class="split-wrap" id="inbodySplit">
+              <div class="split-pane" id="inbodyLeft" style="flex:1 1 58%">
+                <div class="web-bar">
+                  <span class="web-title">⚖️ InBody</span>
+                  <button class="btn tiny" id="ibLastPrint">🖨️ Dernier test</button>
+                  <button class="btn tiny" id="ibPrint">Imprimer affiché</button>
+                  <button class="btn tiny" id="ibReload">⟳</button>
+                  <button class="btn tiny" id="ibExt">Ouvrir</button>
+                </div>
+                <webview id="inbodyWv" partition="persist:prive" src="about:blank" data-src="https://bel.lookinbody.com/"></webview>
+              </div>
+              <div class="split-divider" id="inbodyDivider" title="Glisser pour redimensionner"></div>
+              <div class="split-pane" id="inbodyRight" style="flex:1 1 42%">
+                <div class="web-bar">
+                  <span class="web-title">🤖 ChatGPT</span>
+                  <button class="btn tiny" id="ibGptReload">⟳</button>
+                  <button class="btn tiny" id="ibGptExt">Ouvrir</button>
+                </div>
+                <webview id="inbodyGptWv" partition="persist:prive" src="about:blank" data-src="https://chatgpt.com/"></webview>
+              </div>
+            </div>
+          </section>
+
           <!-- ===================== Synchronisation agendas ===================== -->
           <section class="view" data-view="sync">
             <div class="sync-wrap">

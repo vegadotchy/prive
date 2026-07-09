@@ -401,6 +401,15 @@ textarea { resize: vertical; }
 .attach-item { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border: 1px solid var(--glass-brd); border-radius: 9px; background: rgba(255,255,255,0.04); }
 .attach-item .af { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+/* Vue divisée redimensionnable (InBody + ChatGPT) */
+.split-wrap { display: flex; height: 100%; width: 100%; }
+.split-pane { display: flex; flex-direction: column; min-width: 160px; overflow: hidden; }
+.split-pane webview { flex: 1; border: none; background: #fff; }
+.split-divider { flex: 0 0 7px; cursor: col-resize; background: var(--glass-brd); position: relative; }
+.split-divider::after { content: ""; position: absolute; left: 2px; top: 50%; transform: translateY(-50%); width: 3px; height: 40px; border-radius: 2px; background: var(--gold2); opacity: 0.6; }
+.split-divider:hover { background: rgba(233,196,106,0.4); }
+.split-wrap.dragging webview { pointer-events: none; }
+
 /* Onglets site web */
 .web-wrap { display: flex; flex-direction: column; height: 100%; }
 .web-bar {

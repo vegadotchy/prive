@@ -13,10 +13,9 @@ const SITES = {
     title: 'Doctoranytime', ico: '🩺',
     url: 'https://www.doctoranytime.be/doctorcrmV2/ConnectedAccount/ChangeAccount?u=0'
   },
-  inbody: { title: 'InBody', ico: '⚖️', url: 'https://bel.lookinbody.com/', print: true, printLast: true },
   clearfacts: { title: 'ClearFacts / Kyte', ico: '🧾', url: 'https://mbm.clearfacts.be/login' },
   iballab: { title: 'IBC Lab online', ico: '🔬', url: 'https://labonline.lhub-ulb.be/', labSearch: true },
-  examens: { title: 'Examens du jour', ico: '📋', urlFromSettings: 'examsUrl' },
+  examens: { title: 'Rapport radiologie', ico: '📋', urlFromSettings: 'examsUrl' },
   medipost: { title: 'Medipost', ico: '📦', url: 'https://www.medipost.shop/' }
 };
 
@@ -39,9 +38,9 @@ const NAV = [
   { view: 'shyfter', title: 'Shyfter', ico: '🗓️' },
   { view: 'careconnect', title: 'CareConnect', ico: '💻' },
   { group: 'Examens & labo' },
-  { view: 'inbody', title: 'InBody', ico: '⚖️', site: true },
+  { view: 'inbody', title: 'InBody', ico: '⚖️' },
   { view: 'iballab', title: 'IBC Lab online', ico: '🔬', site: true },
-  { view: 'examens', title: 'Examens du jour', ico: '📋', site: true },
+  { view: 'examens', title: 'Rapport radiologie', ico: '📋', site: true },
   { view: 'cbip', title: 'Médicaments (CBIP)', ico: '💊' },
   { group: 'Gestion' },
   { view: 'prestations', title: 'Prestations', ico: '⏱️' },
@@ -90,6 +89,16 @@ function ensureSyncPanes() {
   syncPanesLoaded = true;
 }
 
+let inbodyLoaded = false;
+function ensureInbodyPanes() {
+  if (inbodyLoaded) return;
+  ['inbodyWv', 'inbodyGptWv'].forEach((id) => {
+    const wv = document.getElementById(id);
+    if (wv && wv.dataset.src) wv.src = wv.dataset.src;
+  });
+  inbodyLoaded = true;
+}
+
 let shyPaneLoaded = false;
 function ensureShyfterPane() {
   if (shyPaneLoaded) return;
@@ -103,6 +112,7 @@ function showView(viewId) {
   if (SITES[viewId]) { ensureWebview(viewId); lastSiteView = viewId; }
   if (viewId === 'sync') ensureSyncPanes();
   if (viewId === 'shyfter') ensureShyfterPane();
+  if (viewId === 'inbody') ensureInbodyPanes();
 
   document.querySelectorAll('.view').forEach((v) => v.classList.remove('active'));
   const target = document.querySelector(`.view[data-view="${viewId}"]`);
@@ -374,6 +384,7 @@ function buildHomeTiles() {
     sync: { title: 'Synchronisation', ico: '🔄' },
     shyfter: { title: 'Shyfter', ico: '🗓️' },
     coffre: { title: 'Coffre-fort', ico: '🔐' },
+    inbody: { title: 'InBody', ico: '⚖️' },
     chatgpt: { title: 'Chat IA', ico: '🤖' }
   };
   for (const key of quick) {
@@ -2256,6 +2267,62 @@ function setupShyfter() {
 }
 
 // ---------------------------------------------------------------------------
+// InBody — vue divisée redimensionnable (InBody + ChatGPT)
+// ---------------------------------------------------------------------------
+
+function setupInbody() {
+  const wv = () => document.getElementById('inbodyWv');
+  const gpt = () => document.getElementById('inbodyGptWv');
+  const wrap = document.getElementById('inbodySplit');
+  const left = document.getElementById('inbodyLeft');
+  const divider = document.getElementById('inbodyDivider');
+
+  document.getElementById('ibReload').addEventListener('click', () => { ensureInbodyPanes(); try { wv().reload(); } catch (_) {} });
+  document.getElementById('ibExt').addEventListener('click', () => { const w = wv(); if (w) window.prive.openExternal(w.getURL()); });
+  document.getElementById('ibGptReload').addEventListener('click', () => { ensureInbodyPanes(); try { gpt().reload(); } catch (_) {} });
+  document.getElementById('ibGptExt').addEventListener('click', () => { const w = gpt(); if (w) window.prive.openExternal(w.getURL()); });
+
+  document.getElementById('ibPrint').addEventListener('click', () => {
+    try { wv().print({}); } catch (e) { alert('Impression impossible : ' + e.message); }
+  });
+
+  // Ouvre le rapport du test le plus récent (1re ligne) puis imprime.
+  document.getElementById('ibLastPrint').addEventListener('click', async () => {
+    const btn = document.getElementById('ibLastPrint');
+    const prev = btn.textContent; btn.disabled = true; btn.textContent = 'Ouverture…';
+    const script = `(function(){
+      function firstRow(){ var rows=document.querySelectorAll('tbody tr,[role="row"]'); for(var i=0;i<rows.length;i++){ if(rows[i].querySelector('td,[role="cell"],[role="gridcell"]')) return rows[i]; } return null; }
+      var row=firstRow(); if(!row) return 'norow';
+      var els=row.querySelectorAll('a,button,img,svg,i,[role="button"]'), target=null;
+      for(var i=0;i<els.length;i++){ var s=((els[i].getAttribute&&(els[i].getAttribute('title')||els[i].getAttribute('alt')||els[i].getAttribute('aria-label')))||'')+' '+(els[i].className&&els[i].className.baseVal!==undefined?els[i].className.baseVal:(els[i].className||'')); if(/report|rapport/i.test(s)){ target=els[i]; break; } }
+      if(!target){ var ic=row.querySelectorAll('td a,td button,td img,td svg'); if(ic.length>=2) target=ic[1]; else if(ic.length===1) target=ic[0]; }
+      if(target){ (target.closest('a,button')||target).click(); return 'clicked'; }
+      return 'notfound';
+    })()`;
+    let outcome = 'notfound';
+    try { outcome = await wv().executeJavaScript(script, true); } catch (_) { outcome = 'error'; }
+    if (outcome === 'clicked') {
+      setTimeout(() => { try { wv().print({}); } catch (_) {} btn.textContent = prev; btn.disabled = false; }, 2800);
+    } else {
+      btn.textContent = prev; btn.disabled = false;
+      alert('Impossible d’ouvrir automatiquement le dernier test. Ouvrez son rapport puis « Imprimer affiché ».');
+    }
+  });
+
+  // Redimensionnement par glissement de la barre centrale.
+  let dragging = false;
+  divider.addEventListener('mousedown', (e) => { dragging = true; wrap.classList.add('dragging'); e.preventDefault(); });
+  window.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    const r = wrap.getBoundingClientRect();
+    let pct = ((e.clientX - r.left) / r.width) * 100;
+    pct = Math.max(20, Math.min(80, pct));
+    left.style.flex = '0 0 ' + pct + '%';
+  });
+  window.addEventListener('mouseup', () => { if (dragging) { dragging = false; wrap.classList.remove('dragging'); } });
+}
+
+// ---------------------------------------------------------------------------
 // Bandeau défilant : date, heure, température
 // ---------------------------------------------------------------------------
 
@@ -2352,6 +2419,7 @@ async function init() {
   setupCbip();
   setupCalendar();
   setupShyfter();
+  setupInbody();
   setupSync();
   setupVault();
   setupCareconnect();

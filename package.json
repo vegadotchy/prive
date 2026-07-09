@@ -43,6 +43,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
+      "deleteAppDataOnUninstall": false,
       "shortcutName": "IATECH-CONTROL PRO",
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico",
