@@ -147,7 +147,19 @@ function loadSettings() {
 }
 
 function saveSettings(next) {
-  const merged = deepMerge(DEFAULTS, next || {});
+  next = next || {};
+  // Fusionne avec les réglages déjà sur disque pour ne pas écraser des champs
+  // sensibles écrits par le processus principal (ex. refreshToken Google) que
+  // l'interface ne connaît pas.
+  const current = loadSettings();
+  if (next.google) {
+    if (!next.google.refreshToken && current.google && current.google.refreshToken) {
+      next.google.refreshToken = current.google.refreshToken;
+    }
+  } else if (current.google && current.google.refreshToken) {
+    next.google = { ...current.google };
+  }
+  const merged = deepMerge(deepMerge(DEFAULTS, current), next);
   const file = settingsPath();
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, JSON.stringify(merged, null, 2), 'utf8');

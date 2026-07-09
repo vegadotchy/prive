@@ -1559,8 +1559,12 @@ function setupCalendar() {
   document.getElementById('calGoogleConnect').addEventListener('click', async () => {
     gStatusEl.textContent = 'Ouverture de la fenêtre d\'autorisation Google…';
     const r = await window.prive.googleConnect();
-    if (r.ok) { gStatusEl.textContent = '✅ Google Agenda connecté'; }
-    else { gStatusEl.textContent = 'Échec : ' + (r.error || ''); }
+    if (r.ok) {
+      settings = await window.prive.getSettings(); // récupère le refreshToken en mémoire
+      gStatusEl.textContent = '✅ Google Agenda connecté';
+    } else {
+      gStatusEl.textContent = 'Échec : ' + (r.error || '');
+    }
   });
 
   // Ajoute un événement à Google Agenda (API si connecté, sinon lien pré-rempli).
@@ -1704,9 +1708,15 @@ function setupCalendar() {
     const gs = await window.prive.googleStatus();
     if (gs.connected) {
       const r = await window.prive.googleAddEvent(ev);
-      status.textContent = r.ok ? 'Ajouté ✓ (aussi dans Google Agenda)' : ('Ajouté ✓ — Google : ' + (r.error || 'échec'));
+      if (r.ok) {
+        status.textContent = 'Ajouté ✓ (aussi dans Google Agenda)';
+      } else {
+        status.textContent = 'Ajouté localement — échec Google.';
+        alert('Google Agenda n’a pas pu enregistrer l’événement :\n\n' + (r.error || 'erreur inconnue') +
+          '\n\nAstuce : reconnectez Google Agenda (bouton « Connecter Google Agenda »).');
+      }
     }
-    setTimeout(() => (status.textContent = ''), 3000);
+    setTimeout(() => (status.textContent = ''), 4000);
   });
 
   renderGrid(); renderDay(); renderUpcoming();

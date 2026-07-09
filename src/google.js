@@ -93,11 +93,12 @@ async function addEvent(settings, ev) {
   try {
     const token = await accessToken(g);
     const label = { rdv: 'Rendez-vous', tache: 'Tâche', rappel: 'Rappel' }[ev.type] || '';
-    const startDate = `${ev.date}T${(ev.time || '09:00')}:00`;
-    const [h, mi] = (ev.time || '09:00').split(':').map(Number);
-    const endM = String(pad2((mi + 30) % 60));
-    const endH = String(pad2(h + (mi + 30 >= 60 ? 1 : 0)));
-    const endDate = `${ev.date}T${endH}:${endM}:00`;
+    const fmt = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}` +
+      `T${pad2(d.getHours())}:${pad2(d.getMinutes())}:00`;
+    const start = new Date(`${ev.date}T${(ev.time || '09:00')}:00`);
+    const end = new Date(start.getTime() + 30 * 60000);
+    const startDate = fmt(start);
+    const endDate = fmt(end);
     const cal = (settings.calendar && settings.calendar.email) || 'primary';
     const r = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal)}/events`, {
       method: 'POST',
