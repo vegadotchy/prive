@@ -100,31 +100,58 @@ async function addEvent(settings, ev) {
     const startDate = fmt(start);
     const endDate = fmt(end);
     const cal = (settings.calendar && settings.calendar.email) || 'primary';
+    const payload = JSON.stringify({
+      summary: `${label} : ${ev.title}`,
+      description: ev.note || '',
+      start: { dateTime: startDate, timeZone: TZ },
+      end: { dateTime: endDate, timeZone: TZ }
+    });
     const r = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal)}/events`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        summary: `${label} : ${ev.title}`,
-        description: ev.note || '',
-        start: { dateTime: startDate, timeZone: TZ },
-        end: { dateTime: endDate, timeZone: TZ }
-      })
+      body: payload
     });
     const data = await r.json();
+    if (r.ok) return { ok: true, link: data.htmlLink, calendarUsed: cal, fellBack: false };
     // Repli sur l'agenda principal si l'adresse liée n'est pas un calendrier accessible.
-    if (!r.ok && cal !== 'primary') {
+    if (cal !== 'primary') {
       const r2 = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          summary: `${label} : ${ev.title}`, description: ev.note || '',
-          start: { dateTime: startDate, timeZone: TZ }, end: { dateTime: endDate, timeZone: TZ }
-        })
+        body: payload
       });
-      if (r2.ok) return { ok: true };
+      const data2 = await r2.json();
+      if (r2.ok) {
+        return {
+          ok: true, link: data2.htmlLink, calendarUsed: 'primary', fellBack: true,
+          target: cal,
+          reason: (data.error && data.error.message) || 'agenda cible inaccessible'
+        };
+      }
+      return { ok: false, error: (data2.error && data2.error.message) || (data.error && data.error.message) || 'Erreur API Agenda.' };
     }
-    if (!r.ok) return { ok: false, error: (data.error && data.error.message) || 'Erreur API Agenda.' };
-    return { ok: true, link: data.htmlLink };
+    return { ok: false, error: (data.error && data.error.message) || 'Erreur API Agenda.' };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+}
+
+// Liste les agendas accessibles au compte connecté (pour vérifier l'agenda cible).
+async function listCalendars(settings) {
+  const g = settings.google || {};
+  if (!g.refreshToken) return { ok: false, error: 'Google Agenda non connecté.' };
+  try {
+    const token = await accessToken(g);
+    const r = await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList', {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const data = await r.json();
+    if (!r.ok) return { ok: false, error: (data.error && data.error.message) || 'Erreur API.' };
+    const items = (data.items || []).map((c) => ({
+      id: c.id, summary: c.summary, primary: !!c.primary,
+      writable: c.accessRole === 'owner' || c.accessRole === 'writer'
+    }));
+    return { ok: true, calendars: items };
   } catch (e) {
     return { ok: false, error: e.message };
   }
@@ -137,4 +164,4 @@ function status(settings) {
   return { connected: Boolean(g.refreshToken), hasCreds: Boolean(g.clientId && g.clientSecret) };
 }
 
-module.exports = { connect, addEvent, status };
+module.exports = { connect, addEvent, status, listCalendars };

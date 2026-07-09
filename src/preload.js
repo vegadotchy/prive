@@ -42,5 +42,6 @@ contextBridge.exposeInMainWorld('prive', {
 
   googleStatus: () => ipcRenderer.invoke('google:status'),
   googleConnect: () => ipcRenderer.invoke('google:connect'),
-  googleAddEvent: (ev) => ipcRenderer.invoke('google:addEvent', ev)
+  googleAddEvent: (ev) => ipcRenderer.invoke('google:addEvent', ev),
+  googleListCalendars: () => ipcRenderer.invoke('google:listCalendars')
 });

@@ -2046,6 +2046,31 @@ function setupCalendar() {
   }
 
   refreshGoogleStatus();
+
+  // Diagnostic : liste les agendas où le compte connecté peut écrire, et indique
+  // si l'adresse rattachée en fait partie.
+  const calsEl = document.getElementById('calGoogleCals');
+  const checkBtn = document.getElementById('calGoogleCheck');
+  if (checkBtn) {
+    checkBtn.addEventListener('click', async () => {
+      calsEl.textContent = 'Lecture des agendas…';
+      const r = await window.prive.googleListCalendars();
+      if (!r.ok) { calsEl.textContent = 'Impossible de lister les agendas : ' + (r.error || '') + ' (reconnectez-vous).'; return; }
+      const target = (settings.calendar && settings.calendar.email || '').toLowerCase();
+      const writable = r.calendars.filter((c) => c.writable);
+      const targetOk = writable.some((c) => c.id.toLowerCase() === target);
+      const list = r.calendars.map((c) =>
+        `${c.writable ? '✏️' : '👁️'} ${escapeHtml(c.summary || c.id)}${c.primary ? ' (principal)' : ''} — ${escapeHtml(c.id)}`
+      ).join('<br>');
+      let head;
+      if (!target) head = '<b>Aucune adresse rattachée</b> : les événements iront dans l’agenda principal ci-dessous.';
+      else if (targetOk) head = `<b style="color:#4ade80">✓ « ${escapeHtml(target)} » est accessible en écriture</b> — les événements iront bien dedans.`;
+      else head = `<b style="color:#f87171">✗ « ${escapeHtml(target)} » n’est PAS accessible en écriture par le compte connecté.</b> ` +
+        'Les événements tombent dans l’agenda principal. Connectez-vous avec ce compte, ou partagez cet agenda avec droit de modification.';
+      calsEl.innerHTML = head + '<br><br><b>Agendas du compte connecté</b> (✏️ = écriture) :<br>' + list;
+    });
+  }
+
   document.getElementById('calGoogleConnect').addEventListener('click', async () => {
     gStatusEl.textContent = 'Ouverture de la fenêtre d\'autorisation Google…';
     const r = await window.prive.googleConnect();
@@ -2198,7 +2223,15 @@ function setupCalendar() {
     const gs = await window.prive.googleStatus();
     if (gs.connected) {
       const r = await window.prive.googleAddEvent(ev);
-      if (r.ok) {
+      if (r.ok && r.fellBack) {
+        status.textContent = 'Ajouté ✓ — mais dans l’agenda PRINCIPAL du compte connecté.';
+        alert('⚠️ L’événement a bien été créé dans Google Agenda, mais PAS dans « ' + (r.target || '') + ' ».\n\n' +
+          'Raison : le compte Google que vous avez connecté n’a pas le droit d’écrire dans cet agenda (' + (r.reason || '') + ').\n\n' +
+          'Deux solutions :\n' +
+          '1) Connectez-vous avec le compte « ' + (r.target || 'eurocare…') + ' » lui-même (bouton « Connecter Google Agenda »), ou\n' +
+          '2) Dans Google Agenda, partagez cet agenda avec votre compte en lui donnant « Apporter des modifications ».\n\n' +
+          'Cliquez « 🔎 Vérifier l’agenda cible » pour voir les agendas où vous pouvez écrire.');
+      } else if (r.ok) {
         status.textContent = 'Ajouté ✓ (aussi dans Google Agenda)';
       } else {
         status.textContent = 'Ajouté localement — échec Google.';
@@ -2206,7 +2239,7 @@ function setupCalendar() {
           '\n\nAstuce : reconnectez Google Agenda (bouton « Connecter Google Agenda »).');
       }
     }
-    setTimeout(() => (status.textContent = ''), 4000);
+    setTimeout(() => (status.textContent = ''), 6000);
   });
 
   renderGrid(); renderDay(); renderUpcoming();

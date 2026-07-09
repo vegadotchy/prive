@@ -139,8 +139,10 @@
                 <div class="row-btns">
                   <button class="btn" id="calGoogleSaveCreds" type="button">Enregistrer la clé</button>
                   <button class="btn gold" id="calGoogleConnect" type="button">Connecter Google Agenda</button>
+                  <button class="btn" id="calGoogleCheck" type="button">🔎 Vérifier l'agenda cible</button>
                   <span class="hint" id="calGoogleStatus"></span>
                 </div>
+                <div class="hint" id="calGoogleCals"></div>
                 <p class="hint">Identifiants à créer une fois dans Google Cloud (API Google Calendar activée → ID client OAuth type « Application de bureau »). Une fois connecté, chaque événement part automatiquement dans l'agenda rattaché.</p>
               </div>
               <div class="cal-layout">
@@ -189,14 +191,14 @@
           <section class="view" data-view="shyfter">
             <div class="sync-wrap">
               <div class="sync-split" style="padding-top:8px">
-                <div class="sync-pane" style="flex:1.7">
+                <div class="sync-pane" style="flex:1 1 50%">
                   <div class="sync-pane-head">🗓️ Shyfter
                     <button class="btn tiny" id="shyReload">↻</button>
                     <button class="btn tiny" id="shyExt">Ouvrir</button>
                   </div>
                   <webview id="shyWv" partition="persist:prive" src="about:blank" data-src="https://v3-app.shyfter.co/app/dashboard"></webview>
                 </div>
-                <div class="shy-form" id="shyFilterPanel">
+                <div class="shy-form" id="shyFilterPanel" style="flex:1 1 50%;width:auto">
                   <h2>Qui travaille ? — Filtre</h2>
                   <p class="hint">Lit les pointages/horaires affichés dans Shyfter (à gauche) et filtre par nom, jour et heure.</p>
                   <div class="row-btns">

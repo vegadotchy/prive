@@ -521,6 +521,7 @@ ipcMain.handle('google:connect', async () => {
   return res;
 });
 ipcMain.handle('google:addEvent', async (_e, ev) => googleCal.addEvent(loadSettings(), ev));
+ipcMain.handle('google:listCalendars', async () => googleCal.listCalendars(loadSettings()));
 
 // Météo temps réel (Open-Meteo, sans clé) pour le bandeau défilant.
 ipcMain.handle('weather:get', async () => {
