@@ -8,7 +8,10 @@
 const SITES = {
   helpdesk: { title: 'Help desk', ico: '📞', url: 'https://c074ad90dcce.a.gdms.cloud/click2call/?from_user=webrtc_trunk_2&to_user=service' },
   gmail: { title: 'Gmail', ico: '✉️', url: 'https://mail.google.com/mail/u/0/?tab=wm&ogbl#inbox' },
-  whatsapp: { title: 'WhatsApp', ico: '💬', url: 'https://web.whatsapp.com/' },
+  whatsapp: {
+    title: 'WhatsApp', ico: '💬', url: 'https://web.whatsapp.com/',
+    ua: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36'
+  },
   doctena: { title: 'Doctena', ico: '📅', url: 'https://secure.doctena.com/' },
   doctoranytime: {
     title: 'Doctoranytime', ico: '🩺',
@@ -260,6 +263,9 @@ function ensureWebview(viewId) {
   const webview = document.createElement('webview');
   webview.setAttribute('partition', 'persist:prive');
   webview.setAttribute('allowpopups', 'true');
+  // User-Agent « Chrome de bureau » pour les sites qui refusent la signature
+  // Electron (WhatsApp Web exige Chrome 100+).
+  if (cfg.ua) webview.setAttribute('useragent', cfg.ua);
   webview.setAttribute('src', siteUrl(cfg));
 
   // Recherche CBIP : champ qui navigue la webview vers la page de résultats.
