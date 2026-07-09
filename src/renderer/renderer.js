@@ -687,13 +687,27 @@ function setupModeles() {
   const statusEl = document.getElementById('modeleStatus');
 
   const catLabel = { mail: 'Mail', rapport: 'Rapport', prescription: 'Prescription', autre: 'Autre' };
+  const searchEl = document.getElementById('modeleSearch');
+  let modeleQuery = '';
+
+  const norm = (s) => (s || '').toString().toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '');
 
   const renderList = () => {
+    const q = norm(modeleQuery).trim();
+    const terms = q ? q.split(/\s+/) : [];
     const items = (settings.correspondence || [])
-      .filter((c) => modeleFilter === 'all' || c.category === modeleFilter);
+      .filter((c) => modeleFilter === 'all' || c.category === modeleFilter)
+      .filter((c) => {
+        if (!terms.length) return true;
+        const hay = norm(`${c.name} ${c.subject} ${c.body} ${catLabel[c.category] || c.category}`);
+        return terms.every((t) => hay.includes(t));   // tous les mots doivent être présents
+      });
     listEl.innerHTML = '';
     if (!items.length) {
-      listEl.innerHTML = '<div class="hint">Aucun modèle dans cette catégorie.</div>';
+      listEl.innerHTML = terms.length
+        ? '<div class="hint">Aucun modèle ne correspond à cette recherche.</div>'
+        : '<div class="hint">Aucun modèle dans cette catégorie.</div>';
     }
     items.forEach((c) => {
       const div = document.createElement('div');
@@ -760,6 +774,8 @@ function setupModeles() {
     const r = await window.prive.addAttachments();
     if (r.ok) { modeleAttachments.push(...r.files); renderAttach(); }
   });
+
+  searchEl.addEventListener('input', () => { modeleQuery = searchEl.value; renderList(); });
 
   filterEl.addEventListener('click', (e) => {
     if (!e.target.dataset.cat) return;

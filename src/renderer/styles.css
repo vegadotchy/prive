@@ -279,6 +279,9 @@ textarea { resize: vertical; }
 .pw-row input { margin-top: 0; flex: 1; }
 .modele-item .m-cat { font-size: 11px; color: var(--gold2); text-transform: uppercase; letter-spacing: .5px; }
 
+/* Modèles — recherche */
+.modele-search { width: 100%; margin-bottom: 10px; }
+
 /* Modèles — bloc « coller un texte » */
 .paste-block { border: 1px dashed var(--gold2); border-radius: 12px; padding: 12px; margin-bottom: 14px; background: rgba(233,196,106,0.06); }
 .paste-block textarea { width: 100%; }
