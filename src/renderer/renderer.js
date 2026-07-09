@@ -2054,6 +2054,51 @@ function hasName(s) {
   return /[a-zà-ÿ]{2,}/i.test(cleanApptName(s));
 }
 
+// Rejette les e-mails / adresses web (souvent affichés dans les cartes de RDV).
+function looksLikeContact(s) {
+  const t = (s || '').toLowerCase();
+  if (/@/.test(t)) return true;
+  if (/\b(gmail|outlook|hotmail|yahoo|proton|icloud|live|orange|skynet|telenet|voo)\b/.test(t)) return true;
+  if (/\.(com|be|fr|net|org|eu)\b/.test(t)) return true;
+  if (/https?:|www\./.test(t)) return true;
+  return false;
+}
+
+// Un vrai nom de patient : au moins deux mots, chacun capitalisé (ou tout en
+// majuscules pour les noms de famille), sans chiffre ni libellé d'interface.
+const NAME_PARTICLE = /^(de|du|des|la|le|les|van|von|der|den|el|al|bin|ben|da|di|do|dos|das|ait|ould|abd|of|d)$/i;
+function looksLikePersonName(s) {
+  const clean = cleanApptName(s);
+  if (!clean || looksLikeContact(clean) || /\d/.test(clean)) return false;
+  const tokens = clean.split(/\s+/).filter(Boolean);
+  if (tokens.length < 2 || tokens.length > 5) return false;
+  let strong = 0;
+  for (const tok of tokens) {
+    if (NAME_PARTICLE.test(tok)) continue;
+    if (/^[A-ZÀ-Ý][a-zà-ÿ'’.-]*$/.test(tok) || /^[A-ZÀ-Ý'’-]{2,}$/.test(tok)) { strong++; continue; }
+    return false;   // un mot ni capitalisé ni particule → ce n'est pas un nom
+  }
+  return strong >= 2;
+}
+
+// Noms à exclure : le médecin choisi + les noms de la bannière Doctoranytime
+// (« connecté en tant que X … agenda de Y »).
+function bannerExcludes(raw, doctorName) {
+  const set = new Set();
+  const addN = (nm) => { const n = normName(nm); if (n) set.add(n); };
+  if (doctorName) addN(doctorName);
+  const r = raw || '';
+  const NAME = "[A-ZÀ-Ý][\\p{L}'’.-]+(?:\\s+[A-ZÀ-Ý][\\p{L}'’.-]+){0,2}";
+  let m;
+  const re1 = new RegExp('en tant que\\s+(' + NAME + ')', 'gu');
+  const re2 = new RegExp("agenda\\s+(?:de\\s+)?(?:la\\s+|l['’]\\s*)?(" + NAME + ')', 'gu');
+  const re3 = new RegExp('Dr[e]?\\.?\\s+(' + NAME + ')', 'gu');
+  while ((m = re1.exec(r))) addN(m[1]);
+  while ((m = re2.exec(r))) addN(m[1]);
+  while ((m = re3.exec(r))) addN(m[1]);
+  return set;
+}
+
 // Détecte une page de connexion / sélection (pas un agenda).
 function looksLikeLogin(text) {
   return /(connectez-vous|mot de passe|se souvenir de moi|s[ée]lectionner un h[ôo]pital|\bpassword\b|\blog\s?in\b|identifiant)/i.test(text || '');
@@ -2082,22 +2127,23 @@ function rawOf(read) {
 
 // Fusionne les rendez-vous « géométriques » (events) et ceux lus ligne par ligne
 // (raw), dédupliqués par nom. Les heures « inline » (raw) sont prioritaires.
-function apptsFromRead(read) {
+function apptsFromRead(read, doctorName) {
   let data = null;
   if (typeof read === 'string') { try { data = JSON.parse(read); } catch (_) {} }
   const out = [];
   const seen = new Set();
+  const raw = data && typeof data.raw === 'string' ? data.raw
+            : (data ? '' : (read || ''));
+  const excl = bannerExcludes(raw, doctorName);
   const add = (time, src) => {
     const name = cleanApptName(src);
-    if (!hasName(name) || looksLikeHeader(name)) return;
+    if (!hasName(name) || looksLikeHeader(name) || !looksLikePersonName(src)) return;
     const norm = normName(src);
-    if (!norm || seen.has(norm)) return;
+    if (!norm || seen.has(norm) || excl.has(norm)) return;
     seen.add(norm);
     out.push({ time, name, norm });
   };
   // 1) raw d'abord : heures les plus fiables (chaque ligne porte son heure).
-  const raw = data && typeof data.raw === 'string' ? data.raw
-            : (data ? '' : (read || ''));
   parseAppts(raw).forEach((a) => add(a.time, a.name));
   // 2) events (association par position) : complète les rendez-vous manquants.
   if (data && Array.isArray(data.events)) data.events.forEach((e) => add(e.time, e.name));
@@ -2164,35 +2210,66 @@ function compareAgendas(aList, bList) {
   return { matched, timeDiff, onlyA, onlyB, dupes };
 }
 
-function renderSyncResult(res, aCount, bCount, context) {
+function renderSyncResult(res, aList, bList, context) {
   const box = document.getElementById('syncResult');
   const esc = escapeHtml;
+  const aCount = aList.length, bCount = bList.length;
+
+  // Statut par rendez-vous (pour colorer chaque ligne des deux listes).
+  const statusA = {}, statusB = {};
+  res.matched.forEach((p) => { statusA[p.a.norm] = 'ok'; statusB[p.b.norm] = 'ok'; });
+  res.timeDiff.forEach((p) => { statusA[p.a.norm] = 'warn'; statusB[p.b.norm] = 'warn'; });
+  res.onlyA.forEach((a) => { statusA[a.norm] = 'bad'; });
+  res.onlyB.forEach((b) => { statusB[b.norm] = 'bad'; });
+  const dot = { ok: '🟢', warn: '🟠', bad: '🔴' };
+
   let html = context ? `<div class="sync-context">📋 ${esc(context)}</div>` : '';
   html += '<div class="sync-summary">' +
     `<span class="sync-badge">Doctena : ${aCount} RDV</span>` +
     `<span class="sync-badge">Doctoranytime : ${bCount} RDV</span>` +
-    `<span class="sync-badge ok">✓ ${res.matched.length} concordants</span>` +
-    `<span class="sync-badge warn">⏰ ${res.timeDiff.length} écarts d'horaire</span>` +
-    `<span class="sync-badge bad">✗ ${res.onlyA.length + res.onlyB.length} manquants</span>` +
+    `<span class="sync-badge ok">🟢 ${res.matched.length} concordants</span>` +
+    `<span class="sync-badge warn">🟠 ${res.timeDiff.length} écarts d'horaire</span>` +
+    `<span class="sync-badge bad">🔴 ${res.onlyA.length + res.onlyB.length} manquants</span>` +
     '</div>';
 
+  // --- Les deux listes brutes, côte à côte (le cœur de la demande) ---------
+  const listCol = (title, list, status) => {
+    const rows = list.length
+      ? list.map((x) => {
+          const st = status[x.norm] || '';
+          return `<div class="sync-row ${st}"><span class="dot">${dot[st] || '⚪'}</span>` +
+                 `<span class="t">${esc(x.time || '—')}</span><span>${esc(x.name)}</span></div>`;
+        }).join('')
+      : '<div class="hint">Aucun rendez-vous lu. Ouvrez l’agenda sur la vue « Jour ».</div>';
+    return `<div class="sync-group"><h3>${title} (${list.length})</h3><div class="sync-rows">${rows}</div></div>`;
+  };
+  html += '<div class="sync-lists">' +
+    listCol('🗓️ Agenda Doctena', aList, statusA) +
+    listCol('🗓️ Agenda Doctoranytime', bList, statusB) +
+    '</div>';
+
+  // --- Détail des différences détectées automatiquement --------------------
   const group = (cls, title, rows) => {
     if (!rows.length) return '';
     return `<div class="sync-group ${cls}"><h3>${title} (${rows.length})</h3><div class="sync-rows">${rows.join('')}</div></div>`;
   };
-
-  html += group('bad', '⛔ Présents dans Doctena mais ABSENTS de Doctoranytime',
+  let diffs = '';
+  diffs += group('bad', '⛔ Dans Doctena, ABSENT de Doctoranytime',
     res.onlyA.map((a) => `<div class="sync-row"><span class="t">${a.time}</span><span>${esc(a.name)}</span></div>`));
-  html += group('bad', '⛔ Présents dans Doctoranytime mais ABSENTS de Doctena',
+  diffs += group('bad', '⛔ Dans Doctoranytime, ABSENT de Doctena',
     res.onlyB.map((b) => `<div class="sync-row"><span class="t">${b.time}</span><span>${esc(b.name)}</span></div>`));
-  html += group('warn', '⏰ Même patient, horaire différent',
+  diffs += group('warn', '⏰ Même patient, horaire différent',
     res.timeDiff.map((p) => `<div class="sync-row"><span class="t">${p.a.time}→${p.b.time}</span><span>${esc(p.a.name)}</span></div>`));
-  html += group('warn', '⚠️ Doublons dans un même agenda',
+  diffs += group('warn', '⚠️ Doublons dans un même agenda',
     res.dupes.map((d) => `<div class="sync-row"><span>${esc(d.name)}</span><span class="arrow">— ${d.src}</span></div>`));
-  html += group('ok', '✓ Rendez-vous concordants',
-    res.matched.map((p) => `<div class="sync-row"><span class="t">${p.a.time}</span><span>${esc(p.a.name)}</span></div>`));
+  if (diffs) {
+    html += '<div class="sync-diff-title">Différences détectées</div>' +
+            '<div class="sync-diff">' + diffs + '</div>';
+  } else if (aCount || bCount) {
+    html += '<p class="hint ok-hint">✓ Aucune différence : les deux agendas concordent.</p>';
+  }
 
-  if (!res.matched.length && !res.timeDiff.length && !res.onlyA.length && !res.onlyB.length) {
+  if (!aCount && !bCount) {
     html += '<p class="hint">Aucun rendez-vous détecté. Vérifiez que les deux onglets sont bien ouverts sur la vue « Jour » du praticien, puis relancez.</p>';
   }
   box.innerHTML = html;
@@ -2242,7 +2319,8 @@ function setupSync() {
     ensureSyncPanes();
     status.textContent = 'Lecture…';
     const [ta, tb] = await Promise.all([readAgendaWv(wvDoctena()), readAgendaWv(wvDa())]);
-    const a = apptsFromRead(ta), b = apptsFromRead(tb);
+    const doc = doctorEl.value.trim();
+    const a = apptsFromRead(ta, doc), b = apptsFromRead(tb, doc);
     const fmt = (list) => list.length
       ? list.map((x) => `<div class="sync-row"><span class="t">${x.time}</span><span>${escapeHtml(x.name)}</span></div>`).join('')
       : '<div class="hint">(rien détecté — l\'agenda est peut-être dans un cadre sécurisé illisible)</div>';
@@ -2257,8 +2335,9 @@ function setupSync() {
     ensureSyncPanes();
     status.textContent = 'Lecture des agendas…';
     const [ta, tb] = await Promise.all([readAgendaWv(wvDoctena()), readAgendaWv(wvDa())]);
-    let aList = apptsFromRead(ta);
-    let bList = apptsFromRead(tb);
+    const doc = doctorEl.value.trim();
+    let aList = apptsFromRead(ta, doc);
+    let bList = apptsFromRead(tb, doc);
     const rawA = rawOf(ta), rawB = rawOf(tb);
     // Diagnostics : un panneau est-il sur une page de connexion / sélection ?
     const notes = [];
@@ -2279,7 +2358,7 @@ function setupSync() {
     if (doctorEl.value.trim()) ctx.push('Dr ' + doctorEl.value.trim());
     if (dateEl.value) ctx.push(dateEl.value.split('-').reverse().join('/'));
     if (from || to) ctx.push(`${from || '…'}–${to || '…'}`);
-    renderSyncResult(res, aList.length, bList.length, ctx.join(' · '));
+    renderSyncResult(res, aList, bList, ctx.join(' · '));
 
     // Ajoute les avertissements en tête des résultats.
     if (notes.length) {
