@@ -2051,18 +2051,74 @@ function setupShyfter() {
   // Remplit la modale « Création d'un shift » ouverte dans Shyfter avec le
   // 1er créneau du lot (Début/Fin) puis clique « Créer shift ». L'utilisateur
   // choisit le bon Utilisateur dans la modale (indiqué par l'app).
+  // Compare un nom (ex. "GHANI") au texte utilisateur de la modale
+  // (ex. "EM-A. GHANI Bouali").
+  const nameMatches = (name, userText) => {
+    const norm = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/\bem\b|\bet\b/g, ' ').replace(/[^a-z0-9\s]/g, ' ');
+    const u = norm(userText);
+    return norm(name).split(/\s+/).filter((w) => w.length >= 3).some((w) => u.includes(w));
+  };
+
   document.getElementById('shyPlace').addEventListener('click', async () => {
-    if (!shyBatch.length) { status.textContent = 'Lot vide.'; return; }
-    const item = shyBatch[0];
     ensureShyfterPane();
-    const script = `(function(from, to){
+    // Item : 1er du lot, sinon les valeurs du formulaire.
+    let item;
+    if (shyBatch.length) {
+      item = shyBatch[0];
+    } else {
+      const slot = slotsEl.querySelector('.shy-slot');
+      const from = slot ? slot.querySelector('.sf').value : '';
+      const to = slot ? slot.querySelector('.st').value : '';
+      if (!from || !to) { status.textContent = 'Renseignez un créneau (de…à), ou cliquez « Ajouter au lot ».'; return; }
+      item = { name: document.getElementById('shyName').value.trim(), date: document.getElementById('shyDateFrom').value, from, to };
+    }
+
+    // Étape 1 : lire l'état de la modale (présence + utilisateur sélectionné).
+    const readScript = `(function(){
+      var btn=null, btns=document.querySelectorAll('button,[role=button]');
+      for (var i=0;i<btns.length;i++){ if(/Créer shift/i.test(btns[i].textContent||'')){ btn=btns[i]; break; } }
+      if(!btn) return JSON.stringify({modal:false});
+      var userText='';
+      var labs=document.querySelectorAll('label,span,div,p');
+      for (var i=0;i<labs.length;i++){
+        var t=(labs[i].textContent||'').trim().replace(/[*:]/g,'').toLowerCase();
+        if(t==='utilisateur'){
+          var scope=labs[i].parentElement;
+          for(var d=0; d<5 && scope; d++){
+            var sel=scope.querySelector('[class*=singleValue],[class*=single-value],[class*=Value]');
+            if(sel && sel.textContent.trim()){ userText=sel.textContent.trim(); break; }
+            var inp=scope.querySelector('input:not([type=hidden])');
+            if(inp && inp.value){ userText=inp.value; break; }
+            scope=scope.parentElement;
+          }
+          if(userText) break;
+        }
+      }
+      return JSON.stringify({modal:true, user:userText});
+    })()`;
+
+    let st = {};
+    try { st = JSON.parse(await wv().executeJavaScript(readScript, true)); } catch (_) { st = {}; }
+    if (!st.modal) {
+      status.textContent = `Dans Shyfter (à gauche), ouvrez « Création d'un shift » avec l'utilisateur ${item.name || '(voulu)'} — puis recliquez « Placer ».`;
+      return;
+    }
+    // Sécurité : ne pas placer si l'utilisateur de la modale ne correspond pas.
+    if (item.name && st.user && !nameMatches(item.name, st.user)) {
+      status.textContent = `⚠️ La fenêtre Shyfter est sur « ${st.user} », pas « ${item.name} ». Corrigez l'utilisateur dans Shyfter, puis replacez. (Rien n'a été envoyé.)`;
+      return;
+    }
+
+    // Étape 2 : remplir Début/Fin et cliquer « Créer shift ».
+    const fillScript = `(function(from, to){
       function setVal(inp, value){
         try { var s=Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set; s.call(inp, value); }
         catch(e){ inp.value = value; }
         ['input','change','keyup','blur'].forEach(function(t){ inp.dispatchEvent(new Event(t,{bubbles:true})); });
       }
       function inputByLabel(labelText){
-        var labs = document.querySelectorAll('label,span,div,p');
+        var labs=document.querySelectorAll('label,span,div,p');
         for (var i=0;i<labs.length;i++){
           var t=(labs[i].textContent||'').trim().replace(/[*:]/g,'').toLowerCase();
           if(t===labelText.toLowerCase()){
@@ -2076,29 +2132,25 @@ function setupShyfter() {
         }
         return null;
       }
-      var btn=null, btns=document.querySelectorAll('button,[role=button]');
-      for (var i=0;i<btns.length;i++){ if(/Créer shift/i.test(btns[i].textContent||'')){ btn=btns[i]; break; } }
-      if(!btn) return JSON.stringify({modal:false});
       var deb=inputByLabel('Début'), fin=inputByLabel('Fin');
       if(deb) setVal(deb, from);
       if(fin) setVal(fin, to);
-      var ok = !!(deb && fin);
-      if(ok){ setTimeout(function(){ btn.click(); }, 300); }
-      return JSON.stringify({modal:true, deb:!!deb, fin:!!fin, submitted:ok});
+      var ok=!!(deb && fin);
+      if(ok){
+        var btn=null, btns=document.querySelectorAll('button,[role=button]');
+        for (var i=0;i<btns.length;i++){ if(/Créer shift/i.test(btns[i].textContent||'')){ btn=btns[i]; break; } }
+        if(btn) setTimeout(function(){ btn.click(); }, 350);
+      }
+      return JSON.stringify({deb:!!deb, fin:!!fin, submitted:ok});
     })(${JSON.stringify(item.from)}, ${JSON.stringify(item.to)})`;
 
     let out = {};
-    try { out = JSON.parse(await wv().executeJavaScript(script, true)); } catch (_) { out = {}; }
-    if (!out.modal) {
-      status.textContent = `Ouvrez d'abord la modale « Création d'un shift » dans Shyfter (Utilisateur = ${item.name}, ${item.date}), puis cliquez Placer.`;
-      return;
-    }
+    try { out = JSON.parse(await wv().executeJavaScript(fillScript, true)); } catch (_) { out = {}; }
     if (out.submitted) {
-      shyBatch.shift();
-      renderBatch();
-      status.textContent = `Créneau ${item.from}–${item.to} envoyé (vérifiez « ${item.name} »). ${shyBatch.length ? 'Ouvrez la modale pour le suivant.' : 'Lot terminé.'}`;
+      if (shyBatch.length) { shyBatch.shift(); renderBatch(); }
+      status.textContent = `Créneau ${item.from}–${item.to} envoyé pour « ${st.user || item.name} ». ${shyBatch.length ? 'Ouvrez la modale pour le suivant.' : 'Vérifiez dans Shyfter.'}`;
     } else {
-      status.textContent = 'Champs Début/Fin introuvables dans la modale — saisissez-les manuellement.';
+      status.textContent = 'Champs Début/Fin introuvables dans la fenêtre — vérifiez qu\'elle est bien ouverte.';
     }
   });
 
