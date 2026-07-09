@@ -96,12 +96,20 @@ app.on('certificate-error', (event, webContents, url, error, certificate, callba
   callback(false);
 });
 
-// Ouvre les liens « target=_blank » dans le navigateur système plutôt que dans
-// une fenêtre Electron nue.
+// Les fenêtres pop-up des sites intégrés (ex. la fenêtre « Création d'un shift »
+// de Shyfter) s'ouvrent DANS l'application, en conservant la session, au lieu
+// d'être renvoyées vers le navigateur système.
 app.on('web-contents-created', (_event, contents) => {
   contents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-      shell.openExternal(url);
+    if (url === 'about:blank' || url.startsWith('http://') || url.startsWith('https://')) {
+      return {
+        action: 'allow',
+        overrideBrowserWindowOptions: {
+          autoHideMenuBar: true,
+          backgroundColor: '#ffffff',
+          webPreferences: { partition: 'persist:prive' }
+        }
+      };
     }
     return { action: 'deny' };
   });
