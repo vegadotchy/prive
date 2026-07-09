@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, ipcMain, shell, session, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, session, dialog, safeStorage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
@@ -225,6 +225,58 @@ ipcMain.handle('speed:runNow', async () => {
 ipcMain.handle('chat:send', async (_e, payload) => {
   const settings = loadSettings();
   return chatCompletion(settings, payload);
+});
+
+// --- Coffre-fort de mots de passe (chiffré via safeStorage/DPAPI) ---
+function vaultPath() {
+  return path.join(app.getPath('userData'), 'vault.dat');
+}
+ipcMain.handle('vault:get', () => {
+  try {
+    if (!fs.existsSync(vaultPath())) return { ok: true, entries: [] };
+    const raw = JSON.parse(fs.readFileSync(vaultPath(), 'utf8'));
+    let json;
+    if (raw.enc && safeStorage.isEncryptionAvailable()) {
+      json = safeStorage.decryptString(Buffer.from(raw.data, 'base64'));
+    } else {
+      json = Buffer.from(raw.data, 'base64').toString('utf8');
+    }
+    return { ok: true, entries: JSON.parse(json), encrypted: Boolean(raw.enc) };
+  } catch (err) {
+    return { ok: false, error: err.message, entries: [] };
+  }
+});
+ipcMain.handle('vault:save', (_e, entries) => {
+  try {
+    const json = JSON.stringify(entries || []);
+    let out;
+    if (safeStorage.isEncryptionAvailable()) {
+      out = { enc: true, data: safeStorage.encryptString(json).toString('base64') };
+    } else {
+      out = { enc: false, data: Buffer.from(json, 'utf8').toString('base64') };
+    }
+    fs.mkdirSync(path.dirname(vaultPath()), { recursive: true });
+    fs.writeFileSync(vaultPath(), JSON.stringify(out), 'utf8');
+    return { ok: true, encrypted: out.enc };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+});
+
+// Sélectionne un fichier texte (CSV…) et renvoie son contenu.
+ipcMain.handle('dialog:pickTextFile', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Choisir un fichier',
+    properties: ['openFile'],
+    filters: [{ name: 'CSV / texte', extensions: ['csv', 'txt', 'tsv'] }, { name: 'Tous', extensions: ['*'] }]
+  });
+  if (result.canceled || !result.filePaths.length) return { ok: false };
+  try {
+    const content = fs.readFileSync(result.filePaths[0], 'utf8');
+    return { ok: true, name: path.basename(result.filePaths[0]), content };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
 });
 
 // Exporte un contenu HTML en PDF (fenêtre hors-écran + printToPDF).

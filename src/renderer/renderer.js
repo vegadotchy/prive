@@ -48,6 +48,7 @@ const NAV = [
   { view: 'clearfacts', title: 'ClearFacts / Kyte', ico: '🧾', site: true },
   { view: 'medipost', title: 'Medipost', ico: '📦', site: true },
   { group: 'Outils' },
+  { view: 'coffre', title: 'Coffre-fort', ico: '🔐' },
   { view: 'recherche', title: 'Recherche fichiers', ico: '🔎' },
   { view: 'reglages', title: 'Réglages', ico: '⚙️' }
 ];
@@ -96,9 +97,10 @@ function ensureShyfterPane() {
   if (wv && wv.dataset.src) { wv.src = wv.dataset.src; shyPaneLoaded = true; }
 }
 
+let lastSiteView = null;
 function showView(viewId) {
   // Onglet site web : créé à la demande.
-  if (SITES[viewId]) ensureWebview(viewId);
+  if (SITES[viewId]) { ensureWebview(viewId); lastSiteView = viewId; }
   if (viewId === 'sync') ensureSyncPanes();
   if (viewId === 'shyfter') ensureShyfterPane();
 
@@ -359,7 +361,7 @@ function buildHomeTiles() {
   const quick = [
     'gmail', 'whatsapp', 'medecins', 'doctena', 'doctoranytime', 'sync', 'shyfter', 'inbody',
     'clearfacts', 'iballab', 'examens', 'cbip', 'medipost',
-    'careconnect', 'calendrier', 'prestations', 'recherche', 'mail', 'modeles', 'chatgpt'
+    'careconnect', 'calendrier', 'prestations', 'coffre', 'recherche', 'mail', 'modeles', 'chatgpt'
   ];
   const labels = {
     careconnect: { title: 'CareConnect', ico: '💻' },
@@ -371,6 +373,7 @@ function buildHomeTiles() {
     prestations: { title: 'Prestations', ico: '⏱️' },
     sync: { title: 'Synchronisation', ico: '🔄' },
     shyfter: { title: 'Shyfter', ico: '🗓️' },
+    coffre: { title: 'Coffre-fort', ico: '🔐' },
     chatgpt: { title: 'Chat IA', ico: '🤖' }
   };
   for (const key of quick) {
@@ -969,6 +972,196 @@ function setupMedecins() {
     const res = await window.prive.exportPdf(html, 'medecins.pdf');
     exportStatus.textContent = res.ok ? `PDF exporté (${docs.length}) ✓` : (res.error || '');
     setTimeout(() => (exportStatus.textContent = ''), 3000);
+  });
+
+  renderList();
+}
+
+// ---------------------------------------------------------------------------
+// Coffre-fort de mots de passe (chiffré côté main)
+// ---------------------------------------------------------------------------
+
+let vaultEntries = [];
+let vaultCurrentId = null;
+
+function csvEscape(s) {
+  s = String(s == null ? '' : s);
+  return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+function parseCsv(text) {
+  const rows = [];
+  let row = [], field = '', inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQ) {
+      if (c === '"' && text[i + 1] === '"') { field += '"'; i++; }
+      else if (c === '"') inQ = false;
+      else field += c;
+    } else if (c === '"') inQ = true;
+    else if (c === ',') { row.push(field); field = ''; }
+    else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
+    else if (c === '\r') { /* ignore */ }
+    else field += c;
+  }
+  if (field.length || row.length) { row.push(field); rows.push(row); }
+  return rows.filter((r) => r.some((x) => x && x.trim()));
+}
+
+async function setupVault() {
+  const searchEl = document.getElementById('vaultSearch');
+  const listEl = document.getElementById('vaultList');
+  const countEl = document.getElementById('vaultCount');
+  const siteEl = document.getElementById('vSite');
+  const urlEl = document.getElementById('vUrl');
+  const userEl = document.getElementById('vUser');
+  const passEl = document.getElementById('vPass');
+  const noteEl = document.getElementById('vNote');
+  const statusEl = document.getElementById('vStatus');
+  const ioStatus = document.getElementById('vaultIoStatus');
+
+  const loaded = await window.prive.vaultGet();
+  vaultEntries = (loaded && loaded.entries) || [];
+
+  const filtered = () => {
+    const q = searchEl.value.trim().toLowerCase();
+    return vaultEntries.filter((e) => !q ||
+      [e.site, e.url, e.user, e.note].filter(Boolean).join(' ').toLowerCase().includes(q));
+  };
+
+  const renderList = () => {
+    const items = filtered();
+    countEl.textContent = `${items.length} / ${vaultEntries.length} entrée(s)` +
+      (loaded && loaded.encrypted === false ? ' · ⚠️ non chiffré sur ce poste' : '');
+    listEl.innerHTML = items.length ? '' : '<div class="hint">Aucune entrée.</div>';
+    items.forEach((e) => {
+      const div = document.createElement('div');
+      div.className = 'modele-item' + (e.id === vaultCurrentId ? ' active' : '');
+      div.innerHTML = `<div class="m-name">${escapeHtml(e.site || e.url || '—')}</div>` +
+        `<div class="m-cat">${escapeHtml(e.user || '')}</div>`;
+      div.addEventListener('click', () => select(e.id));
+      listEl.appendChild(div);
+    });
+  };
+
+  const select = (id) => {
+    const e = vaultEntries.find((x) => x.id === id);
+    if (!e) return;
+    vaultCurrentId = id;
+    siteEl.value = e.site || ''; urlEl.value = e.url || '';
+    userEl.value = e.user || ''; passEl.value = e.password || ''; noteEl.value = e.note || '';
+    renderList();
+  };
+
+  const blank = () => {
+    vaultCurrentId = null;
+    [siteEl, urlEl, userEl, passEl, noteEl].forEach((x) => (x.value = ''));
+    renderList(); siteEl.focus();
+  };
+
+  const persist = async () => { await window.prive.vaultSave(vaultEntries); };
+
+  searchEl.addEventListener('input', renderList);
+  document.getElementById('vaultNew').addEventListener('click', blank);
+  document.getElementById('vToggle').addEventListener('click', () => {
+    passEl.type = passEl.type === 'password' ? 'text' : 'password';
+  });
+
+  document.getElementById('vSave').addEventListener('click', async () => {
+    if (!siteEl.value.trim() && !urlEl.value.trim()) { statusEl.textContent = 'Site ou URL requis.'; return; }
+    const data = {
+      site: siteEl.value.trim(), url: urlEl.value.trim(),
+      user: userEl.value.trim(), password: passEl.value, note: noteEl.value.trim()
+    };
+    if (vaultCurrentId) {
+      const e = vaultEntries.find((x) => x.id === vaultCurrentId);
+      if (e) Object.assign(e, data);
+    } else {
+      vaultCurrentId = 'v' + Date.now();
+      vaultEntries.push({ id: vaultCurrentId, ...data });
+    }
+    await persist(); renderList();
+    statusEl.textContent = 'Enregistré ✓';
+    setTimeout(() => (statusEl.textContent = ''), 2000);
+  });
+
+  document.getElementById('vDelete').addEventListener('click', async () => {
+    if (!vaultCurrentId) return;
+    vaultEntries = vaultEntries.filter((x) => x.id !== vaultCurrentId);
+    await persist(); blank();
+  });
+
+  document.getElementById('vCopyUser').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(userEl.value); statusEl.textContent = 'Identifiant copié ✓'; } catch (_) {}
+    setTimeout(() => (statusEl.textContent = ''), 1500);
+  });
+  document.getElementById('vCopyPass').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(passEl.value); statusEl.textContent = 'Mot de passe copié ✓'; } catch (_) {}
+    setTimeout(() => (statusEl.textContent = ''), 1500);
+  });
+
+  // Capture automatique depuis le dernier onglet site visité.
+  document.getElementById('vaultCapture').addEventListener('click', async () => {
+    if (!lastSiteView || !SITES[lastSiteView]) {
+      ioStatus.textContent = 'Ouvrez d’abord un onglet (Gmail, Doctena…) et saisissez-y vos identifiants, puis revenez.';
+      return;
+    }
+    const wv = getWebview(lastSiteView);
+    const code = `(function(){
+      var p=document.querySelector('input[type=password]');
+      if(!p) return '';
+      var inputs=[].slice.call(document.querySelectorAll('input'));
+      var idx=inputs.indexOf(p), user='';
+      for(var i=idx-1;i>=0;i--){ var t=(inputs[i].type||'text').toLowerCase(); if(t==='text'||t==='email'||t==='tel'){ user=inputs[i].value; break; } }
+      return JSON.stringify({user:user, pass:p.value, url:location.href, host:location.host});
+    })()`;
+    let out = '';
+    try { out = await wv.executeJavaScript(code, true); } catch (_) {}
+    if (!out) { ioStatus.textContent = 'Aucun champ mot de passe trouvé sur cet onglet.'; return; }
+    const d = JSON.parse(out);
+    blank();
+    siteEl.value = SITES[lastSiteView].title || d.host;
+    urlEl.value = d.url; userEl.value = d.user; passEl.value = d.pass;
+    ioStatus.textContent = 'Capturé depuis ' + (SITES[lastSiteView].title) + ' — vérifiez puis Enregistrer.';
+  });
+
+  document.getElementById('vaultExport').addEventListener('click', async () => {
+    const header = ['Site', 'URL', 'Identifiant', 'MotDePasse', 'Note'];
+    const lines = [header.join(',')].concat(vaultEntries.map((e) =>
+      [e.site, e.url, e.user, e.password, e.note].map(csvEscape).join(',')));
+    const res = await window.prive.exportSave(lines.join('\r\n'), 'coffre-fort.csv');
+    ioStatus.textContent = res.ok ? 'Exporté ✓' : (res.error || '');
+    setTimeout(() => (ioStatus.textContent = ''), 3000);
+  });
+
+  document.getElementById('vaultImport').addEventListener('click', async () => {
+    const res = await window.prive.pickTextFile();
+    if (!res.ok) return;
+    const rows = parseCsv(res.content);
+    if (!rows.length) { ioStatus.textContent = 'Fichier vide.'; return; }
+    // Détecte l'en-tête.
+    let start = 0;
+    const h = rows[0].map((x) => x.toLowerCase());
+    const col = { site: 0, url: 1, user: 2, pass: 3, note: 4 };
+    if (h.some((x) => /site|url|identifiant|user|pass|mot/.test(x))) {
+      start = 1;
+      col.site = h.findIndex((x) => /site|name|nom/.test(x));
+      col.url = h.findIndex((x) => /url|web|lien/.test(x));
+      col.user = h.findIndex((x) => /user|identifiant|login|email/.test(x));
+      col.pass = h.findIndex((x) => /pass|mot/.test(x));
+      col.note = h.findIndex((x) => /note|comment/.test(x));
+    }
+    let added = 0;
+    for (let i = start; i < rows.length; i++) {
+      const r = rows[i];
+      const get = (k) => (col[k] >= 0 && r[col[k]] != null ? r[col[k]] : '');
+      const entry = { site: get('site'), url: get('url'), user: get('user'), password: get('pass'), note: get('note') };
+      if (!entry.site && !entry.url && !entry.user) continue;
+      entry.id = 'v' + Date.now() + '_' + i;
+      vaultEntries.push(entry); added++;
+    }
+    await persist(); renderList();
+    ioStatus.textContent = `${added} entrée(s) importée(s) ✓`;
+    setTimeout(() => (ioStatus.textContent = ''), 3000);
   });
 
   renderList();
@@ -2001,6 +2194,7 @@ async function init() {
   setupCalendar();
   setupShyfter();
   setupSync();
+  setupVault();
   setupCareconnect();
   setupSettings();
   fillSettingsForm();

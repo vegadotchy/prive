@@ -34,6 +34,10 @@ contextBridge.exposeInMainWorld('prive', {
 
   exportPdf: (html, filename) => ipcRenderer.invoke('export:pdf', { html, filename }),
   exportSave: (content, filename) => ipcRenderer.invoke('export:save', { content, filename }),
+  pickTextFile: () => ipcRenderer.invoke('dialog:pickTextFile'),
+
+  vaultGet: () => ipcRenderer.invoke('vault:get'),
+  vaultSave: (entries) => ipcRenderer.invoke('vault:save', entries),
 
   googleStatus: () => ipcRenderer.invoke('google:status'),
   googleConnect: () => ipcRenderer.invoke('google:connect'),

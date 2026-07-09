@@ -429,6 +429,59 @@
             </div>
           </section>
 
+          <!-- ===================== Coffre-fort ===================== -->
+          <section class="view" data-view="coffre">
+            <div class="panel wide">
+              <h1>Coffre-fort</h1>
+              <p class="muted">Mots de passe <b>chiffrés localement</b> (Windows DPAPI). Ajout manuel, capture depuis le dernier onglet visité, import/export CSV.</p>
+              <div class="modeles-layout">
+                <div class="modeles-list-col">
+                  <input type="text" id="vaultSearch" placeholder="🔎 Rechercher (site, identifiant…)" autocomplete="off" />
+                  <div class="hint" id="vaultCount"></div>
+                  <div class="modeles-list" id="vaultList"></div>
+                  <button class="btn gold" id="vaultNew">+ Nouvelle entrée</button>
+                  <div class="med-export">
+                    <div class="row-btns">
+                      <button class="btn" id="vaultCapture">🎯 Capturer le dernier onglet</button>
+                    </div>
+                    <div class="row-btns" style="margin-top:6px">
+                      <button class="btn" id="vaultImport">Importer CSV</button>
+                      <button class="btn" id="vaultExport">Exporter CSV</button>
+                    </div>
+                    <span class="hint" id="vaultIoStatus"></span>
+                  </div>
+                </div>
+                <div class="modeles-editor">
+                  <label>Site / Service
+                    <input type="text" id="vSite" />
+                  </label>
+                  <label>URL
+                    <input type="text" id="vUrl" />
+                  </label>
+                  <label>Identifiant
+                    <input type="text" id="vUser" />
+                  </label>
+                  <label>Mot de passe
+                    <div class="pw-row">
+                      <input type="password" id="vPass" />
+                      <button class="btn tiny" id="vToggle" type="button">👁</button>
+                    </div>
+                  </label>
+                  <label>Note
+                    <input type="text" id="vNote" />
+                  </label>
+                  <div class="row-btns">
+                    <button class="btn gold" id="vSave">Enregistrer</button>
+                    <button class="btn" id="vCopyUser">Copier identifiant</button>
+                    <button class="btn" id="vCopyPass">Copier mot de passe</button>
+                    <button class="btn danger" id="vDelete">Supprimer</button>
+                    <span class="hint" id="vStatus"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
           <!-- ===================== Réglages ===================== -->
           <section class="view" data-view="reglages">
             <div class="panel">

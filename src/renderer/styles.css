@@ -275,6 +275,8 @@ textarea { resize: vertical; }
 .med-item .med-item-body { flex: 1; min-width: 0; }
 .med-export { margin-top: 12px; border-top: 1px solid var(--glass-brd); padding-top: 10px; }
 .med-export .check { margin-bottom: 4px; }
+.pw-row { display: flex; gap: 6px; align-items: center; }
+.pw-row input { margin-top: 0; flex: 1; }
 .modele-item .m-cat { font-size: 11px; color: var(--gold2); text-transform: uppercase; letter-spacing: .5px; }
 
 /* Prestations */
