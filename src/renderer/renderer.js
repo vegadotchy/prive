@@ -1898,29 +1898,40 @@ function looksLikeLogin(text) {
   return /(connectez-vous|mot de passe|se souvenir de moi|s[ée]lectionner un h[ôo]pital|\bpassword\b|\blog\s?in\b|identifiant)/i.test(text || '');
 }
 
+// Rejette les faux « rendez-vous » : en-têtes de semaine/date, fuseau horaire…
+function looksLikeHeader(name) {
+  const n = (name || '').toLowerCase();
+  if (/\bsem\.?\s*\d|\bsemaine\b|aujourd|\bgmt\b|\bphone\b|\bemail\b/.test(n)) return true;
+  if (/^\W*\d{1,2}\s*(janv|f[eé]vr|mars|avri|mai|juin|juil|ao[uû]t|sept|octo|nove|d[eé]ce)/.test(n)) return true;
+  if (/^(lun|mar|mer|jeu|ven|sam|dim)\.?\b/.test(n) && n.replace(/[^a-zà-ÿ]/g, '').length < 9) return true;
+  return false;
+}
+
 function parseAppts(text) {
   const lines = (text || '').split('\n').map((l) => l.trim()).filter(Boolean);
   const out = [];
+  const push = (time, src) => {
+    const name = cleanApptName(src);
+    if (!hasName(name) || looksLikeHeader(name)) return false;
+    out.push({ time, name, norm: normName(src) });
+    return true;
+  };
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
+    if (/gmt\s*[+-]?\s*\d/i.test(line)) continue; // ligne de fuseau horaire
     const m = line.match(/(\d{1,2})[:h.](\d{2})/);
     if (!m) continue;
+    const idx = line.indexOf(m[0]);
+    if (line[idx - 1] === '+') continue; // « GMT+02:00 »
     const time = m[1].padStart(2, '0') + ':' + m[2];
-    let rest = line.slice(line.indexOf(m[0]) + m[0].length).trim();
+    let rest = line.slice(idx + m[0].length).trim();
     // Retire une éventuelle 2e heure (plage « 08:00 - 11:00 »).
     rest = rest.replace(/^[\s\-–—à]*\d{1,2}[:h.]\d{2}\s*/, '').trim();
-    if (rest && hasName(rest)) {
-      out.push({ time, name: cleanApptName(rest), norm: normName(rest) });
-      continue;
-    }
+    if (rest && push(time, rest)) continue;
     // Nom sur la/les ligne(s) suivante(s) — cas Doctoranytime (heure puis nom).
     for (let j = i + 1; j < Math.min(i + 3, lines.length); j++) {
       if (/\d{1,2}[:h.]\d{2}/.test(lines[j])) break; // prochaine heure : on arrête
-      if (hasName(lines[j])) {
-        out.push({ time, name: cleanApptName(lines[j]), norm: normName(lines[j]) });
-        i = j;
-        break;
-      }
+      if (push(time, lines[j])) { i = j; break; }
     }
   }
   return out;
@@ -2026,6 +2037,22 @@ function setupSync() {
     [wvDoctena(), wvDa()].forEach((wv) => { try { wv.reload(); } catch (_) { /* pas encore prêt */ } });
     status.textContent = 'Rechargement des deux agendas…';
     setTimeout(() => (status.textContent = ''), 2000);
+  });
+
+  // Diagnostic : montre exactement les rendez-vous lus dans chaque agenda.
+  document.getElementById('syncDebug').addEventListener('click', async () => {
+    ensureSyncPanes();
+    status.textContent = 'Lecture…';
+    const [ta, tb] = await Promise.all([readAgendaWv(wvDoctena()), readAgendaWv(wvDa())]);
+    const a = parseAppts(ta), b = parseAppts(tb);
+    const fmt = (list) => list.length
+      ? list.map((x) => `<div class="sync-row"><span class="t">${x.time}</span><span>${escapeHtml(x.name)}</span></div>`).join('')
+      : '<div class="hint">(rien détecté — l\'agenda est peut-être dans un cadre sécurisé illisible)</div>';
+    document.getElementById('syncResult').innerHTML =
+      `<div class="sync-group"><h3>Doctena — ${a.length} détecté(s)</h3>${fmt(a)}</div>` +
+      `<div class="sync-group"><h3>Doctoranytime — ${b.length} détecté(s)</h3>${fmt(b)}</div>` +
+      '<p class="hint">Si des rendez-vous visibles à l\'écran manquent dans cette liste, faites-moi une capture de ceci : j\'ajusterai l\'extraction précisément.</p>';
+    status.textContent = `${a.length} + ${b.length} rendez-vous lus.`;
   });
 
   document.getElementById('syncCompare').addEventListener('click', async () => {
