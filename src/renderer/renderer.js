@@ -37,6 +37,7 @@ const NAV = [
   { group: 'Agenda & patients' },
   { view: 'calendrier', title: 'Calendrier & rappels', ico: '📆' },
   { view: 'medecins', title: 'Médecins', ico: '👨‍⚕️' },
+  { view: 'doctenaAgenda', title: 'Agenda Doctena', ico: '🗒️' },
   { view: 'doctena', title: 'Doctena', ico: '📅', site: true },
   { view: 'doctoranytime', title: 'Doctoranytime', ico: '🩺', site: true },
   { view: 'sync', title: 'Synchronisation', ico: '🔄' },
@@ -111,12 +112,20 @@ function ensureShyfterPane() {
   if (wv && wv.dataset.src) { wv.src = wv.dataset.src; shyPaneLoaded = true; }
 }
 
+let docaPaneLoaded = false;
+function ensureDoctenaAgendaPane() {
+  if (docaPaneLoaded) return;
+  const wv = document.getElementById('docaWv');
+  if (wv && wv.dataset.src) { wv.src = wv.dataset.src; docaPaneLoaded = true; }
+}
+
 let lastSiteView = null;
 function showView(viewId) {
   // Onglet site web : créé à la demande.
   if (SITES[viewId]) { ensureWebview(viewId); lastSiteView = viewId; }
   if (viewId === 'sync') ensureSyncPanes();
   if (viewId === 'shyfter') ensureShyfterPane();
+  if (viewId === 'doctenaAgenda') ensureDoctenaAgendaPane();
   if (viewId === 'inbody') ensureInbodyPanes();
 
   document.querySelectorAll('.view').forEach((v) => v.classList.remove('active'));
@@ -2943,6 +2952,186 @@ const SHYFTER_READ_JS = `(function(){
   return JSON.stringify({ rows:out, login:/mot de passe|se connecter|password|log ?in/i.test((document.body&&document.body.innerText)||'') });
 })()`;
 
+// ---------------------------------------------------------------------------
+// Agenda Doctena (natif) : médecins → date → liste de patients cliquable
+// ---------------------------------------------------------------------------
+
+// Récupère la liste des médecins/praticiens depuis la page Doctena.
+const DOCA_DOCTORS_JS = `(function(){
+  function clean(s){ return (s||'').replace(/\\s+/g,' ').trim(); }
+  var names={}, add=function(n){ n=clean(n); if(n && n.length>=4 && n.length<=48 && /[a-zà-ÿ]{2,}/i.test(n) && !/s[ée]lectionn|choisir|agenda|tous|aucun/i.test(n)) names[n]=1; };
+  var sels=document.querySelectorAll('select');
+  for(var s=0;s<sels.length;s++){ var o=sels[s].options; for(var i=0;i<o.length;i++){ var t=clean(o[i].textContent); if(/\\w+\\s+\\w+/.test(t)) add(t); } }
+  // Liste latérale d'agendas (éléments avec un nom de praticien)
+  var items=document.querySelectorAll('[class*=agenda] a, [class*=agenda] li, .list-group-item, aside a, nav a');
+  for(var k=0;k<items.length;k++){ var t=clean(items[k].textContent); if(/^[A-ZÀ-Ý][\\wà-ÿ'.-]+\\s+[A-ZÀ-Ý][\\wà-ÿ'.-]+/.test(t) && t.length<40) add(t); }
+  return JSON.stringify({ doctors:Object.keys(names).sort(), login:/mot de passe|se connecter|password|log ?in/i.test((document.body&&document.body.innerText)||'') });
+})()`;
+
+// Sélectionne un médecin, va à la date voulue (pas à pas depuis « Aujourd'hui »)
+// et lit les rendez-vous du jour. `diffDays` = nb de jours par rapport à aujourd'hui.
+function docaLoadJs(doctorName, diffDays) {
+  return `(async function(NAME, DIFF){
+    function wait(ms){ return new Promise(function(r){ setTimeout(r,ms); }); }
+    function clean(s){ return (s||'').replace(/\\s+/g,' ').trim(); }
+    function norm(s){ return clean(s).toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,''); }
+    function byText(sel, re){ var e=document.querySelectorAll(sel); for(var i=0;i<e.length;i++){ if(re.test(clean(e[i].textContent))) return e[i]; } return null; }
+    var picked=false;
+    // 1) Médecin via <select>
+    var sels=document.querySelectorAll('select');
+    for(var s=0;s<sels.length && !picked;s++){
+      var o=sels[s].options;
+      for(var i=0;i<o.length;i++){ if(norm(o[i].textContent).indexOf(norm(NAME))>=0){ sels[s].selectedIndex=i; sels[s].value=o[i].value; sels[s].dispatchEvent(new Event('change',{bubbles:true})); picked=true; break; } }
+    }
+    // sinon clic sur un item latéral
+    if(!picked){ var it=byText('a,li,div,span,button', new RegExp(NAME.replace(/[.*+?^\${}()|[\\]\\\\]/g,'\\\\$&'),'i')); if(it){ (it.closest('a,li,button')||it).click(); picked=true; } }
+    await wait(1300);
+    // 2) Vue « Jour » puis « Aujourd'hui »
+    var jour=byText('button,a,[role=button]', /^\\s*jour\\s*$/i); if(jour){ jour.click(); await wait(700); }
+    var auj=byText('button,a,[role=button]', /aujourd/i); if(auj){ auj.click(); await wait(900); }
+    // 3) Navigation jour par jour
+    function arrow(next){
+      var cands=document.querySelectorAll('button,a,[role=button],i,span');
+      for(var i=0;i<cands.length;i++){
+        var el=cands[i]; var t=clean(el.textContent); var a=((el.getAttribute&&(el.getAttribute('aria-label')||el.getAttribute('title')||el.className&&el.className.baseVal))||'')+' '+t;
+        a=a.toLowerCase();
+        if(next && (/suivant|next|›|»|▶|❯|chevron-right|angle-right|fa-right/.test(a) || t==='>')) return el;
+        if(!next && (/pr[eé]c[eé]dent|previous|prev|‹|«|◀|❮|chevron-left|angle-left|fa-left/.test(a) || t==='<')) return el;
+      }
+      return null;
+    }
+    var steps=Math.abs(DIFF), dir=DIFF>0;
+    for(var n=0;n<steps && n<120;n++){ var ar=arrow(dir); if(!ar){ break; } (ar.closest('a,button')||ar).click(); await wait(450); }
+    await wait(600);
+    // 4) Lecture des rendez-vous (heure + nom + tel + email)
+    var appts=[], seen={};
+    var lines=(document.body.innerText||'').split('\\n');
+    for(var i=0;i<lines.length;i++){
+      var L=clean(lines[i]); var m=L.match(/(\\d{1,2})[:h](\\d{2})/); if(!m) continue;
+      if(/gmt|sem\\.|semaine/i.test(L)) continue;
+      var idx=L.indexOf(m[0]); var rest=clean(L.slice(idx+m[0].length));
+      var phone=(rest.match(/\\+?\\d[\\d\\s().-]{6,}\\d/)||[''])[0];
+      var email=(rest.match(/[\\w.+-]+@[\\w-]+\\.[\\w.-]+/)||[''])[0];
+      var name=clean(rest.split('/')[0]).replace(/phone.*$/i,'').replace(/[@*•]/g,' ').replace(/\\+?\\d[\\d\\s().-]{6,}\\d/,'').trim();
+      if(!name || !/[a-zà-ÿ]{2,}/i.test(name) || name.length>50) continue;
+      var time=('0'+m[1]).slice(-2)+':'+m[2];
+      var key=time+'|'+name.toLowerCase(); if(seen[key]) continue; seen[key]=1;
+      appts.push({ time:time, name:name, phone:phone, email:email });
+    }
+    appts.sort(function(a,b){ return a.time.localeCompare(b.time); });
+    var header=''; var h=byText('h1,h2,h3,[class*=title],[class*=date]', /\\d/); if(h) header=clean(h.textContent).slice(0,60);
+    return JSON.stringify({ picked:picked, appts:appts, header:header,
+      login:/mot de passe|se connecter|password|log ?in/i.test((document.body&&document.body.innerText)||'') });
+  })(${JSON.stringify(doctorName)}, ${Number(diffDays) || 0})`;
+}
+
+// Ouvre la fiche d'un rendez-vous : clique la carte correspondante dans Doctena.
+function docaOpenJs(time, name) {
+  return `(function(TIME, NAME){
+    function clean(s){ return (s||'').replace(/\\s+/g,' ').trim(); }
+    var els=document.querySelectorAll('*'); var target=null;
+    for(var i=0;i<els.length;i++){
+      var el=els[i]; if(el.children && el.children.length>4) continue;
+      var t=clean(el.textContent||'');
+      if(t.length>120) continue;
+      if(t.indexOf(TIME)<0 && t.indexOf(TIME.replace(':','h'))<0) continue;
+      if(t.toLowerCase().indexOf(NAME.toLowerCase().split(' ')[0])<0) continue;
+      target=el; break;
+    }
+    if(target){ (target.closest('a,button,[role=button]')||target).click(); return 'ok'; }
+    return 'notfound';
+  })(${JSON.stringify(time)}, ${JSON.stringify(name)})`;
+}
+
+function setupDoctenaAgenda() {
+  const wv = () => document.getElementById('docaWv');
+  const doctorSel = document.getElementById('docaDoctor');
+  const dateEl = document.getElementById('docaDate');
+  const listEl = document.getElementById('docaList');
+  const dayTitle = document.getElementById('docaDayTitle');
+  const status = document.getElementById('docaStatus');
+  const webBox = document.getElementById('docaWebBox');
+
+  if (!dateEl.value) {
+    const t = new Date();
+    dateEl.value = `${t.getFullYear()}-${pad2(t.getMonth() + 1)}-${pad2(t.getDate())}`;
+  }
+
+  const loadDoctors = async () => {
+    ensureDoctenaAgendaPane();
+    status.textContent = 'Lecture des médecins…';
+    let data = {};
+    try { data = JSON.parse(await wv().executeJavaScript(DOCA_DOCTORS_JS, true)); } catch (_) {}
+    if (data.login) { status.textContent = 'Connectez-vous à Doctena (bouton « 👁️ Page Doctena »), puis rechargez les médecins.'; webBox.style.display = 'block'; return; }
+    const docs = data.doctors || [];
+    if (!docs.length) { status.textContent = 'Aucun médecin détecté — ouvrez Doctena sur l’agenda, puis rechargez.'; return; }
+    doctorSel.innerHTML = '<option value="">— Choisir un médecin —</option>' +
+      docs.map((d) => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
+    status.textContent = `${docs.length} médecin(s) chargé(s) ✓`;
+    setTimeout(() => (status.textContent = ''), 3000);
+  };
+
+  const loadPatients = async () => {
+    ensureDoctenaAgendaPane();
+    const doctor = doctorSel.value;
+    if (!doctor) { status.textContent = 'Choisissez un médecin.'; return; }
+    if (!dateEl.value) { status.textContent = 'Choisissez une date.'; return; }
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const target = new Date(dateEl.value + 'T00:00');
+    const diff = Math.round((target - today) / 86400000);
+    status.textContent = 'Chargement de l’agenda… (sélection du médecin + navigation à la date)';
+    listEl.innerHTML = '<div class="hint">Chargement…</div>';
+    let data = {};
+    try { data = JSON.parse(await wv().executeJavaScript(docaLoadJs(doctor, diff), true)); } catch (e) { data = { error: e.message }; }
+    if (data.login) { status.textContent = 'Non connecté à Doctena — cliquez « 👁️ Page Doctena » et connectez-vous.'; webBox.style.display = 'block'; return; }
+    const appts = data.appts || [];
+    const dstr = target.toLocaleDateString('fr-BE', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+    dayTitle.textContent = `${doctor} — ${dstr}` + (data.header ? `  ·  (page : ${data.header})` : '');
+    if (!appts.length) {
+      listEl.innerHTML = '<div class="hint">Aucun patient lu pour cette date. Vérifiez que Doctena affiche bien ce médecin en vue « Jour » (cliquez « 👁️ Page Doctena »), puis relancez. La navigation de date est approximative selon Doctena.</div>';
+      status.textContent = data.picked ? 'Médecin sélectionné, mais aucun rendez-vous lu.' : 'Médecin non trouvé automatiquement — sélectionnez-le dans la page Doctena.';
+      return;
+    }
+    listEl.innerHTML = appts.map((a) => {
+      const sub = [a.phone, a.email].filter(Boolean).join(' · ');
+      return `<button class="doca-item" data-time="${escapeHtml(a.time)}" data-name="${escapeHtml(a.name)}">` +
+        `<span class="di-time">${escapeHtml(a.time)}</span>` +
+        `<span class="di-main"><span class="di-name">${escapeHtml(a.name)}</span>` +
+        (sub ? `<span class="di-sub">${escapeHtml(sub)}</span>` : '') + '</span>' +
+        '<span class="di-go">Ouvrir ▸</span></button>';
+    }).join('');
+    status.textContent = `${appts.length} patient(s).`;
+    setTimeout(() => (status.textContent = ''), 3000);
+  };
+
+  listEl.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.doca-item');
+    if (!btn) return;
+    status.textContent = 'Ouverture de la fiche…';
+    webBox.style.display = 'block';
+    let r = 'notfound';
+    try { r = await wv().executeJavaScript(docaOpenJs(btn.dataset.time, btn.dataset.name), true); } catch (_) {}
+    status.textContent = r === 'ok' ? 'Fiche ouverte dans Doctena →' : 'Rendez-vous introuvable à l’écran — la page Doctena est affichée à droite.';
+    setTimeout(() => (status.textContent = ''), 3000);
+  });
+
+  document.getElementById('docaRefreshDocs').addEventListener('click', loadDoctors);
+  document.getElementById('docaLoad').addEventListener('click', loadPatients);
+  document.getElementById('docaToggleWeb').addEventListener('click', () => {
+    webBox.style.display = webBox.style.display === 'none' ? 'block' : 'none';
+  });
+
+  // Charge les médecins automatiquement au premier affichage.
+  const wvEl = wv();
+  if (wvEl) {
+    let auto = false;
+    wvEl.addEventListener('did-stop-loading', () => {
+      if (auto) return; auto = true;
+      setTimeout(() => { if (!doctorSel.value && doctorSel.options.length <= 1) loadDoctors(); }, 1500);
+    });
+  }
+}
+
 function setupShyfter() {
   const wv = () => document.getElementById('shyWv');
   const readStatus = document.getElementById('shyReadStatus');
@@ -3269,6 +3458,7 @@ async function init() {
   setupShyfter();
   setupInbody();
   setupSync();
+  setupDoctenaAgenda();
   setupVault();
   setupCareconnect();
   setupSettings();

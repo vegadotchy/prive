@@ -267,6 +267,37 @@
             </div>
           </section>
 
+          <!-- ===================== Agenda Doctena (natif) ===================== -->
+          <section class="view" data-view="doctenaAgenda">
+            <div class="sync-wrap">
+              <div class="sync-top">
+                <h1>Agenda Doctena</h1>
+                <p class="muted">Choisissez un médecin et une date : la liste des patients du jour s'affiche. Cliquez un patient pour ouvrir sa fiche de rendez-vous.</p>
+                <div class="sync-controls">
+                  <label>Médecin
+                    <select id="docaDoctor"><option value="">— Chargez d'abord les médecins —</option></select>
+                  </label>
+                  <label>Date
+                    <input type="date" id="docaDate" />
+                  </label>
+                  <button class="btn gold" id="docaLoad">📋 Voir les patients</button>
+                  <button class="btn" id="docaRefreshDocs">🔄 Charger les médecins</button>
+                  <button class="btn" id="docaToggleWeb" title="Afficher/masquer la page Doctena">👁️ Page Doctena</button>
+                  <span class="hint" id="docaStatus"></span>
+                </div>
+              </div>
+              <div class="doca-split">
+                <div class="doca-list-col">
+                  <div class="doca-daytitle" id="docaDayTitle"></div>
+                  <div id="docaList" class="doca-list"><div class="hint">Sélectionnez un médecin + une date, puis « Voir les patients ».</div></div>
+                </div>
+                <div class="doca-web" id="docaWebBox" style="display:none">
+                  <webview id="docaWv" partition="persist:prive" src="about:blank" data-src="https://secure.doctena.com/"></webview>
+                </div>
+              </div>
+            </div>
+          </section>
+
           <!-- ===================== Synchronisation agendas ===================== -->
           <section class="view" data-view="sync">
             <div class="sync-wrap">
