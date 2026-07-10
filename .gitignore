@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+bot-trading/dist/
+bot-trading/build/
+*.spec
