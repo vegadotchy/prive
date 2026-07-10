@@ -2584,6 +2584,30 @@ function renderSyncResult(res, aList, bList, context) {
   const dot = { ok: '🟢', warn: '🟠', bad: '🔴' };
 
   let html = context ? `<div class="sync-context">📋 ${esc(context)}</div>` : '';
+
+  // --- Verdict global : identiques, ou erreurs (noms manquants / créneaux) ---
+  const nbMissing = res.onlyA.length + res.onlyB.length;
+  const nbSlot = res.timeDiff.length;
+  const nbErr = nbMissing + nbSlot;
+  if (aCount && bCount) {
+    if (nbErr === 0) {
+      html += '<div class="sync-verdict ok">✅ Agendas IDENTIQUES — mêmes patients, mêmes créneaux.</div>';
+    } else {
+      const parts = [];
+      if (nbMissing) parts.push(`${nbMissing} patient(s) présent(s) d'un seul côté`);
+      if (nbSlot) parts.push(`${nbSlot} patient(s) sur un créneau horaire différent`);
+      html += `<div class="sync-verdict bad">⛔ ${nbErr} DIFFÉRENCE(S) — ${esc(parts.join(' · '))}. Corrigez les points ci-dessous.</div>`;
+    }
+  }
+  // Alerte si un agenda montre beaucoup plus de RDV que l'autre (probable vue
+  // multi-praticiens au lieu d'un seul praticien).
+  const big = Math.max(aCount, bCount), small = Math.min(aCount, bCount);
+  if (small > 0 && big >= small * 2 && big - small >= 6) {
+    const many = aCount > bCount ? 'Doctena' : 'Doctoranytime';
+    html += `<div class="sync-verdict warn">⚠️ « ${many} » affiche beaucoup plus de rendez-vous (${big}) que l'autre (${small}). ` +
+      'Vérifiez qu\'il est bien réglé sur UN SEUL praticien en vue « Jour » (pas la vue de tout le cabinet), sinon la comparaison est faussée.</div>';
+  }
+
   html += '<div class="sync-summary">' +
     `<span class="sync-badge">Doctena : ${aCount} RDV</span>` +
     `<span class="sync-badge">Doctoranytime : ${bCount} RDV</span>` +
@@ -2618,7 +2642,7 @@ function renderSyncResult(res, aList, bList, context) {
     res.onlyA.map((a) => `<div class="sync-row"><span class="t">${a.time}</span><span>${esc(a.name)}</span></div>`));
   diffs += group('bad', '⛔ Dans Doctoranytime, ABSENT de Doctena',
     res.onlyB.map((b) => `<div class="sync-row"><span class="t">${b.time}</span><span>${esc(b.name)}</span></div>`));
-  diffs += group('warn', '⏰ Même patient, horaire différent',
+  diffs += group('warn', '⛔ ERREUR créneau : même patient, horaire différent (Doctena → Doctoranytime)',
     res.timeDiff.map((p) => `<div class="sync-row"><span class="t">${p.a.time}→${p.b.time}</span><span>${esc(p.a.name)}</span></div>`));
   diffs += group('warn', '⚠️ Doublons dans un même agenda',
     res.dupes.map((d) => `<div class="sync-row"><span>${esc(d.name)}</span><span class="arrow">— ${d.src}</span></div>`));
@@ -2691,10 +2715,24 @@ function setupSync() {
   // Boutons de chaque panneau : recharger / ouvrir / naviguer / revenir / agrandir.
   const splitEl = document.querySelector('.sync-split');
   if (splitEl) {
+    const zoomFactors = { d: 1, a: 1 };
     splitEl.addEventListener('click', async (e) => {
       const d = e.target.dataset || {};
       if (d.reload) { const wv = wvOf(d.reload); if (wv) wv.reload(); return; }
       if (d.ext) { const wv = wvOf(d.ext); if (wv) window.prive.openExternal(wv.getURL()); return; }
+      if (d.zoom && d.pane) {
+        const wv = wvOf(d.pane);
+        if (!wv) return;
+        let f = zoomFactors[d.pane] || 1;
+        if (d.zoom === 'in') f = Math.min(2.5, f + 0.1);
+        else if (d.zoom === 'out') f = Math.max(0.3, f - 0.1);
+        else f = 1;
+        zoomFactors[d.pane] = f;
+        try { wv.setZoomFactor(f); } catch (_) {}
+        status.textContent = `Zoom ${d.pane === 'd' ? 'Doctena' : 'Doctoranytime'} : ${Math.round(f * 100)}%`;
+        setTimeout(() => (status.textContent = ''), 1500);
+        return;
+      }
       if (d.home) {
         const wv = wvOf(d.home);
         if (wv) { try { await wv.executeJavaScript(closePopupScript, true); } catch (_) {} }
