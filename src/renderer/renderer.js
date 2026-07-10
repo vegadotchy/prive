@@ -2778,7 +2778,7 @@ function setupSync() {
   })()`;
 
   // Boutons de chaque panneau : recharger / ouvrir / naviguer / revenir / agrandir.
-  const splitEl = document.querySelector('.sync-split');
+  const splitEl = document.getElementById('syncSplit') || document.querySelector('.view[data-view="sync"] .sync-split');
   if (splitEl) {
     const zoomFactors = { d: 1, a: 1 };
     splitEl.addEventListener('click', async (e) => {
