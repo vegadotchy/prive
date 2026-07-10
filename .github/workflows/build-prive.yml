@@ -1,0 +1,60 @@
+name: Build Prive (.exe)
+
+# Compile l'installateur Windows (.exe) de l'application Prive sur un runner
+# Windows, puis le publie comme artefact ET comme fichier attaché à une Release
+# (lien de téléchargement stable).
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - claude/windows-desktop-app-tabs-mh83bz
+    paths:
+      - 'src/**'
+      - 'package.json'
+      - '.github/workflows/build-prive.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Installer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Installer les dépendances
+        run: npm install
+
+      - name: Générer l'installateur .exe
+        # --publish never : electron-builder ne tente pas de publier tout seul
+        # (la Release est gérée par l'étape dédiée plus bas).
+        run: npm run dist -- --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - name: Publier l'installateur comme artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: IATECH-CONTROL-PRO-installateur-windows
+          path: dist/*.exe
+          if-no-files-found: error
+
+      - name: Publier une Release avec l'installateur
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: iatech-control-pro-v1.0.0
+          name: IATECH-CONTROL PRO 1.0.0
+          body: |
+            Installateur Windows de **IATECH-CONTROL PRO** (tableau de bord du cabinet).
+
+            Téléchargez le fichier `.exe` ci-dessous puis exécutez-le pour installer
+            l'application (raccourci bureau + menu Démarrer créés).
+          files: dist/*.exe
+          fail_on_unmatched_files: true

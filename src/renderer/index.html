@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; script-src 'self';"
+    />
+    <title>IATECH-CONTROL PRO</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <!-- Bandeau défilant : date, heure, température temps réel -->
+    <div class="marquee" id="marquee">
+      <div class="marquee-track" id="marqueeTrack"></div>
+    </div>
+
+    <div class="app">
+      <!-- Barre latérale de navigation -->
+      <nav class="sidebar" id="sidebar">
+        <div class="brand">
+          <span class="brand-dot"></span>
+          <span class="brand-name">IATECH-CONTROL <b>PRO</b></span>
+        </div>
+        <div class="nav-list" id="navList"><!-- rempli par renderer.js --></div>
+      </nav>
+
+      <!-- Zone principale -->
+      <main class="content">
+        <div class="views" id="views">
+          <!-- ===================== Accueil ===================== -->
+          <section class="view active" data-view="accueil">
+            <div class="panel">
+              <h1>Bienvenue</h1>
+              <p class="muted">Tableau de bord du cabinet. Choisissez un outil dans le menu de gauche.</p>
+              <div class="tile-grid" id="homeTiles"><!-- raccourcis rapides --></div>
+            </div>
+          </section>
+
+          <!-- ===================== Chat IA ===================== -->
+          <section class="view" data-view="chatgpt">
+            <div class="panel chat-panel">
+              <div class="panel-head">
+                <h1>Chat IA</h1>
+                <button class="btn ghost" id="chatClear">Effacer</button>
+              </div>
+              <div class="chat-log" id="chatLog"></div>
+              <form class="chat-form" id="chatForm">
+                <textarea id="chatInput" rows="2" placeholder="Écrivez votre message… (Entrée pour envoyer, Maj+Entrée pour une nouvelle ligne)"></textarea>
+                <button class="btn primary" type="submit" id="chatSend">Envoyer</button>
+              </form>
+              <p class="hint" id="chatHint"></p>
+            </div>
+          </section>
+
+          <!-- ===================== Recherche de fichiers ===================== -->
+          <section class="view" data-view="recherche">
+            <div class="panel">
+              <h1>Recherche de fichiers</h1>
+              <form class="search-form" id="fileSearchForm">
+                <input type="text" id="fileQuery" placeholder="Nom de fichier ou de dossier…" autocomplete="off" />
+                <label class="check">
+                  <input type="checkbox" id="fileContent" /> Chercher aussi dans le contenu (fichiers texte)
+                </label>
+                <button class="btn primary" type="submit" id="fileSearchBtn">Rechercher</button>
+              </form>
+              <p class="hint" id="fileHint">La recherche démarre dans votre dossier personnel puis explore les sous-dossiers.</p>
+              <div class="results" id="fileResults"></div>
+            </div>
+          </section>
+
+          <!-- ===================== Envoyer un mail ===================== -->
+          <section class="view" data-view="mail">
+            <div class="panel">
+              <h1>Envoyer un mail</h1>
+              <form class="mail-form" id="mailForm">
+                <label>Modèle
+                  <select id="mailTemplate"></select>
+                </label>
+                <label>Destinataire
+                  <input type="email" id="mailTo" placeholder="destinataire@exemple.be" />
+                </label>
+                <label>Objet
+                  <input type="text" id="mailSubject" />
+                </label>
+                <label>Message
+                  <textarea id="mailBody" rows="10"></textarea>
+                </label>
+                <div class="row-btns">
+                  <button class="btn primary" type="button" id="mailGmail">Ouvrir dans Gmail</button>
+                  <button class="btn" type="button" id="mailClient">Ouvrir dans le logiciel de messagerie</button>
+                </div>
+              </form>
+              <p class="hint">« Ouvrir dans Gmail » pré-remplit un nouveau message dans l’onglet Gmail. « Logiciel de messagerie » utilise l’application mail par défaut de Windows.</p>
+            </div>
+          </section>
+
+          <!-- ===================== Médicaments (CBIP natif) ===================== -->
+          <section class="view" data-view="cbip">
+            <div class="cbip-wrap">
+              <div class="cbip-head">
+                <h1>Médicaments (CBIP)</h1>
+                <div class="search-form">
+                  <input type="text" id="cbipQuery" placeholder="Nom du médicament ou de la substance…" autocomplete="off" />
+                  <button class="btn gold" id="cbipBtn">Rechercher</button>
+                </div>
+                <p class="hint" id="cbipStatus">Résultats affichés directement dans le programme.</p>
+              </div>
+              <div class="cbip-body">
+                <div class="cbip-results" id="cbipResults"></div>
+                <webview id="cbipDetail" class="cbip-detail" partition="persist:prive" src="about:blank"></webview>
+              </div>
+            </div>
+          </section>
+
+          <!-- ===================== Calendrier & rappels ===================== -->
+          <section class="view" data-view="calendrier">
+            <div class="panel wide">
+              <h1>Calendrier &amp; rappels</h1>
+              <p class="muted">Cliquez un jour pour ajouter une tâche, un rendez-vous ou un rappel. Une notification sonore se déclenche à l'heure prévue.</p>
+              <div class="cal-link">
+                <label>Calendrier rattaché à
+                  <input type="email" id="calEmail" placeholder="eurocare.medical@emdc.be" />
+                </label>
+                <button class="btn tiny" id="calEmailSave">Enregistrer</button>
+                <button class="btn tiny" id="calExport">Exporter .ics</button>
+                <span class="hint" id="calLinkStatus"></span>
+              </div>
+              <div class="cal-google">
+                <b>🔗 Connexion Google Agenda</b>
+                <div class="cal-google-fields">
+                  <label>Client ID
+                    <input type="text" id="calGoogleId" placeholder="…apps.googleusercontent.com" />
+                  </label>
+                  <label>Client Secret
+                    <input type="password" id="calGoogleSecret" placeholder="GOCSPX-…" />
+                  </label>
+                </div>
+                <div class="row-btns">
+                  <button class="btn" id="calGoogleSaveCreds" type="button">Enregistrer la clé</button>
+                  <button class="btn gold" id="calGoogleConnect" type="button">Connecter Google Agenda</button>
+                  <button class="btn" id="calGoogleCheck" type="button">🔎 Vérifier l'agenda cible</button>
+                  <span class="hint" id="calGoogleStatus"></span>
+                </div>
+                <div class="hint" id="calGoogleCals"></div>
+                <p class="hint">Identifiants à créer une fois dans Google Cloud (API Google Calendar activée → ID client OAuth type « Application de bureau »). Une fois connecté, chaque événement part automatiquement dans l'agenda rattaché.</p>
+              </div>
+              <div class="cal-layout">
+                <div class="cal-col">
+                  <div class="cal-header">
+                    <button class="btn tiny" id="calPrev">◀</button>
+                    <span id="calTitle"></span>
+                    <button class="btn tiny" id="calNext">▶</button>
+                    <button class="btn tiny" id="calToday">Aujourd'hui</button>
+                  </div>
+                  <div class="cal-grid" id="calGrid"></div>
+                </div>
+                <div class="cal-side">
+                  <h2 id="calDayTitle">Sélectionnez un jour</h2>
+                  <div id="calDayEvents"></div>
+                  <h2>Ajouter</h2>
+                  <label>Type
+                    <select id="calType">
+                      <option value="rdv">Rendez-vous</option>
+                      <option value="tache">Tâche</option>
+                      <option value="rappel">Rappel</option>
+                    </select>
+                  </label>
+                  <label>Titre
+                    <input type="text" id="calEvTitle" placeholder="Ex. RDV patient, appeler labo…" />
+                  </label>
+                  <label>Heure
+                    <input type="time" id="calEvTime" value="09:00" />
+                  </label>
+                  <label>Note (facultatif)
+                    <input type="text" id="calEvNote" />
+                  </label>
+                  <div class="row-btns">
+                    <button class="btn gold" id="calAdd">Ajouter</button>
+                    <button class="btn" id="calTestSound">Tester le son</button>
+                    <span class="hint" id="calStatus"></span>
+                  </div>
+                </div>
+              </div>
+              <h2>Prochaines échéances</h2>
+              <div id="calUpcoming"></div>
+            </div>
+          </section>
+
+          <!-- ===================== Shyfter (agenda + formulaire dispos) ===================== -->
+          <section class="view" data-view="shyfter">
+            <div class="sync-wrap">
+              <div class="sync-split" style="padding-top:8px">
+                <div class="sync-pane" style="flex:1 1 50%">
+                  <div class="sync-pane-head">🗓️ Shyfter
+                    <button class="btn tiny" id="shyReload">↻</button>
+                    <button class="btn tiny" id="shyExt">Ouvrir</button>
+                  </div>
+                  <webview id="shyWv" partition="persist:prive" src="about:blank" data-src="https://v3-app.shyfter.co/app/dashboard"></webview>
+                </div>
+                <div class="shy-form" id="shyFilterPanel" style="flex:1 1 50%;width:auto">
+                  <h2>Qui travaille ? — Filtre</h2>
+                  <p class="hint">Lit les pointages/horaires affichés dans Shyfter (à gauche) et filtre par nom, jour et heure.</p>
+                  <div class="row-btns">
+                    <button class="btn gold" id="shyRead">🔄 Lire les pointages</button>
+                    <span class="hint" id="shyReadStatus"></span>
+                  </div>
+
+                  <label>Noms (employés / étudiants) — cochez une ou plusieurs personnes</label>
+                  <div class="shy-names">
+                    <input type="search" id="shyFNameSearch" placeholder="🔎 Filtrer les noms…" autocomplete="off" />
+                    <div class="shy-names-actions">
+                      <button class="btn tiny" id="shyFNameAll" type="button">Tout cocher</button>
+                      <button class="btn tiny" id="shyFNameNone" type="button">Tout décocher</button>
+                      <span class="hint" id="shyFNameCount">0 sélectionné(s)</span>
+                    </div>
+                    <div id="shyFNames" class="shy-names-list"><div class="hint">Cliquez « 🔄 Lire les pointages » pour charger les noms.</div></div>
+                  </div>
+                  <label>Jour
+                    <select id="shyFDay">
+                      <option value="">— Tous les jours lus —</option>
+                    </select>
+                  </label>
+                  <label>Présent(e) à cette heure (facultatif)
+                    <input type="time" id="shyFTime" />
+                  </label>
+                  <div class="shy-dates">
+                    <label>Heure ≥
+                      <input type="time" id="shyFFrom" />
+                    </label>
+                    <label>Heure ≤
+                      <input type="time" id="shyFTo" />
+                    </label>
+                  </div>
+                  <div class="row-btns">
+                    <button class="btn" id="shyFReset">Effacer les filtres</button>
+                    <span class="hint" id="shyFCount"></span>
+                  </div>
+
+                  <h2>Compteur d'heures</h2>
+                  <div id="shyCounters" class="shy-counters"></div>
+
+                  <h2>Résultats</h2>
+                  <div id="shyFResults" class="shy-results"></div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ===================== InBody (split + ChatGPT) ===================== -->
+          <section class="view" data-view="inbody">
+            <div class="split-wrap" id="inbodySplit">
+              <div class="split-pane" id="inbodyLeft" style="flex:1 1 58%">
+                <div class="web-bar">
+                  <span class="web-title">⚖️ InBody</span>
+                  <button class="btn tiny" id="ibLastPrint">🖨️ Dernier test</button>
+                  <button class="btn tiny" id="ibPrint">Imprimer affiché</button>
+                  <button class="btn tiny" id="ibReload">⟳</button>
+                  <button class="btn tiny" id="ibExt">Ouvrir</button>
+                </div>
+                <webview id="inbodyWv" partition="persist:prive" src="about:blank" data-src="https://bel.lookinbody.com/"></webview>
+              </div>
+              <div class="split-divider" id="inbodyDivider" title="Glisser pour redimensionner"></div>
+              <div class="split-pane" id="inbodyRight" style="flex:1 1 42%">
+                <div class="web-bar">
+                  <span class="web-title">🤖 ChatGPT</span>
+                  <button class="btn tiny" id="ibGptReload">⟳</button>
+                  <button class="btn tiny" id="ibGptExt">Ouvrir</button>
+                </div>
+                <webview id="inbodyGptWv" partition="persist:prive" src="about:blank" data-src="https://chatgpt.com/"></webview>
+              </div>
+            </div>
+          </section>
+
+          <!-- ===================== DG ECHO (base patients) ===================== -->
+          <section class="view" data-view="dgecho">
+            <div class="panel wide">
+              <div class="panel-head">
+                <h1>DG ECHO</h1>
+                <div class="row-btns" style="margin:0">
+                  <button class="btn" id="dgImport">📥 Importer (XLS/CSV)</button>
+                  <button class="btn" id="dgExportXls">📊 Exporter XLS</button>
+                  <button class="btn" id="dgExportPdf">📄 Exporter PDF</button>
+                  <span class="hint" id="dgStatus"></span>
+                </div>
+              </div>
+              <p class="muted">Base de données patients : rendez-vous par spécialité (dates), coordonnées et documents. Un rappel sonore se déclenche quand un rendez-vous approche.</p>
+              <div class="modeles-layout">
+                <div class="modeles-list-col">
+                  <input type="search" id="dgSearch" placeholder="🔎 Rechercher un patient (nom, prénom, tél…)" autocomplete="off" />
+                  <div class="hint" id="dgCount"></div>
+                  <div class="modeles-list" id="dgList"></div>
+                  <button class="btn gold" id="dgNew">+ Nouveau patient</button>
+                </div>
+                <div class="modeles-editor">
+                  <h2>Coordonnées</h2>
+                  <div class="dg-grid">
+                    <label>Nom <input type="text" id="dg_nom" /></label>
+                    <label>Prénom <input type="text" id="dg_prenom" /></label>
+                    <label>Date de naissance <input type="date" id="dg_dob" /></label>
+                    <label>Téléphone <input type="text" id="dg_tel" /></label>
+                    <label>Adresse e-mail <input type="email" id="dg_email" /></label>
+                    <label>Carte d'identité <input type="text" id="dg_idcard" /></label>
+                    <label>NISS <input type="text" id="dg_niss" /></label>
+                    <label class="dg-wide">Adresse <input type="text" id="dg_adresse" /></label>
+                  </div>
+                  <label>Observation <textarea id="dg_observation" rows="2"></textarea></label>
+
+                  <h2>Rendez-vous par spécialité (dates)</h2>
+                  <div class="dg-grid dg-appts">
+                    <label>Médecin généraliste <input type="date" data-appt="generaliste" /></label>
+                    <label>Cardiologue <input type="date" data-appt="cardiologue" /></label>
+                    <label>Dermatologue <input type="date" data-appt="dermato" /></label>
+                    <label>Gynécologue <input type="date" data-appt="gyneco" /></label>
+                    <label>Ophtalmologue <input type="date" data-appt="ophtalmo" /></label>
+                    <label>Radiologue <input type="date" data-appt="radiolog" /></label>
+                    <label>Urologue <input type="date" data-appt="urologue" /></label>
+                    <label>Vaccin X <input type="date" data-appt="vaccinX" /></label>
+                    <label>Vaccin N <input type="date" data-appt="vaccinN" /></label>
+                    <label>Vaccin M <input type="date" data-appt="vaccinM" /></label>
+                    <label>Autre vaccin <input type="date" data-appt="autreVaccin" /></label>
+                    <label>Radio Thorax <input type="date" data-appt="radioThorax" /></label>
+                  </div>
+
+                  <label>Documents joints</label>
+                  <div class="attach-block">
+                    <button class="btn" id="dgAttach" type="button">📎 Joindre un document…</button>
+                    <div id="dgAttachList" class="attach-list"></div>
+                  </div>
+
+                  <div class="row-btns">
+                    <button class="btn gold" id="dgSave">Enregistrer</button>
+                    <button class="btn danger" id="dgDelete">Supprimer</button>
+                    <span class="hint" id="dgEditStatus"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ===================== Agenda Doctena (natif) ===================== -->
+          <section class="view" data-view="doctenaAgenda">
+            <div class="sync-wrap">
+              <div class="sync-top">
+                <h1>Agenda Doctena</h1>
+                <p class="muted">Choisissez un médecin et une date : la liste des patients du jour s'affiche. Cliquez un patient pour ouvrir sa fiche de rendez-vous.</p>
+                <div class="sync-controls">
+                  <label>Médecin
+                    <select id="docaDoctor"><option value="">— Chargez d'abord les médecins —</option></select>
+                  </label>
+                  <label>Date
+                    <input type="date" id="docaDate" />
+                  </label>
+                  <button class="btn gold" id="docaLoad">📋 Voir les patients</button>
+                  <button class="btn" id="docaRefreshDocs">🔄 Charger les médecins</button>
+                  <button class="btn" id="docaToggleWeb" title="Afficher/masquer la page Doctena">👁️ Page Doctena</button>
+                  <span class="hint" id="docaStatus"></span>
+                </div>
+              </div>
+              <div class="doca-split">
+                <div class="doca-list-col">
+                  <div class="doca-daytitle" id="docaDayTitle"></div>
+                  <div id="docaList" class="doca-list"><div class="hint">Sélectionnez un médecin + une date, puis « Voir les patients ».</div></div>
+                </div>
+                <div class="doca-web" id="docaWebBox" style="display:none">
+                  <webview id="docaWv" partition="persist:prive" src="about:blank" data-src="https://secure.doctena.com/"></webview>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ===================== Synchronisation agendas ===================== -->
+          <section class="view" data-view="sync">
+            <div class="sync-wrap">
+              <div class="sync-top">
+                <h1>Synchronisation Doctena ↔ Doctoranytime</h1>
+                <div class="sync-controls">
+                  <label>Médecin
+                    <input type="text" id="syncDoctor" list="syncDocList" placeholder="Nom du médecin" autocomplete="off" />
+                    <datalist id="syncDocList"></datalist>
+                  </label>
+                  <label>Jour
+                    <input type="date" id="syncDate" />
+                  </label>
+                  <label>De
+                    <input type="time" id="syncFrom" />
+                  </label>
+                  <label>à
+                    <input type="time" id="syncTo" />
+                  </label>
+                  <button class="btn gold" id="syncCompare">🔄 Comparer</button>
+                  <button class="btn" id="syncReload">↻ Recharger</button>
+                  <button class="btn" id="syncDebug">🐞 Texte détecté</button>
+                  <span class="hint" id="syncStatus"></span>
+                </div>
+              </div>
+              <div class="sync-split" id="syncSplit">
+                <div class="sync-pane" data-pane="d">
+                  <div class="sync-pane-head">
+                    <span class="sp-title">📅 Doctena</span>
+                    <button class="btn tiny" data-nav="prev" data-pane="d" title="Jour précédent">◀</button>
+                    <button class="btn tiny" data-nav="today" data-pane="d" title="Aujourd’hui">Auj.</button>
+                    <button class="btn tiny" data-nav="next" data-pane="d" title="Jour suivant">▶</button>
+                    <button class="btn tiny" data-zoom="out" data-pane="d" title="Dézoomer">🔍−</button>
+                    <button class="btn tiny" data-zoom="reset" data-pane="d" title="Zoom 100%">100%</button>
+                    <button class="btn tiny" data-zoom="in" data-pane="d" title="Zoomer">🔍+</button>
+                    <button class="btn tiny" data-home="d" title="Fermer les fenêtres et revenir à l’agenda">🏠 Agenda</button>
+                    <button class="btn tiny" data-expand="d" title="Agrandir / réduire ce panneau">⤢</button>
+                    <button class="btn tiny" data-reload="d" title="Recharger">↻</button>
+                    <button class="btn tiny" data-ext="d">Ouvrir</button>
+                  </div>
+                  <webview id="syncWvDoctena" partition="persist:prive" src="about:blank" data-src="https://secure.doctena.com/"></webview>
+                </div>
+                <div class="sync-pane" data-pane="a">
+                  <div class="sync-pane-head">
+                    <span class="sp-title">🩺 Doctoranytime</span>
+                    <button class="btn tiny" data-nav="prev" data-pane="a" title="Jour précédent">◀</button>
+                    <button class="btn tiny" data-nav="today" data-pane="a" title="Aujourd’hui">Auj.</button>
+                    <button class="btn tiny" data-nav="next" data-pane="a" title="Jour suivant">▶</button>
+                    <button class="btn tiny" data-zoom="out" data-pane="a" title="Dézoomer">🔍−</button>
+                    <button class="btn tiny" data-zoom="reset" data-pane="a" title="Zoom 100%">100%</button>
+                    <button class="btn tiny" data-zoom="in" data-pane="a" title="Zoomer">🔍+</button>
+                    <button class="btn tiny" data-home="a" title="Fermer les fenêtres et revenir à l’agenda">🏠 Agenda</button>
+                    <button class="btn tiny" data-expand="a" title="Agrandir / réduire ce panneau">⤢</button>
+                    <button class="btn tiny" data-reload="a" title="Recharger">↻</button>
+                    <button class="btn tiny" data-ext="a">Ouvrir</button>
+                  </div>
+                  <webview id="syncWvDa" partition="persist:prive" src="about:blank" data-src="https://www.doctoranytime.be/doctorcrmV2/ConnectedAccount/ChangeAccount?u=0"></webview>
+                </div>
+              </div>
+              <div class="sync-results" id="syncResult">
+                <p class="hint">Réglez chaque agenda sur le <b>même praticien / même jour</b> (vue « Jour »), puis cliquez <b>Comparer</b>. Les rendez-vous manquants, écarts d'horaire et doublons s'afficheront ici. La comparaison ignore l'ordre nom/prénom et les accents.</p>
+              </div>
+            </div>
+          </section>
+
+          <!-- ===================== Modèles de correspondance ===================== -->
+          <section class="view" data-view="modeles">
+            <div class="panel wide">
+              <h1>Modèles de correspondance</h1>
+              <p class="muted">Mails, rapports, prescriptions et autres documents types, réutilisables en un clic.</p>
+              <div class="modeles-layout">
+                <div class="modeles-list-col">
+                  <input type="search" id="modeleSearch" class="modele-search" placeholder="🔎 Rechercher un modèle (nom, objet, mot du contenu…)" autocomplete="off" />
+                  <div class="modeles-filter" id="modelesFilter">
+                    <button class="chip active" data-cat="all">Tous</button>
+                    <button class="chip" data-cat="mail">Mails</button>
+                    <button class="chip" data-cat="rapport">Rapports</button>
+                    <button class="chip" data-cat="prescription">Prescriptions</button>
+                    <button class="chip" data-cat="autre">Autres</button>
+                  </div>
+                  <div class="modeles-list" id="modelesList"></div>
+                  <button class="btn gold" id="modeleNew">+ Nouveau modèle</button>
+                </div>
+                <div class="modeles-editor">
+                  <div class="paste-block">
+                    <label>Coller un texte ou un mail — le programme le transforme en modèle
+                      <textarea id="modelePaste" rows="4" placeholder="Collez ici le texte ou le mail (Ctrl+V)… Le titre, la catégorie et le contenu seront remplis automatiquement, avec des champs {{PATIENT}}, {{DATE}}… à personnaliser."></textarea>
+                    </label>
+                    <div class="row-btns">
+                      <button class="btn gold" id="modelePasteBtn" type="button">✨ Transformer en modèle</button>
+                      <label class="chk"><input type="checkbox" id="modelePastePlaceholders" checked /> Remplacer noms/dates par des champs {{…}}</label>
+                    </div>
+                  </div>
+                  <label>Nom
+                    <input type="text" id="modeleName" />
+                  </label>
+                  <label>Catégorie
+                    <select id="modeleCategory">
+                      <option value="mail">Mail</option>
+                      <option value="rapport">Rapport</option>
+                      <option value="prescription">Prescription</option>
+                      <option value="autre">Autre</option>
+                    </select>
+                  </label>
+                  <label>Objet / Titre
+                    <input type="text" id="modeleSubject" />
+                  </label>
+                  <label>Contenu
+                    <textarea id="modeleBody" rows="12"></textarea>
+                  </label>
+                  <div class="row-btns">
+                    <button class="btn" id="modeleImportDoc" type="button">📄 Importer Word/PDF → Contenu</button>
+                    <button class="btn" id="modeleExportPdf" type="button">⬇️ Exporter en PDF</button>
+                    <button class="btn" id="modeleExportWord" type="button">⬇️ Exporter en Word</button>
+                    <span class="hint" id="modeleDocStatus"></span>
+                  </div>
+                  <label>Documents joints (PDF, DOCX, images…)</label>
+                  <div class="attach-block">
+                    <button class="btn" id="modeleAttach" type="button">📎 Joindre un document…</button>
+                    <div id="modeleAttachList" class="attach-list"></div>
+                  </div>
+                  <div class="row-btns">
+                    <button class="btn gold" id="modeleSave">Enregistrer</button>
+                    <button class="btn" id="modeleCopy">Copier</button>
+                    <button class="btn" id="modeleToMail">Utiliser dans un mail</button>
+                    <button class="btn danger" id="modeleDelete">Supprimer</button>
+                    <span class="hint" id="modeleStatus"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ===================== Médecins ===================== -->
+          <section class="view" data-view="medecins">
+            <div class="panel wide">
+              <h1>Médecins</h1>
+              <p class="muted">Rechercher, ajouter ou supprimer un médecin (mêmes champs que la liste EUROCARE).</p>
+              <div class="modeles-layout">
+                <div class="modeles-list-col">
+                  <input type="text" id="medSearch" placeholder="🔎 Rechercher (nom, société, adresse, NISS…)" autocomplete="off" />
+                  <div class="hint" id="medCount"></div>
+                  <div class="modeles-list" id="medList"></div>
+                  <button class="btn gold" id="medNew">+ Nouveau médecin</button>
+                  <div class="med-export">
+                    <label class="check"><input type="checkbox" id="medSelectAll" /> Tout sélectionner</label>
+                    <div class="row-btns" style="margin-top:6px">
+                      <button class="btn" id="medExportXls">📊 Exporter XLS</button>
+                      <button class="btn" id="medExportPdf">📄 Exporter PDF</button>
+                    </div>
+                    <span class="hint" id="medExportStatus"></span>
+                  </div>
+                </div>
+                <div class="modeles-editor">
+                  <label>Nom &amp; Prénom
+                    <input type="text" id="medName" />
+                  </label>
+                  <label>Société
+                    <input type="text" id="medSociete" />
+                  </label>
+                  <label>Adresse
+                    <input type="text" id="medAdresse" />
+                  </label>
+                  <label>Téléphone / N°
+                    <input type="text" id="medTel" />
+                  </label>
+                  <label>NISS
+                    <input type="text" id="medNiss" />
+                  </label>
+                  <label>N° INAMI
+                    <input type="text" id="medInami" />
+                  </label>
+                  <div class="row-btns">
+                    <button class="btn gold" id="medSave">Enregistrer</button>
+                    <button class="btn danger" id="medDelete">Supprimer</button>
+                    <span class="hint" id="medStatus"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ===================== Prestations ===================== -->
+          <section class="view" data-view="prestations">
+            <div class="panel wide">
+              <div class="panel-head">
+                <h1>Prestations</h1>
+                <div class="row-btns" style="margin:0">
+                  <button class="btn gold" id="prestSyncShyfter">🔄 Remplir SHYFTER depuis le rapport</button>
+                  <button class="btn" id="prestImport">📥 Importer (XLS/CSV)</button>
+                  <button class="btn" id="prestExportXls">📊 Exporter XLS</button>
+                  <button class="btn" id="prestExportPdf">📄 Exporter PDF</button>
+                  <button class="btn gold" id="prestSave">Enregistrer</button>
+                  <span class="hint" id="prestStatus"></span>
+                </div>
+              </div>
+              <p class="muted">Heures prestées par mois — comparaison FICHE / SHYFTER. Années séparées. La colonne SHYFTER peut être remplie automatiquement depuis le rapport Shyfter.</p>
+              <div class="prest-split">
+                <div class="prest-main">
+                  <div class="prest-controls">
+                    <div class="seg" id="prestYear">
+                      <button class="chip active" data-year="2025">2025</button>
+                      <button class="chip" data-year="2026">2026</button>
+                    </div>
+                    <div class="seg" id="prestType">
+                      <button class="chip active" data-type="employes">Employés</button>
+                      <button class="chip" data-type="etudiants">Étudiants</button>
+                    </div>
+                    <button class="btn" id="prestAddPerson">+ Personne</button>
+                  </div>
+                  <div class="prest-table-wrap">
+                    <table class="prest-table" id="prestTable"></table>
+                  </div>
+                  <p class="hint">Une cellule SHYFTER en rouge signale un écart avec la FICHE du même mois.</p>
+
+                  <h2>Recherche par personne</h2>
+                  <p class="muted">Tapez un nom : total Fiche de paie vs Shyfter et différence calculée automatiquement (rouge = a travaillé moins que la fiche, vert = a travaillé plus).</p>
+                  <input type="text" id="prestPersonSearch" list="prestPersonList" placeholder="Nom de l'employé(e) ou étudiant(e)…" autocomplete="off" />
+                  <datalist id="prestPersonList"></datalist>
+                  <div id="prestPersonResult"></div>
+                </div>
+                <div id="prestShyBox" class="prest-side" style="display:none">
+                  <p class="hint">Rapport Shyfter (connectez-vous ici si demandé, puis relancez la synchro) :</p>
+                  <webview id="prestShyWv" partition="persist:prive" src="about:blank" style="width:100%;height:74vh;border:1px solid var(--glass-brd);border-radius:10px;background:#fff"></webview>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ===================== CareConnect ===================== -->
+          <section class="view" data-view="careconnect">
+            <div class="panel">
+              <h1>CareConnect</h1>
+              <p class="muted">Lance l’application CareConnect installée sur ce poste (le bouton pointe vers son fichier <code>.exe</code> sur <code>C:\</code>).</p>
+              <button class="btn primary big" id="launchCareconnect">▶ Lancer CareConnect</button>
+              <div class="row-btns">
+                <button class="btn" id="ccDetect">Détecter automatiquement</button>
+                <button class="btn" id="ccPick">Choisir le fichier .exe…</button>
+                <button class="btn" id="ccDownload">⤓ Télécharger CareConnect</button>
+              </div>
+              <p class="hint">Fichier configuré : <span id="ccPath">—</span></p>
+              <p class="hint" id="careconnectHint"></p>
+            </div>
+            <div class="panel" style="margin-top:14px">
+              <h1>Opal Vision</h1>
+              <p class="muted">Lance l’application Opal Vision installée sur ce poste (<code>C:\Program Files\Opal Software\Opal Vision</code>).</p>
+              <button class="btn primary big" id="launchOpal">▶ Lancer Opal Vision</button>
+              <div class="row-btns">
+                <button class="btn" id="opalPick">Choisir le fichier .exe…</button>
+              </div>
+              <p class="hint">Fichier configuré : <span id="opalPath">—</span></p>
+              <p class="hint" id="opalHint"></p>
+            </div>
+          </section>
+
+          <!-- ===================== Coffre-fort ===================== -->
+          <section class="view" data-view="coffre">
+            <div class="panel wide">
+              <h1>Coffre-fort</h1>
+              <p class="muted">Mots de passe <b>chiffrés localement</b> (Windows DPAPI). Ajout manuel, capture depuis le dernier onglet visité, import/export CSV.</p>
+              <div class="modeles-layout">
+                <div class="modeles-list-col">
+                  <input type="text" id="vaultSearch" placeholder="🔎 Rechercher (site, identifiant…)" autocomplete="off" />
+                  <div class="hint" id="vaultCount"></div>
+                  <div class="modeles-list" id="vaultList"></div>
+                  <button class="btn gold" id="vaultNew">+ Nouvelle entrée</button>
+                  <div class="med-export">
+                    <div class="row-btns">
+                      <button class="btn" id="vaultCapture">🎯 Capturer le dernier onglet</button>
+                    </div>
+                    <div class="row-btns" style="margin-top:6px">
+                      <button class="btn" id="vaultImport">Importer CSV</button>
+                      <button class="btn" id="vaultExport">Exporter CSV</button>
+                    </div>
+                    <span class="hint" id="vaultIoStatus"></span>
+                  </div>
+                </div>
+                <div class="modeles-editor">
+                  <label>Site / Service
+                    <input type="text" id="vSite" />
+                  </label>
+                  <label>URL
+                    <input type="text" id="vUrl" />
+                  </label>
+                  <label>Identifiant
+                    <input type="text" id="vUser" />
+                  </label>
+                  <label>Mot de passe
+                    <div class="pw-row">
+                      <input type="password" id="vPass" />
+                      <button class="btn tiny" id="vToggle" type="button">👁</button>
+                    </div>
+                  </label>
+                  <label>Note
+                    <input type="text" id="vNote" />
+                  </label>
+                  <div class="row-btns">
+                    <button class="btn gold" id="vSave">Enregistrer</button>
+                    <button class="btn" id="vCopyUser">Copier identifiant</button>
+                    <button class="btn" id="vCopyPass">Copier mot de passe</button>
+                    <button class="btn danger" id="vDelete">Supprimer</button>
+                    <span class="hint" id="vStatus"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ===================== Réglages ===================== -->
+          <section class="view" data-view="reglages">
+            <div class="panel">
+              <h1>Réglages</h1>
+
+              <h2>Chat IA</h2>
+              <label>Clé d’API (OpenAI ou compatible)
+                <input type="password" id="setApiKey" placeholder="sk-…" />
+              </label>
+              <label>URL de base
+                <input type="text" id="setBaseUrl" placeholder="https://api.openai.com/v1" />
+              </label>
+              <label>Modèle
+                <input type="text" id="setModel" placeholder="gpt-4o-mini" />
+              </label>
+
+              <h2>CareConnect</h2>
+              <label>Chemin de l’exécutable CareConnect
+                <input type="text" id="setCareconnect" placeholder="C:\\Program Files\\CareConnect\\CareConnect.exe" />
+              </label>
+              <button class="btn" id="setCareconnectBrowse" type="button">Parcourir…</button>
+
+              <h2>Google Agenda (synchronisation du calendrier)</h2>
+              <label>Client ID Google (OAuth « Application de bureau »)
+                <input type="text" id="setGoogleId" placeholder="…apps.googleusercontent.com" />
+              </label>
+              <label>Client Secret Google
+                <input type="password" id="setGoogleSecret" placeholder="GOCSPX-…" />
+              </label>
+              <p class="hint">Créez ces identifiants une fois dans Google Cloud (API Google Calendar activée, écran de consentement, identifiant OAuth type « Application de bureau »). Puis cliquez « Connecter Google Agenda » dans l'onglet Calendrier.</p>
+
+              <h2>Examens du jour</h2>
+              <label>URL du serveur interne
+                <input type="text" id="setExamsUrl" />
+              </label>
+              <label>Hôtes à certificat auto-signé autorisés (séparés par des virgules)
+                <input type="text" id="setInsecureHosts" placeholder="192.168.1.220" />
+              </label>
+
+              <div class="row-btns">
+                <button class="btn primary" id="saveSettings">Enregistrer</button>
+                <span class="hint" id="settingsSaved"></span>
+              </div>
+            </div>
+          </section>
+
+          <!-- Les onglets « site web » (Gmail, Doctena, …) sont injectés ici -->
+          <div id="webviewViews"></div>
+        </div>
+      </main>
+    </div>
+
+    <!-- Barre d'état : test de vitesse permanent -->
+    <footer class="statusbar" id="statusbar">
+      <span class="status-item" id="netStatus">
+        <span class="dot" id="netDot"></span>
+        <span id="netLabel">Test de vitesse…</span>
+      </span>
+      <span class="status-item"><span id="netLatency">— ms</span></span>
+      <span class="status-item"><span id="netDown">— Mbps</span></span>
+      <button class="btn tiny" id="speedRefresh">Actualiser</button>
+    </footer>
+
+    <script src="renderer.js"></script>
+  </body>
+</html>
