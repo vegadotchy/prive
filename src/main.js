@@ -456,18 +456,115 @@ ipcMain.handle('attach:add', async () => {
   return { ok: stored.length > 0, files: stored };
 });
 
-// Extrait le texte d'un document (formats texte uniquement).
-ipcMain.handle('attach:extractText', async (_e, filePath) => {
+// --- Extraction de texte : formats texte + Word (.docx) + PDF (best-effort) ---
+function unzipEntry(buf, targetName) {
+  let eocd = -1;
+  for (let i = buf.length - 22; i >= 0; i--) { if (buf.readUInt32LE(i) === 0x06054b50) { eocd = i; break; } }
+  if (eocd < 0) return null;
+  const cdOffset = buf.readUInt32LE(eocd + 16);
+  const count = buf.readUInt16LE(eocd + 10);
+  let p = cdOffset;
+  for (let n = 0; n < count && p + 46 <= buf.length; n++) {
+    if (buf.readUInt32LE(p) !== 0x02014b50) break;
+    const method = buf.readUInt16LE(p + 10);
+    const compSize = buf.readUInt32LE(p + 20);
+    const fnLen = buf.readUInt16LE(p + 28);
+    const extraLen = buf.readUInt16LE(p + 30);
+    const commentLen = buf.readUInt16LE(p + 32);
+    const localOffset = buf.readUInt32LE(p + 42);
+    const name = buf.toString('utf8', p + 46, p + 46 + fnLen);
+    if (name === targetName) {
+      const lfnLen = buf.readUInt16LE(localOffset + 26);
+      const lextraLen = buf.readUInt16LE(localOffset + 28);
+      const dataStart = localOffset + 30 + lfnLen + lextraLen;
+      const data = buf.slice(dataStart, dataStart + compSize);
+      if (method === 0) return data;
+      if (method === 8) { try { return zlib.inflateRawSync(data); } catch (_) { return null; } }
+      return null;
+    }
+    p += 46 + fnLen + extraLen + commentLen;
+  }
+  return null;
+}
+function decodeEntities(s) {
+  return s.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&apos;/g, "'");
+}
+function docxToText(buf) {
+  const xmlBuf = unzipEntry(buf, 'word/document.xml');
+  if (!xmlBuf) return '';
+  const xml = xmlBuf.toString('utf8');
+  let t = xml
+    .replace(/<w:tab\b[^>]*\/?>/g, '\t')
+    .replace(/<w:br\b[^>]*\/?>/g, '\n')
+    .replace(/<\/w:p>/g, '\n')
+    .replace(/<[^>]+>/g, '');
+  return decodeEntities(t).replace(/\n{3,}/g, '\n\n').trim();
+}
+function pdfToText(buf) {
+  const str = buf.toString('latin1');
+  const re = /stream\r?\n([\s\S]*?)\r?\nendstream/g;
+  let m, out = '';
+  while ((m = re.exec(str))) {
+    const data = Buffer.from(m[1], 'latin1');
+    let dec;
+    try { dec = zlib.inflateSync(data).toString('latin1'); }
+    catch (_) { try { dec = zlib.inflateRawSync(data).toString('latin1'); } catch (_2) { dec = m[1]; } }
+    const tre = /\((?:\\.|[^\\()])*\)/g; let t;
+    while ((t = tre.exec(dec))) {
+      out += t[0].slice(1, -1)
+        .replace(/\\(\d{1,3})/g, (_, o) => String.fromCharCode(parseInt(o, 8)))
+        .replace(/\\([()\\nrt])/g, (_, c) => ({ n: '\n', r: '\r', t: '\t' }[c] || c));
+    }
+    out += '\n';
+  }
+  return out.replace(/\n{3,}/g, '\n\n').trim();
+}
+function extractDocText(filePath) {
   const ext = path.extname(filePath || '').toLowerCase();
   const TEXT = ['.txt', '.md', '.csv', '.log', '.json', '.xml', '.html', '.htm', '.rtf'];
-  if (!TEXT.includes(ext)) {
-    return { ok: false, reason: 'Aperçu texte indisponible pour ce format — le document reste joint et ouvrable.' };
-  }
-  try {
+  if (TEXT.includes(ext)) {
     let txt = fs.readFileSync(filePath, 'utf8');
     if (ext === '.rtf') txt = txt.replace(/\\[a-z]+-?\d* ?/gi, '').replace(/[{}]/g, '');
     if (ext === '.html' || ext === '.htm') txt = txt.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
-    return { ok: true, text: txt.slice(0, 100000) };
+    return { ok: true, text: txt.slice(0, 200000) };
+  }
+  if (ext === '.docx') {
+    const t = docxToText(fs.readFileSync(filePath));
+    return t ? { ok: true, text: t.slice(0, 200000) }
+      : { ok: false, reason: 'Word illisible (document.xml introuvable).' };
+  }
+  if (ext === '.pdf') {
+    const t = pdfToText(fs.readFileSync(filePath));
+    return t ? { ok: true, text: t.slice(0, 200000) }
+      : { ok: false, reason: 'PDF sans texte extractible (probablement scanné/image).' };
+  }
+  if (ext === '.doc') {
+    return { ok: false, reason: 'Ancien format .doc non lisible — enregistrez-le en .docx ou .pdf.' };
+  }
+  return { ok: false, reason: 'Aperçu texte indisponible pour ce format — le document reste joint et ouvrable.' };
+}
+
+// Extrait le texte d'un document (texte, Word .docx, PDF).
+ipcMain.handle('attach:extractText', async (_e, filePath) => {
+  try { return extractDocText(filePath); }
+  catch (err) { return { ok: false, reason: 'Lecture impossible : ' + err.message }; }
+});
+
+// Choisit un document (Word/PDF/texte) et renvoie son texte extrait.
+ipcMain.handle('doc:pickExtract', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Importer un document (Word, PDF, texte)',
+    properties: ['openFile'],
+    filters: [
+      { name: 'Documents', extensions: ['docx', 'pdf', 'txt', 'md', 'rtf', 'html', 'htm', 'csv'] },
+      { name: 'Tous les fichiers', extensions: ['*'] }
+    ]
+  });
+  if (result.canceled || !result.filePaths.length) return { ok: false, canceled: true };
+  try {
+    const r = extractDocText(result.filePaths[0]);
+    return { ...r, name: path.basename(result.filePaths[0]) };
   } catch (err) {
     return { ok: false, reason: 'Lecture impossible : ' + err.message };
   }

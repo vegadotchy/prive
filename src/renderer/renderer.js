@@ -1003,6 +1003,48 @@ function setupModeles() {
     setTimeout(() => (statusEl.textContent = ''), 4000);
   });
 
+  // --- Importer un document (Word/PDF/texte) directement dans le contenu ---
+  const docStatus = document.getElementById('modeleDocStatus');
+  document.getElementById('modeleImportDoc').addEventListener('click', async () => {
+    docStatus.textContent = 'Lecture du document…';
+    const r = await window.prive.pickExtractDoc();
+    if (r.canceled) { docStatus.textContent = ''; return; }
+    if (!r.ok) { docStatus.textContent = r.reason || 'Import impossible.'; return; }
+    const insert = r.text || '';
+    if (bodyEl.value.trim() && !confirm('Remplacer le contenu actuel par le document importé ?\n(Annuler = ajouter à la suite)')) {
+      bodyEl.value = bodyEl.value + '\n\n' + insert;
+    } else {
+      bodyEl.value = insert;
+    }
+    if (!subjEl.value && r.name) subjEl.value = r.name.replace(/\.[^.]+$/, '');
+    docStatus.textContent = `Importé : ${escapeHtml(r.name || 'document')} ✓`;
+    setTimeout(() => (docStatus.textContent = ''), 4000);
+  });
+
+  const modeleExportName = () => (nameEl.value.trim() || subjEl.value.trim() || 'modele')
+    .replace(/[\\/:*?"<>|]+/g, '-').slice(0, 60);
+  const modeleExportHtml = () => {
+    const esc = escapeHtml;
+    const bodyHtml = esc(bodyEl.value).replace(/\n/g, '<br>');
+    return '<html><head><meta charset="utf-8"><title>' + esc(subjEl.value || nameEl.value) + '</title></head>' +
+      '<body style="font-family:Calibri,Arial,sans-serif;font-size:14px;line-height:1.5;color:#111">' +
+      (subjEl.value ? '<h2 style="font-family:inherit">' + esc(subjEl.value) + '</h2>' : '') +
+      '<div>' + bodyHtml + '</div></body></html>';
+  };
+  document.getElementById('modeleExportPdf').addEventListener('click', async () => {
+    if (!bodyEl.value.trim() && !subjEl.value.trim()) { docStatus.textContent = 'Rien à exporter.'; return; }
+    const r = await window.prive.exportPdf(modeleExportHtml(), modeleExportName() + '.pdf');
+    docStatus.textContent = r.ok ? 'PDF exporté ✓' : (r.error || 'Export impossible.');
+    setTimeout(() => (docStatus.textContent = ''), 3000);
+  });
+  document.getElementById('modeleExportWord').addEventListener('click', async () => {
+    if (!bodyEl.value.trim() && !subjEl.value.trim()) { docStatus.textContent = 'Rien à exporter.'; return; }
+    // Un HTML balisé enregistré en .doc s'ouvre nativement dans Word.
+    const r = await window.prive.exportSave(modeleExportHtml(), modeleExportName() + '.doc');
+    docStatus.textContent = r.ok ? 'Word exporté ✓' : (r.error || 'Export impossible.');
+    setTimeout(() => (docStatus.textContent = ''), 3000);
+  });
+
   renderList();
   renderAttach();
 }

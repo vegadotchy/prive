@@ -371,9 +371,15 @@
                   <label>Contenu
                     <textarea id="modeleBody" rows="12"></textarea>
                   </label>
+                  <div class="row-btns">
+                    <button class="btn" id="modeleImportDoc" type="button">📄 Importer Word/PDF → Contenu</button>
+                    <button class="btn" id="modeleExportPdf" type="button">⬇️ Exporter en PDF</button>
+                    <button class="btn" id="modeleExportWord" type="button">⬇️ Exporter en Word</button>
+                    <span class="hint" id="modeleDocStatus"></span>
+                  </div>
                   <label>Documents joints (PDF, DOCX, images…)</label>
                   <div class="attach-block">
-                    <button class="btn" id="modeleAttach" type="button">📎 Importer un document…</button>
+                    <button class="btn" id="modeleAttach" type="button">📎 Joindre un document…</button>
                     <div id="modeleAttachList" class="attach-list"></div>
                   </div>
                   <div class="row-btns">

@@ -31,6 +31,7 @@ contextBridge.exposeInMainWorld('prive', {
 
   addAttachments: () => ipcRenderer.invoke('attach:add'),
   extractText: (filePath) => ipcRenderer.invoke('attach:extractText', filePath),
+  pickExtractDoc: () => ipcRenderer.invoke('doc:pickExtract'),
 
   exportPdf: (html, filename) => ipcRenderer.invoke('export:pdf', { html, filename }),
   exportSave: (content, filename) => ipcRenderer.invoke('export:save', { content, filename }),
