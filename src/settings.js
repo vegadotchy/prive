@@ -20,6 +20,14 @@ try {
   PRESTATIONS_SEED = {};
 }
 
+// Base DG ECHO (patients + rendez-vous par spécialité), pré-remplie.
+let DGECHO_SEED = { patients: [] };
+try {
+  DGECHO_SEED = require('./data/dgecho.json');
+} catch (_) {
+  DGECHO_SEED = { patients: [] };
+}
+
 function settingsPath() {
   return path.join(app.getPath('userData'), 'settings.json');
 }
@@ -112,6 +120,8 @@ const DEFAULTS = {
   doctors: DOCTORS_SEED,
   // Suivi des prestations (heures FICHE vs SHYFTER par mois et par personne).
   prestations: PRESTATIONS_SEED,
+  // Base DG ECHO : patients + rendez-vous par spécialité (dates) + coordonnées.
+  dgecho: DGECHO_SEED,
   // Événements du calendrier (tâches, RDV, rappels).
   events: [],
   // Adresse à laquelle le calendrier est rattaché (compte agenda lié).

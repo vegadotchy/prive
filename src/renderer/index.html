@@ -272,6 +272,72 @@
             </div>
           </section>
 
+          <!-- ===================== DG ECHO (base patients) ===================== -->
+          <section class="view" data-view="dgecho">
+            <div class="panel wide">
+              <div class="panel-head">
+                <h1>DG ECHO</h1>
+                <div class="row-btns" style="margin:0">
+                  <button class="btn" id="dgImport">📥 Importer (XLS/CSV)</button>
+                  <button class="btn" id="dgExportXls">📊 Exporter XLS</button>
+                  <button class="btn" id="dgExportPdf">📄 Exporter PDF</button>
+                  <span class="hint" id="dgStatus"></span>
+                </div>
+              </div>
+              <p class="muted">Base de données patients : rendez-vous par spécialité (dates), coordonnées et documents. Un rappel sonore se déclenche quand un rendez-vous approche.</p>
+              <div class="modeles-layout">
+                <div class="modeles-list-col">
+                  <input type="search" id="dgSearch" placeholder="🔎 Rechercher un patient (nom, prénom, tél…)" autocomplete="off" />
+                  <div class="hint" id="dgCount"></div>
+                  <div class="modeles-list" id="dgList"></div>
+                  <button class="btn gold" id="dgNew">+ Nouveau patient</button>
+                </div>
+                <div class="modeles-editor">
+                  <h2>Coordonnées</h2>
+                  <div class="dg-grid">
+                    <label>Nom <input type="text" id="dg_nom" /></label>
+                    <label>Prénom <input type="text" id="dg_prenom" /></label>
+                    <label>Date de naissance <input type="date" id="dg_dob" /></label>
+                    <label>Téléphone <input type="text" id="dg_tel" /></label>
+                    <label>Adresse e-mail <input type="email" id="dg_email" /></label>
+                    <label>Carte d'identité <input type="text" id="dg_idcard" /></label>
+                    <label>NISS <input type="text" id="dg_niss" /></label>
+                    <label class="dg-wide">Adresse <input type="text" id="dg_adresse" /></label>
+                  </div>
+                  <label>Observation <textarea id="dg_observation" rows="2"></textarea></label>
+
+                  <h2>Rendez-vous par spécialité (dates)</h2>
+                  <div class="dg-grid dg-appts">
+                    <label>Médecin généraliste <input type="date" data-appt="generaliste" /></label>
+                    <label>Cardiologue <input type="date" data-appt="cardiologue" /></label>
+                    <label>Dermatologue <input type="date" data-appt="dermato" /></label>
+                    <label>Gynécologue <input type="date" data-appt="gyneco" /></label>
+                    <label>Ophtalmologue <input type="date" data-appt="ophtalmo" /></label>
+                    <label>Radiologue <input type="date" data-appt="radiolog" /></label>
+                    <label>Urologue <input type="date" data-appt="urologue" /></label>
+                    <label>Vaccin X <input type="date" data-appt="vaccinX" /></label>
+                    <label>Vaccin N <input type="date" data-appt="vaccinN" /></label>
+                    <label>Vaccin M <input type="date" data-appt="vaccinM" /></label>
+                    <label>Autre vaccin <input type="date" data-appt="autreVaccin" /></label>
+                    <label>Radio Thorax <input type="date" data-appt="radioThorax" /></label>
+                  </div>
+
+                  <label>Documents joints</label>
+                  <div class="attach-block">
+                    <button class="btn" id="dgAttach" type="button">📎 Joindre un document…</button>
+                    <div id="dgAttachList" class="attach-list"></div>
+                  </div>
+
+                  <div class="row-btns">
+                    <button class="btn gold" id="dgSave">Enregistrer</button>
+                    <button class="btn danger" id="dgDelete">Supprimer</button>
+                    <span class="hint" id="dgEditStatus"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
           <!-- ===================== Agenda Doctena (natif) ===================== -->
           <section class="view" data-view="doctenaAgenda">
             <div class="sync-wrap">

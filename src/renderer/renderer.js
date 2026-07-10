@@ -37,6 +37,7 @@ const NAV = [
   { group: 'Agenda & patients' },
   { view: 'calendrier', title: 'Calendrier & rappels', ico: '📆' },
   { view: 'medecins', title: 'Médecins', ico: '👨‍⚕️' },
+  { view: 'dgecho', title: 'DG ECHO', ico: '🫀' },
   { view: 'doctenaAgenda', title: 'Agenda Doctena', ico: '🗒️' },
   { view: 'doctena', title: 'Doctena', ico: '📅', site: true },
   { view: 'doctoranytime', title: 'Doctoranytime', ico: '🩺', site: true },
@@ -2953,6 +2954,283 @@ const SHYFTER_READ_JS = `(function(){
 })()`;
 
 // ---------------------------------------------------------------------------
+// DG ECHO : base de données patients (rendez-vous par spécialité + rappels)
+// ---------------------------------------------------------------------------
+
+const DG_APPTS = [
+  ['generaliste', 'Médecin généraliste'], ['cardiologue', 'Cardiologue'],
+  ['dermato', 'Dermatologue'], ['gyneco', 'Gynécologue'], ['ophtalmo', 'Ophtalmologue'],
+  ['radiolog', 'Radiologue'], ['urologue', 'Urologue'],
+  ['vaccinX', 'Vaccin X'], ['vaccinN', 'Vaccin N'], ['vaccinM', 'Vaccin M'],
+  ['autreVaccin', 'Autre vaccin'], ['radioThorax', 'Radio Thorax']
+];
+const DG_FIELDS = [
+  ['nom', 'Nom'], ['prenom', 'Prénom'], ['dob', 'Naissance'], ['tel', 'Téléphone'],
+  ['email', 'Email'], ['adresse', 'Adresse'], ['idcard', 'Carte identité'],
+  ['niss', 'NISS'], ['observation', 'Observation']
+];
+
+let dgCurrentId = null;
+let dgAttachments = [];
+
+function setupDgEcho() {
+  const searchEl = document.getElementById('dgSearch');
+  const listEl = document.getElementById('dgList');
+  const countEl = document.getElementById('dgCount');
+  const statusEl = document.getElementById('dgStatus');
+  const editStatus = document.getElementById('dgEditStatus');
+  const attachListEl = document.getElementById('dgAttachList');
+  const apptInputs = () => [...document.querySelectorAll('#dgecho [data-appt]')];
+  const fld = (k) => document.getElementById('dg_' + k);
+
+  const patients = () => {
+    settings.dgecho = settings.dgecho || { patients: [] };
+    if (!Array.isArray(settings.dgecho.patients)) settings.dgecho.patients = [];
+    return settings.dgecho.patients;
+  };
+
+  const filtered = () => {
+    const q = (searchEl.value || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+    const terms = q ? q.split(/\s+/) : [];
+    return patients().filter((p) => {
+      if (!terms.length) return true;
+      const hay = `${p.nom} ${p.prenom} ${p.tel} ${p.email} ${p.niss} ${p.idcard}`
+        .toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+      return terms.every((t) => hay.includes(t));
+    });
+  };
+
+  const nextAppt = (p) => {
+    // Prochaine date de rendez-vous (pour affichage dans la liste).
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    let best = null;
+    DG_APPTS.forEach(([k]) => {
+      const d = p.appts && p.appts[k];
+      if (!d) return;
+      const dt = new Date(d + 'T00:00');
+      if (isNaN(dt)) return;
+      if (dt >= today && (!best || dt < best.dt)) best = { dt, k, d };
+    });
+    return best;
+  };
+
+  const renderList = () => {
+    const items = filtered();
+    countEl.textContent = `${items.length} patient(s)`;
+    listEl.innerHTML = items.length ? '' : '<div class="hint">Aucun patient.</div>';
+    items.forEach((p) => {
+      const na = nextAppt(p);
+      const div = document.createElement('div');
+      div.className = 'modele-item' + (p.id === dgCurrentId ? ' active' : '');
+      const label = DG_APPTS.find(([k]) => na && k === na.k);
+      div.innerHTML = `<div class="m-name">${escapeHtml(p.nom || '(sans nom)')} ${escapeHtml(p.prenom || '')}</div>` +
+        (na ? `<div class="m-cat">📅 ${escapeHtml((label ? label[1] : na.k))} — ${escapeHtml(na.d.split('-').reverse().join('/'))}</div>`
+            : '<div class="m-cat">—</div>');
+      div.addEventListener('click', () => select(p.id));
+      listEl.appendChild(div);
+    });
+  };
+
+  const renderAttach = () => {
+    attachListEl.innerHTML = '';
+    if (!dgAttachments.length) { attachListEl.innerHTML = '<span class="hint">Aucun document joint.</span>'; return; }
+    dgAttachments.forEach((f, i) => {
+      const row = document.createElement('div');
+      row.className = 'attach-item';
+      row.innerHTML = `<span class="af">📄 ${escapeHtml(f.name)}</span>` +
+        '<button class="btn tiny" data-a="open">Ouvrir</button>' +
+        '<button class="btn tiny danger" data-a="rm">×</button>';
+      row.querySelector('[data-a="open"]').addEventListener('click', () => window.prive.openPath(f.path));
+      row.querySelector('[data-a="rm"]').addEventListener('click', () => { dgAttachments.splice(i, 1); renderAttach(); });
+      attachListEl.appendChild(row);
+    });
+  };
+
+  const select = (id) => {
+    const p = patients().find((x) => x.id === id);
+    if (!p) return;
+    dgCurrentId = id;
+    DG_FIELDS.forEach(([k]) => { if (fld(k)) fld(k).value = p[k] || ''; });
+    apptInputs().forEach((inp) => { inp.value = (p.appts && p.appts[inp.dataset.appt]) || ''; });
+    dgAttachments = (p.attachments || []).slice();
+    renderList(); renderAttach();
+  };
+
+  const blank = () => {
+    dgCurrentId = null;
+    DG_FIELDS.forEach(([k]) => { if (fld(k)) fld(k).value = ''; });
+    apptInputs().forEach((inp) => { inp.value = ''; });
+    dgAttachments = [];
+    renderList(); renderAttach();
+  };
+
+  const collect = () => {
+    const appts = {};
+    apptInputs().forEach((inp) => { appts[inp.dataset.appt] = inp.value || ''; });
+    const p = { appts, attachments: dgAttachments.slice() };
+    DG_FIELDS.forEach(([k]) => { p[k] = (fld(k) ? fld(k).value : '').trim(); });
+    return p;
+  };
+
+  searchEl.addEventListener('input', renderList);
+  document.getElementById('dgNew').addEventListener('click', blank);
+
+  document.getElementById('dgAttach').addEventListener('click', async () => {
+    const r = await window.prive.addAttachments();
+    if (r.ok) { dgAttachments.push(...r.files); renderAttach(); }
+  });
+
+  document.getElementById('dgSave').addEventListener('click', async () => {
+    const data = collect();
+    if (!data.nom) { editStatus.textContent = 'Le nom est requis.'; return; }
+    if (dgCurrentId) {
+      const p = patients().find((x) => x.id === dgCurrentId);
+      if (p) Object.assign(p, data);
+    } else {
+      dgCurrentId = 'p' + Date.now();
+      patients().push({ id: dgCurrentId, ...data });
+    }
+    await persistSettings();
+    renderList();
+    editStatus.textContent = 'Enregistré ✓';
+    setTimeout(() => (editStatus.textContent = ''), 2000);
+  });
+
+  document.getElementById('dgDelete').addEventListener('click', async () => {
+    if (!dgCurrentId) return;
+    const p = patients().find((x) => x.id === dgCurrentId);
+    if (!confirm(`Supprimer ${p ? p.nom : 'ce patient'} ?`)) return;
+    settings.dgecho.patients = patients().filter((x) => x.id !== dgCurrentId);
+    await persistSettings();
+    blank();
+    editStatus.textContent = 'Supprimé.';
+    setTimeout(() => (editStatus.textContent = ''), 2000);
+  });
+
+  // --- Export XLS / PDF ---
+  const exportRows = () => {
+    const header = ['Nom', 'Prénom', 'Naissance', 'Téléphone', 'Email', 'Adresse', 'Carte ID', 'NISS']
+      .concat(DG_APPTS.map(([, l]) => l)).concat(['Observation']);
+    const rows = [header];
+    patients().forEach((p) => {
+      const r = [p.nom, p.prenom, p.dob, p.tel, p.email, p.adresse, p.idcard, p.niss]
+        .concat(DG_APPTS.map(([k]) => (p.appts && p.appts[k]) || ''))
+        .concat([p.observation]);
+      rows.push(r.map((x) => x == null ? '' : String(x)));
+    });
+    return rows;
+  };
+  const tableHtml = (rows) => {
+    const cell = (v, i, head) => `<${head ? 'th' : 'td'} style="border:1px solid #999;padding:4px 7px;${head ? 'background:#eee;' : ''}text-align:left;white-space:nowrap">${escapeHtml(v)}</${head ? 'th' : 'td'}>`;
+    return '<table style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:11px">' +
+      rows.map((r, ri) => '<tr>' + r.map((v) => cell(v, 0, ri === 0)).join('') + '</tr>').join('') + '</table>';
+  };
+  document.getElementById('dgExportXls').addEventListener('click', async () => {
+    if (!patients().length) { statusEl.textContent = 'Aucun patient à exporter.'; return; }
+    const html = '<html><head><meta charset="utf-8"></head><body>' + tableHtml(exportRows()) + '</body></html>';
+    const r = await window.prive.exportSave(html, 'dg-echo.xls');
+    statusEl.textContent = r.ok ? 'Export XLS ✓' : (r.error || 'Export impossible.');
+    setTimeout(() => (statusEl.textContent = ''), 3000);
+  });
+  document.getElementById('dgExportPdf').addEventListener('click', async () => {
+    if (!patients().length) { statusEl.textContent = 'Aucun patient à exporter.'; return; }
+    const html = '<html><head><meta charset="utf-8"><title>DG ECHO</title></head><body>' +
+      '<h2 style="font-family:Arial">DG ECHO — Patients (' + patients().length + ')</h2>' +
+      tableHtml(exportRows()) + '</body></html>';
+    const r = await window.prive.exportPdf(html, 'dg-echo.pdf');
+    statusEl.textContent = r.ok ? 'Export PDF ✓' : (r.error || 'Export impossible.');
+    setTimeout(() => (statusEl.textContent = ''), 3000);
+  });
+
+  document.getElementById('dgImport').addEventListener('click', async () => {
+    const res = await window.prive.pickTextFile();
+    if (!res.ok) return;
+    let rows;
+    if (/<table[\s>]/i.test(res.content)) {
+      const doc = new DOMParser().parseFromString(res.content, 'text/html');
+      rows = [...doc.querySelectorAll('table tr')].map((tr) => [...tr.querySelectorAll('th,td')].map((c) => (c.textContent || '').trim()));
+    } else { rows = parseCsv(res.content); }
+    if (!rows || rows.length < 2) { statusEl.textContent = 'Fichier vide ou illisible.'; return; }
+    if (!confirm('Importer ces patients et les AJOUTER à la base DG ECHO ?')) return;
+    const header = rows[0].map((h) => (h || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''));
+    const findCol = (re) => header.findIndex((h) => re.test(h));
+    const cols = {
+      nom: findCol(/^nom|patient/), prenom: findCol(/prenom/), dob: findCol(/naiss/),
+      tel: findCol(/tel|phone|gsm/), email: findCol(/mail|email/), adresse: findCol(/adresse/),
+      idcard: findCol(/carte|id ?card/), niss: findCol(/niss|registre/), observation: findCol(/observ|remarque|note/)
+    };
+    const apptCols = {};
+    DG_APPTS.forEach(([k, l]) => { apptCols[k] = header.findIndex((h) => h.includes(l.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''))); });
+    const parseDate = (s) => {
+      s = (s || '').trim(); if (!s) return '';
+      let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/); if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+      m = s.match(/(\d{1,2})[\/.](\d{1,2})[\/.](\d{2,4})/);
+      if (m) { let y = m[3].length === 2 ? '20' + m[3] : m[3]; return `${y}-${pad2(m[2])}-${pad2(m[1])}`; }
+      return '';
+    };
+    let added = 0;
+    for (let r = 1; r < rows.length; r++) {
+      const row = rows[r];
+      const nom = cols.nom >= 0 ? (row[cols.nom] || '').trim() : (row[0] || '').trim();
+      if (!nom) continue;
+      const p = { id: 'p' + Date.now() + '_' + r, appts: {}, attachments: [] };
+      DG_FIELDS.forEach(([k]) => { p[k] = cols[k] >= 0 ? (row[cols[k]] || '').trim() : ''; });
+      p.nom = nom;
+      if (cols.dob >= 0) p.dob = parseDate(row[cols.dob]);
+      DG_APPTS.forEach(([k]) => { p.appts[k] = apptCols[k] >= 0 ? parseDate(row[apptCols[k]]) : ''; });
+      patients().push(p); added++;
+    }
+    await persistSettings();
+    renderList();
+    statusEl.textContent = `Importé ✓ (${added} patient(s)).`;
+    setTimeout(() => (statusEl.textContent = ''), 4000);
+  });
+
+  // --- Rappels : rendez-vous proches (aujourd'hui → +2 jours) ---
+  settings.dgechoNotified = settings.dgechoNotified || [];
+  const checkReminders = async () => {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    let changed = false;
+    patients().forEach((p) => {
+      DG_APPTS.forEach(([k, label]) => {
+        const d = p.appts && p.appts[k]; if (!d) return;
+        const dt = new Date(d + 'T00:00'); if (isNaN(dt)) return;
+        const days = Math.round((dt - today) / 86400000);
+        if (days < 0 || days > 2) return;
+        const key = `${p.id}|${k}|${d}`;
+        if (settings.dgechoNotified.includes(key)) return;
+        settings.dgechoNotified.push(key); changed = true;
+        const when = days === 0 ? "aujourd'hui" : (days === 1 ? 'demain' : 'dans 2 jours');
+        dgBeep();
+        try {
+          new Notification('DG ECHO — rendez-vous ' + when, {
+            body: `${p.nom} ${p.prenom || ''} · ${label} · ${d.split('-').reverse().join('/')}`
+          });
+        } catch (_) { /* notifications indisponibles */ }
+      });
+    });
+    if (changed) await persistSettings();
+  };
+  checkReminders();
+  setInterval(checkReminders, 3600000); // toutes les heures
+
+  renderList();
+}
+
+// Petit bip sonore pour les rappels DG ECHO.
+function dgBeep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator(); const g = ctx.createGain();
+    o.type = 'sine'; o.frequency.value = 880; o.connect(g); g.connect(ctx.destination);
+    g.gain.setValueAtTime(0.001, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+    o.start(); o.stop(ctx.currentTime + 0.5);
+  } catch (_) { /* audio indisponible */ }
+}
+
+// ---------------------------------------------------------------------------
 // Agenda Doctena (natif) : médecins → date → liste de patients cliquable
 // ---------------------------------------------------------------------------
 
@@ -3497,6 +3775,7 @@ async function init() {
   setupShyfter();
   setupInbody();
   setupSync();
+  setupDgEcho();
   setupDoctenaAgenda();
   setupVault();
   setupCareconnect();

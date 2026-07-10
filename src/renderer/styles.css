@@ -350,6 +350,12 @@ textarea { resize: vertical; }
 .shy-slot input { margin: 0; width: 100px; }
 .shy-slot .rm { color: #ffb4b4; cursor: pointer; font-weight: 700; }
 .shy-batch { display: flex; flex-direction: column; gap: 5px; max-height: 22vh; overflow-y: auto; margin-bottom: 8px; }
+/* DG ECHO — grilles de formulaire */
+.dg-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px 14px; }
+.dg-grid.dg-appts { grid-template-columns: repeat(3, 1fr); }
+.dg-grid .dg-wide { grid-column: 1 / -1; }
+@media (max-width: 900px) { .dg-grid, .dg-grid.dg-appts { grid-template-columns: 1fr; } }
+
 /* Shyfter — multi-sélection des noms */
 .shy-names { margin-top: 5px; }
 .shy-names input[type=search] { margin: 0 0 6px; }
