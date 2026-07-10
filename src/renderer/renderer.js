@@ -1823,35 +1823,59 @@ function setupPrestations() {
     const REPORT_URL = 'https://v3-app.shyfter.co/app/reports/timesheets/default';
     const scrape = `(function(){
       var MONTHS=['janvier','fevrier','février','mars','avril','mai','juin','juillet','aout','août','septembre','octobre','novembre','decembre','décembre'];
-      function norm(s){ return (s||'').toLowerCase(); }
-      var out=[];
+      var MONO=['janvier','fevrier','mars','avril','mai','juin','juillet','aout','septembre','octobre','novembre','decembre'];
+      function norm(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,''); }
+      function hrs(s){
+        s=(s||'').trim(); if(!s) return null;
+        var m=s.match(/(\\d+)\\s*[:hH]\\s*(\\d{1,2})/); if(m) return Math.round((+m[1]+(+m[2])/60)*100)/100;
+        var n=s.replace(',','.').replace(/[^0-9.]/g,''); return n?parseFloat(n):null;
+      }
+      // Mois de la période : premier mois nommé dans l'entête, sinon mois des dates.
+      var bodyTxt=norm((document.body&&document.body.innerText)||'');
+      var periodMonth='';
+      for(var mi=0;mi<MONO.length;mi++){ if(bodyTxt.indexOf(MONO[mi])>=0){ periodMonth=MONTHS[mi]||MONO[mi]; break; } }
+      if(!periodMonth){
+        var dm=bodyTxt.match(/\\b\\d{1,2}[\\/.](\\d{1,2})[\\/.]\\d{2,4}\\b/);
+        if(dm){ var idx=parseInt(dm[1],10)-1; if(idx>=0&&idx<12) periodMonth=MONTHS[idx]; }
+      }
+      var monthRows=[], totalRows=[];
       var tables=document.querySelectorAll('table');
       for(var ti=0;ti<tables.length;ti++){
         var table=tables[ti];
         var heads=table.querySelectorAll('thead th, thead td');
         if(!heads.length){ var fr=table.querySelector('tr'); heads=fr?fr.querySelectorAll('th,td'):[]; }
-        var monthCols={};
-        for(var i=0;i<heads.length;i++){ var h=norm(heads[i].textContent); MONTHS.forEach(function(mn){ if(h.indexOf(mn)>=0) monthCols[i]=heads[i].textContent.trim(); }); }
-        if(!Object.keys(monthCols).length) continue;
+        var monthCols={}, totalCol=-1;
+        for(var i=0;i<heads.length;i++){
+          var h=norm(heads[i].textContent);
+          MONTHS.forEach(function(mn){ if(h.indexOf(norm(mn))>=0) monthCols[i]=heads[i].textContent.trim(); });
+          if(/(^|\\b)(total|pointe|point|preste|prest|travail|worked|hours|heures|duree)/.test(h)) { if(totalCol<0||/total/.test(h)) totalCol=i; }
+        }
         var rows=table.querySelectorAll('tbody tr'); if(!rows.length) rows=table.querySelectorAll('tr');
         for(var r=0;r<rows.length;r++){
           var cells=rows[r].querySelectorAll('td,th'); if(cells.length<2) continue;
-          var name=(cells[0].textContent||'').trim(); if(!name || /total/i.test(name)) continue;
-          var months={};
-          Object.keys(monthCols).forEach(function(ci){
-            var raw=(cells[ci]?cells[ci].textContent:'')||'';
-            var v=raw.replace(',','.').replace(/[^0-9.]/g,'');
-            if(v!=='') months[monthCols[ci]]=parseFloat(v);
-          });
-          if(name && Object.keys(months).length) out.push({name:name, months:months});
+          var name=(cells[0].textContent||'').trim();
+          if(!name || /^total/i.test(name) || cells[0].querySelector('th') ) continue;
+          if(!/[a-zà-ÿ]{2,}/i.test(name)) continue;
+          if(Object.keys(monthCols).length){
+            var months={};
+            Object.keys(monthCols).forEach(function(ci){ var v=hrs(cells[ci]?cells[ci].textContent:''); if(v!=null) months[monthCols[ci]]=v; });
+            if(Object.keys(months).length) monthRows.push({name:name, months:months});
+          } else {
+            // Layout « total par personne » : colonne total, sinon dernière cellule numérique.
+            var tot=null;
+            if(totalCol>=0 && cells[totalCol]) tot=hrs(cells[totalCol].textContent);
+            if(tot==null){ for(var c=cells.length-1;c>=1;c--){ var v=hrs(cells[c].textContent); if(v!=null){ tot=v; break; } } }
+            if(tot!=null) totalRows.push({name:name, total:tot});
+          }
         }
-        if(out.length) break;
+        if(monthRows.length) break;
       }
-      return JSON.stringify({rows:out, hasTable: document.querySelectorAll('table').length>0, login:/connect|mot de passe|login|password/i.test((document.body&&document.body.innerText)||'')});
+      return JSON.stringify({ monthRows:monthRows, totalRows:totalRows, periodMonth:periodMonth,
+        hasTable: tables.length>0, login:/se connecter|mot de passe|\\bpassword\\b|\\blog ?in\\b/i.test((document.body&&document.body.innerText)||'') });
     })()`;
 
     const scrapeNow = async () => {
-      try { return JSON.parse(await wv.executeJavaScript(scrape, true)); } catch (_) { return { rows: [] }; }
+      try { return JSON.parse(await wv.executeJavaScript(scrape, true)); } catch (_) { return {}; }
     };
 
     // (Re)charge le rapport puis lit après stabilisation.
@@ -1865,36 +1889,68 @@ function setupPrestations() {
 
     const res = await scrapeNow();
     if (res.login) { status.textContent = 'Connectez-vous à Shyfter dans le panneau ci-dessus, puis relancez la synchro.'; return; }
-    if (!res.rows || !res.rows.length) {
-      status.textContent = 'Aucun tableau mensuel détecté dans le rapport. Réglez le rapport sur l’année en vue mensuelle, ou envoyez-moi une capture pour calibrer.';
+    const monthRows = res.monthRows || [];
+    const totalRows = res.totalRows || [];
+    if (!monthRows.length && !totalRows.length) {
+      status.textContent = res.hasTable
+        ? 'Rapport lu mais aucune ligne « personne + heures » reconnue. Ouvrez le rapport sur une période, puis relancez.'
+        : 'Aucun tableau détecté. Ouvrez https://v3-app.shyfter.co/app/reports/timesheets/default dans le panneau, puis relancez.';
       return;
     }
 
-    // Applique aux jeux de l'année courante (employés + étudiants).
-    let filled = 0, matched = 0;
-    ['employes', 'etudiants'].forEach((type) => {
-      const ds = (settings.prestations || {})[`${type}-${prestYear}`];
-      if (!ds || !ds.persons) return;
-      res.rows.forEach((row) => {
-        const rTokens = normPersonName(row.name);
-        const person = ds.persons.find((p) => {
-          const pt = normPersonName(p.name);
+    // Trouve la personne correspondante (toutes années/types) par chevauchement
+    // de mots du nom (gère « GHANI » ↔ « EM-A. GHANI Bouali »).
+    const findPerson = (reportName) => {
+      const rTokens = normPersonName(reportName);
+      let type = /^et[-\s]/i.test(reportName) ? 'etudiants' : (/^em[-\s]/i.test(reportName) ? 'employes' : null);
+      const types = type ? [type] : ['employes', 'etudiants'];
+      for (const ty of types) {
+        const ds = (settings.prestations || {})[`${ty}-${prestYear}`];
+        if (!ds || !ds.persons) continue;
+        const p = ds.persons.find((pp) => {
+          const pt = normPersonName(pp.name);
           return pt.some((w) => rTokens.includes(w));
         });
-        if (!person) return;
-        matched++;
-        if (!person.months) person.months = emptyMonths();
+        if (p) return p;
+      }
+      return null;
+    };
+
+    let filled = 0, matched = 0; const unmatched = [];
+    if (monthRows.length) {
+      // Rapport avec colonnes mensuelles → remplit chaque mois.
+      monthRows.forEach((row) => {
+        const person = findPerson(row.name);
+        if (!person) { unmatched.push(row.name); return; }
+        matched++; if (!person.months) person.months = emptyMonths();
         Object.keys(row.months).forEach((label) => {
           const mk = monthKeyFromLabel(label);
           if (mk && person.months[mk]) { person.months[mk].shyfter = row.months[label]; filled++; }
         });
       });
-    });
+    } else {
+      // Rapport « total par personne » → remplit le mois de la période.
+      const mk = monthKeyFromLabel(res.periodMonth || '');
+      if (!mk) {
+        status.textContent = 'Total lu par personne, mais le MOIS de la période n’a pas été détecté. Réglez le rapport sur un mois précis (ex. Juillet), puis relancez.';
+        return;
+      }
+      totalRows.forEach((row) => {
+        const person = findPerson(row.name);
+        if (!person) { unmatched.push(row.name); return; }
+        matched++; if (!person.months) person.months = emptyMonths();
+        if (person.months[mk]) { person.months[mk].shyfter = row.total; filled++; }
+      });
+    }
 
     await persistSettings();
     renderPrestTable();
     updatePersonDatalist();
-    status.textContent = `Synchronisé : ${matched} personne(s), ${filled} valeur(s) SHYFTER mises à jour (${prestYear}).`;
+    renderPersonSearch(personSearch.value);
+    let msg = `Synchronisé : ${matched} personne(s), ${filled} valeur(s) SHYFTER mises à jour`;
+    if (monthRows.length) msg += ' (mensuel)'; else msg += ` (${res.periodMonth || 'mois'})`;
+    if (unmatched.length) msg += ` — ${unmatched.length} nom(s) sans correspondance : ${unmatched.slice(0, 4).join(', ')}${unmatched.length > 4 ? '…' : ''}`;
+    status.textContent = msg;
   });
 
   renderPrestTable();
