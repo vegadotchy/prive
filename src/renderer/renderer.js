@@ -2911,8 +2911,6 @@ const SHYFTER_READ_JS = `(function(){
   var RANGE=/(\\d{1,2}[:h]\\d{2})\\s*[-–—]\\s*(\\d{1,2}[:h]\\d{2}|en cours)/i;
   var SECTION=/(pointages?\\s+(du jour|d.?hier)|personnel\\s+.\\s*l.horaire\\s+(aujourd|demain)|planning|semaine|p[ée]riode)/i;
   var STATUS=/^(arriv|parti|en cours|en retard|en avance|absent|cong[ée]|\\bva\\b|\\brm\\b|\\beuro)/i;
-  var all=document.querySelectorAll('body *');
-  var section='', out=[], seen={};
   function isName(c){
     if(!c || c.length<2 || c.length>48) return false;
     if(!/[a-zà-ÿ]{2,}/i.test(c)) return false;
@@ -2920,35 +2918,37 @@ const SHYFTER_READ_JS = `(function(){
     if(/^\\d/.test(c)) return false;
     return true;
   }
+  function cellsOf(el){ try{ return (el.innerText||el.textContent||'').split('\\n').map(collapse).filter(Boolean); }catch(e){ return []; } }
+  // Une ligne = au moins une cellule « plage horaire » ET une cellule « nom ».
+  function rowInfo(cells){
+    var ri=-1,m=null;
+    for(var k=0;k<cells.length;k++){ var mm=cells[k].match(RANGE); if(mm){ ri=k; m=mm; break; } }
+    if(ri<0) return null;
+    var name='';
+    for(var k=0;k<cells.length;k++){ if(k!==ri && /^(e[mt]|zz?|z)[-\\s]/i.test(cells[k]) && isName(cells[k])){ name=cells[k]; break; } }
+    if(!name){ for(var k=0;k<cells.length;k++){ if(k!==ri && isName(cells[k])){ name=cells[k]; break; } } }
+    if(!name) return null;
+    return { time:m[1].replace('h',':'), end:(/en cours/i.test(m[2])?'':m[2].replace('h',':')), name:name };
+  }
+  var all=document.querySelectorAll('body *');
+  var section='', out=[], seen={};
   for(var i=0;i<all.length;i++){
     var el=all[i];
-    var full='';
-    try{ full=(el.innerText||el.textContent||''); }catch(e){ continue; }
-    var flat=collapse(full.replace(/\\n+/g,' '));
+    var flat=collapse((el.innerText||el.textContent||'').replace(/\\n+/g,' '));
     if(!flat) continue;
-    // Titre de section (élément court)
     if(flat.length<=48 && SECTION.test(flat) && !RANGE.test(flat)){ section=flat; continue; }
-    if(flat.length>200 || !RANGE.test(flat)) continue;
-    // Cellules de la ligne (séparées par des sauts de ligne dans le rendu)
-    var cells=full.split('\\n').map(collapse).filter(Boolean);
-    if(cells.length<2) continue;
-    // Cette ligne doit être « serrée » : on écarte si un enfant contient déjà une plage.
-    var childRange=false;
-    for(var c=0;c<el.children.length;c++){ try{ if(RANGE.test(el.children[c].innerText||'')){ childRange=true; break; } }catch(e){} }
-    if(childRange) continue;
-    // Trouve la cellule d'heure et la cellule de nom.
-    var m=null, ri=-1;
-    for(var k=0;k<cells.length;k++){ var mm=cells[k].match(RANGE); if(mm){ m=mm; ri=k; break; } }
-    if(!m) continue;
-    var name='';
-    for(var k=0;k<cells.length;k++){ if(k===ri) continue; if(/^(e[mt]|zz?|z)[-\\s]/i.test(cells[k]) && isName(cells[k])){ name=cells[k]; break; } }
-    if(!name){ for(var k=0;k<cells.length;k++){ if(k!==ri && isName(cells[k])){ name=cells[k]; break; } } }
-    if(!name) continue;
-    name=name.replace(/^[•\\-\\u2013\\s]+/,'').replace(/\\s+(eurocare|euro).*$/i,'').trim();
+    if(flat.length>200 || !RANGE.test(flat)) continue;   // seules les petites lignes
+    var info=rowInfo(cellsOf(el));
+    if(!info) continue;
+    // Élément le plus serré : aucun descendant n'est lui-même une ligne complète.
+    var desc=el.querySelectorAll('*'), childRow=false;
+    for(var d=0;d<desc.length;d++){ if(rowInfo(cellsOf(desc[d]))){ childRow=true; break; } }
+    if(childRow) continue;
+    var name=info.name.replace(/^[•\\-\\u2013\\s]+/,'').replace(/\\s+(eurocare|euro).*$/i,'').trim();
     if(!isName(name)) continue;
-    var key=name.toLowerCase()+'|'+m[1]+'|'+section;
+    var key=name.toLowerCase()+'|'+info.time+'|'+section;
     if(seen[key]) continue; seen[key]=1;
-    out.push({ name:name, start:m[1].replace('h',':'), end:(/en cours/i.test(m[2])?'':m[2].replace('h',':')), status:'', day:section });
+    out.push({ name:name, start:info.time, end:info.end, status:'', day:section });
   }
   return JSON.stringify({ rows:out, login:/mot de passe|se connecter|password|log ?in/i.test((document.body&&document.body.innerText)||'') });
 })()`;
