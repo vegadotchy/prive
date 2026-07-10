@@ -3253,10 +3253,14 @@ function docaLoadJs(doctorName, diffDays) {
     function wait(ms){ return new Promise(function(r){ setTimeout(r,ms); }); }
     function clean(s){ return (s||'').replace(/\\s+/g,' ').trim(); }
     function norm(s){ return clean(s).toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,''); }
-    function byText(sel, re){ var e=document.querySelectorAll(sel); for(var i=0;i<e.length;i++){ if(re.test(clean(e[i].textContent))) return e[i]; } return null; }
+    // Documents accessibles : page + iframes de même origine (l'agenda Doctena
+    // est rendu dans une iframe).
+    function docs(){ var a=[document]; var fr=document.querySelectorAll('iframe'); for(var i=0;i<fr.length;i++){ try{ if(fr[i].contentDocument&&fr[i].contentDocument.body) a.push(fr[i].contentDocument); }catch(e){} } return a; }
+    function qall(sel){ var out=[]; docs().forEach(function(d){ try{ out=out.concat([].slice.call(d.querySelectorAll(sel))); }catch(e){} }); return out; }
+    function byText(sel, re){ var e=qall(sel); for(var i=0;i<e.length;i++){ if(re.test(clean(e[i].textContent))) return e[i]; } return null; }
     var picked=false;
     // 1) Médecin via <select>
-    var sels=document.querySelectorAll('select');
+    var sels=qall('select');
     for(var s=0;s<sels.length && !picked;s++){
       var o=sels[s].options;
       for(var i=0;i<o.length;i++){ if(norm(o[i].textContent).indexOf(norm(NAME))>=0){ sels[s].selectedIndex=i; sels[s].value=o[i].value; sels[s].dispatchEvent(new Event('change',{bubbles:true})); picked=true; break; } }
@@ -3269,9 +3273,10 @@ function docaLoadJs(doctorName, diffDays) {
     var auj=byText('button,a,[role=button]', /aujourd/i); if(auj){ auj.click(); await wait(900); }
     // 3) Navigation jour par jour
     function arrow(next){
-      var cands=document.querySelectorAll('button,a,[role=button],i,span');
+      var cands=qall('button,a,[role=button],i,span');
       for(var i=0;i<cands.length;i++){
-        var el=cands[i]; var t=clean(el.textContent); var a=((el.getAttribute&&(el.getAttribute('aria-label')||el.getAttribute('title')||el.className&&el.className.baseVal))||'')+' '+t;
+        var el=cands[i]; var t=clean(el.textContent); if(t.length>3) continue;
+        var a=((el.getAttribute&&(el.getAttribute('aria-label')||el.getAttribute('title')||(el.className&&el.className.baseVal)))||'')+' '+t;
         a=a.toLowerCase();
         if(next && (/suivant|next|›|»|▶|❯|chevron-right|angle-right|fa-right/.test(a) || t==='>')) return el;
         if(!next && (/pr[eé]c[eé]dent|previous|prev|‹|«|◀|❮|chevron-left|angle-left|fa-left/.test(a) || t==='<')) return el;
@@ -3281,25 +3286,27 @@ function docaLoadJs(doctorName, diffDays) {
     var steps=Math.abs(DIFF), dir=DIFF>0;
     for(var n=0;n<steps && n<120;n++){ var ar=arrow(dir); if(!ar){ break; } (ar.closest('a,button')||ar).click(); await wait(450); }
     await wait(600);
-    // 4) Lecture des rendez-vous (heure + nom + tel + email)
+    // 4) Lecture des rendez-vous (heure + nom + tel + email) — page + iframes
+    var text=''; docs().forEach(function(d){ try{ text+='\\n'+(d.body.innerText||''); }catch(e){} });
     var appts=[], seen={};
-    var lines=(document.body.innerText||'').split('\\n');
+    var lines=text.split('\\n');
     for(var i=0;i<lines.length;i++){
       var L=clean(lines[i]); var m=L.match(/(\\d{1,2})[:h](\\d{2})/); if(!m) continue;
-      if(/gmt|sem\\.|semaine/i.test(L)) continue;
-      var idx=L.indexOf(m[0]); var rest=clean(L.slice(idx+m[0].length));
+      if(/gmt|sem\\.|semaine|dispo/i.test(L)) continue;
+      var idx=L.indexOf(m[0]); if(L[idx-1]==='+') continue;
+      var rest=clean(L.slice(idx+m[0].length));
+      rest=rest.replace(/^[\\s\\-–—à]*\\d{1,2}[:h]\\d{2}\\s*/,'');   // enlève 2e heure d'une plage
       var phone=(rest.match(/\\+?\\d[\\d\\s().-]{6,}\\d/)||[''])[0];
       var email=(rest.match(/[\\w.+-]+@[\\w-]+\\.[\\w.-]+/)||[''])[0];
-      var name=clean(rest.split('/')[0]).replace(/phone.*$/i,'').replace(/[@*•]/g,' ').replace(/\\+?\\d[\\d\\s().-]{6,}\\d/,'').trim();
+      var name=clean(rest.split('/')[0]).replace(/phone.*$/i,'').replace(/email.*$/i,'').replace(/[@*•]/g,' ').replace(/\\+?\\d[\\d\\s().-]{6,}\\d/,'').replace(/,?\\s*voir mail.*$/i,'').trim();
       if(!name || !/[a-zà-ÿ]{2,}/i.test(name) || name.length>50) continue;
       var time=('0'+m[1]).slice(-2)+':'+m[2];
       var key=time+'|'+name.toLowerCase(); if(seen[key]) continue; seen[key]=1;
       appts.push({ time:time, name:name, phone:phone, email:email });
     }
     appts.sort(function(a,b){ return a.time.localeCompare(b.time); });
-    var header=''; var h=byText('h1,h2,h3,[class*=title],[class*=date]', /\\d/); if(h) header=clean(h.textContent).slice(0,60);
-    return JSON.stringify({ picked:picked, appts:appts, header:header,
-      login:/mot de passe|se connecter|password|log ?in/i.test((document.body&&document.body.innerText)||'') });
+    return JSON.stringify({ picked:picked, appts:appts, header:'',
+      login:/mot de passe|se connecter|password|log ?in/i.test(text||'') });
   })(${JSON.stringify(doctorName)}, ${Number(diffDays) || 0})`;
 }
 
@@ -3307,14 +3314,18 @@ function docaLoadJs(doctorName, diffDays) {
 function docaOpenJs(time, name) {
   return `(function(TIME, NAME){
     function clean(s){ return (s||'').replace(/\\s+/g,' ').trim(); }
-    var els=document.querySelectorAll('*'); var target=null;
-    for(var i=0;i<els.length;i++){
-      var el=els[i]; if(el.children && el.children.length>4) continue;
-      var t=clean(el.textContent||'');
-      if(t.length>120) continue;
-      if(t.indexOf(TIME)<0 && t.indexOf(TIME.replace(':','h'))<0) continue;
-      if(t.toLowerCase().indexOf(NAME.toLowerCase().split(' ')[0])<0) continue;
-      target=el; break;
+    function docs(){ var a=[document]; var fr=document.querySelectorAll('iframe'); for(var i=0;i<fr.length;i++){ try{ if(fr[i].contentDocument&&fr[i].contentDocument.body) a.push(fr[i].contentDocument); }catch(e){} } return a; }
+    var target=null, first=NAME.toLowerCase().split(' ')[0];
+    var ds=docs();
+    for(var di=0; di<ds.length && !target; di++){
+      var els; try{ els=ds[di].querySelectorAll('*'); }catch(e){ continue; }
+      for(var i=0;i<els.length;i++){
+        var el=els[i]; if(el.children && el.children.length>4) continue;
+        var t=clean(el.textContent||''); if(t.length>120) continue;
+        if(t.indexOf(TIME)<0 && t.indexOf(TIME.replace(':','h'))<0) continue;
+        if(t.toLowerCase().indexOf(first)<0) continue;
+        target=el; break;
+      }
     }
     if(target){ (target.closest('a,button,[role=button]')||target).click(); return 'ok'; }
     return 'notfound';
