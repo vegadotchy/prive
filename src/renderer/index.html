@@ -206,11 +206,16 @@
                     <span class="hint" id="shyReadStatus"></span>
                   </div>
 
-                  <label>Nom (employé / étudiant)
-                    <select id="shyFName">
-                      <option value="">— Tous —</option>
-                    </select>
-                  </label>
+                  <label>Noms (employés / étudiants) — cochez une ou plusieurs personnes</label>
+                  <div class="shy-names">
+                    <input type="search" id="shyFNameSearch" placeholder="🔎 Filtrer les noms…" autocomplete="off" />
+                    <div class="shy-names-actions">
+                      <button class="btn tiny" id="shyFNameAll" type="button">Tout cocher</button>
+                      <button class="btn tiny" id="shyFNameNone" type="button">Tout décocher</button>
+                      <span class="hint" id="shyFNameCount">0 sélectionné(s)</span>
+                    </div>
+                    <div id="shyFNames" class="shy-names-list"><div class="hint">Cliquez « 🔄 Lire les pointages » pour charger les noms.</div></div>
+                  </div>
                   <label>Jour
                     <select id="shyFDay">
                       <option value="">— Tous les jours lus —</option>

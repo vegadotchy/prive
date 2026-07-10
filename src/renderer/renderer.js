@@ -3135,7 +3135,9 @@ function setupDoctenaAgenda() {
 function setupShyfter() {
   const wv = () => document.getElementById('shyWv');
   const readStatus = document.getElementById('shyReadStatus');
-  const nameSel = document.getElementById('shyFName');
+  const namesBox = document.getElementById('shyFNames');
+  const nameSearch = document.getElementById('shyFNameSearch');
+  const nameCountEl = document.getElementById('shyFNameCount');
   const daySel = document.getElementById('shyFDay');
   const atTime = document.getElementById('shyFTime');
   const fromTime = document.getElementById('shyFFrom');
@@ -3144,6 +3146,7 @@ function setupShyfter() {
   const resultsEl = document.getElementById('shyFResults');
 
   let entries = [];
+  const selectedNames = new Set();   // vide = tout le monde
 
   const countersEl = document.getElementById('shyCounters');
 
@@ -3195,15 +3198,16 @@ function setupShyfter() {
     if ([...sel.options].some((o) => o.value === cur)) sel.value = cur;
   };
 
+  const nameChosen = (n) => selectedNames.size === 0 || selectedNames.has(n);
+
   const render = () => {
-    const wantName = nameSel.value;
     const wantDay = daySel.value;
     const at = toMin(atTime.value);
     const fMin = toMin(fromTime.value);
     const tMin = toMin(toTime.value);
 
     const rows = entries.filter((e) => {
-      if (wantName && e.name !== wantName) return false;
+      if (!nameChosen(e.name)) return false;
       if (wantDay && e.day !== wantDay) return false;
       const s = toMin(e.start);
       const en = e.end ? toMin(e.end) : 24 * 60;   // « en cours » = jusqu'à la fin de journée
@@ -3222,7 +3226,7 @@ function setupShyfter() {
     monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7)); // lundi de la semaine
     const nextMonday = new Date(monday); nextMonday.setDate(nextMonday.getDate() + 7);
     let tDay = 0, tWeek = 0, tMonth = 0, tYear = 0, tAll = 0;
-    entries.filter((e) => !wantName || e.name === wantName).forEach((e) => {
+    entries.filter((e) => nameChosen(e.name)).forEach((e) => {
       const min = entryMinutes(e); tAll += min;
       const dd = dayToDate(e.day); if (!dd) return;
       if (dd.toDateString() === new Date(t.getFullYear(), t.getMonth(), t.getDate()).toDateString()) tDay += min;
@@ -3230,7 +3234,8 @@ function setupShyfter() {
       if (dd.getFullYear() === t.getFullYear() && dd.getMonth() === t.getMonth()) tMonth += min;
       if (dd.getFullYear() === t.getFullYear()) tYear += min;
     });
-    const who = wantName ? escapeHtml(wantName) : 'Tous';
+    const who = selectedNames.size === 0 ? 'Tous'
+      : (selectedNames.size <= 2 ? escapeHtml([...selectedNames].join(', ')) : `${selectedNames.size} personnes`);
     const cnt = (lbl, v) => `<div class="shy-counter"><span class="c-val">${fmtDur(v)}</span><span class="c-lbl">${lbl}</span></div>`;
     if (countersEl) {
       countersEl.innerHTML = entries.length
@@ -3254,12 +3259,45 @@ function setupShyfter() {
     }).join('');
   };
 
-  const refreshFilters = () => {
+  const renderNameList = () => {
+    const q = (nameSearch.value || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
     const names = [...new Set(entries.map((e) => e.name))].sort((a, b) => a.localeCompare(b));
-    const days = [...new Set(entries.map((e) => e.day).filter(Boolean))];
-    fillSelect(nameSel, names, '— Tous —');
-    fillSelect(daySel, days, '— Tous les jours lus —');
+    // retire de la sélection les noms qui ne sont plus lus
+    [...selectedNames].forEach((n) => { if (!names.includes(n)) selectedNames.delete(n); });
+    const shown = names.filter((n) => !q || n.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').includes(q));
+    if (!names.length) {
+      namesBox.innerHTML = '<div class="hint">Cliquez « 🔄 Lire les pointages » pour charger les noms.</div>';
+    } else if (!shown.length) {
+      namesBox.innerHTML = '<div class="hint">Aucun nom ne correspond.</div>';
+    } else {
+      namesBox.innerHTML = shown.map((n) =>
+        `<label class="shy-name-item"><input type="checkbox" value="${escapeHtml(n)}"${selectedNames.has(n) ? ' checked' : ''}><span>${escapeHtml(n)}</span></label>`
+      ).join('');
+    }
+    nameCountEl.textContent = `${selectedNames.size} sélectionné(s)` + (selectedNames.size ? '' : ' (= tous)');
   };
+
+  const refreshFilters = () => {
+    const days = [...new Set(entries.map((e) => e.day).filter(Boolean))];
+    fillSelect(daySel, days, '— Tous les jours lus —');
+    renderNameList();
+  };
+
+  namesBox.addEventListener('change', (e) => {
+    const cb = e.target;
+    if (cb.type !== 'checkbox') return;
+    if (cb.checked) selectedNames.add(cb.value); else selectedNames.delete(cb.value);
+    nameCountEl.textContent = `${selectedNames.size} sélectionné(s)` + (selectedNames.size ? '' : ' (= tous)');
+    render();
+  });
+  nameSearch.addEventListener('input', renderNameList);
+  document.getElementById('shyFNameAll').addEventListener('click', () => {
+    [...new Set(entries.map((e) => e.name))].forEach((n) => selectedNames.add(n));
+    renderNameList(); render();
+  });
+  document.getElementById('shyFNameNone').addEventListener('click', () => {
+    selectedNames.clear(); renderNameList(); render();
+  });
 
   document.getElementById('shyRead').addEventListener('click', async () => {
     ensureShyfterPane();
@@ -3281,11 +3319,12 @@ function setupShyfter() {
     setTimeout(() => (readStatus.textContent = ''), 4000);
   });
 
-  [nameSel, daySel].forEach((el) => el.addEventListener('change', render));
+  daySel.addEventListener('change', render);
   [atTime, fromTime, toTime].forEach((el) => el.addEventListener('input', render));
   document.getElementById('shyFReset').addEventListener('click', () => {
-    nameSel.value = ''; daySel.value = ''; atTime.value = ''; fromTime.value = ''; toTime.value = '';
-    render();
+    selectedNames.clear(); nameSearch.value = '';
+    daySel.value = ''; atTime.value = ''; fromTime.value = ''; toTime.value = '';
+    renderNameList(); render();
   });
 
   document.getElementById('shyReload').addEventListener('click', () => { ensureShyfterPane(); try { wv().reload(); } catch (_) {} });

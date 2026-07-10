@@ -350,6 +350,15 @@ textarea { resize: vertical; }
 .shy-slot input { margin: 0; width: 100px; }
 .shy-slot .rm { color: #ffb4b4; cursor: pointer; font-weight: 700; }
 .shy-batch { display: flex; flex-direction: column; gap: 5px; max-height: 22vh; overflow-y: auto; margin-bottom: 8px; }
+/* Shyfter — multi-sélection des noms */
+.shy-names { margin-top: 5px; }
+.shy-names input[type=search] { margin: 0 0 6px; }
+.shy-names-actions { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; flex-wrap: wrap; }
+.shy-names-list { max-height: 26vh; overflow-y: auto; border: 1px solid var(--glass-brd); border-radius: 10px; padding: 4px; display: flex; flex-direction: column; gap: 1px; }
+.shy-name-item { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 7px; cursor: pointer; color: var(--text); font-size: 13px; margin: 0; }
+.shy-name-item:hover { background: rgba(255,255,255,0.06); }
+.shy-name-item input { width: auto; margin: 0; }
+
 .shy-counters { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .shy-counter-who { grid-column: 1 / -1; font-weight: 700; color: var(--gold2); font-size: 13px; }
 .shy-counter {
