@@ -2980,7 +2980,7 @@ function setupDgEcho() {
   const statusEl = document.getElementById('dgStatus');
   const editStatus = document.getElementById('dgEditStatus');
   const attachListEl = document.getElementById('dgAttachList');
-  const apptInputs = () => [...document.querySelectorAll('#dgecho [data-appt]')];
+  const apptInputs = () => [...document.querySelectorAll('[data-view="dgecho"] [data-appt]')];
   const fld = (k) => document.getElementById('dg_' + k);
 
   const patients = () => {
