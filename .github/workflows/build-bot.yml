@@ -1,0 +1,37 @@
+name: Build IATech Trading Bot (Windows)
+
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "bot-trading/**"
+      - ".github/workflows/build-bot.yml"
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install PyInstaller
+        run: pip install pyinstaller
+
+      - name: Build exe
+        working-directory: bot-trading
+        run: pyinstaller --onefile --noconsole --name IATechTradingBot main.py
+
+      - name: Smoke test (import sans GUI)
+        working-directory: bot-trading
+        run: python -c "import ast; ast.parse(open('main.py', encoding='utf-8').read()); print('OK')"
+
+      - name: Upload exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: IATechTradingBot-windows
+          path: bot-trading/dist/IATechTradingBot.exe
+          retention-days: 90
